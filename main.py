@@ -393,7 +393,7 @@ def show_welcome(provider: dict):
         console.print(f"  LLM: [cyan]{provider['name']}[/cyan] ({provider['model']})")
         print()
         console.print("  무엇이든 자연어로 요청하세요. 예시:")
-        console.print('    [grey50]"model 폴더 보여줘"[/grey50]')
+        console.print('    [grey50]"작업 목록 보여줘"[/grey50]')
         console.print('    [grey50]"sklearn_sample 학습해줘"[/grey50]')
         print()
         console.print("  명령어 목록은 [cyan]/help[/cyan] 또는 [cyan]/?[/cyan] 입력")
@@ -404,22 +404,26 @@ def show_welcome(provider: dict):
         print(f"  LLM: {provider['name']} ({provider['model']})")
         print()
         print("  무엇이든 자연어로 요청하세요. 예시:")
-        print('    "model 폴더 보여줘"')
+        print('    "작업 목록 보여줘"')
         print('    "sklearn_sample 학습해줘"')
         print()
         print("  명령어 목록은 /help 또는 /? 입력")
     print()
 
 
+# (cmd, desc, group) — group=True 이면 그룹 헤더 행
 HELP_ITEMS = [
-    ("/? /help",  "도움말 (할 수 있는 작업 안내 포함)"),
-    ("/projects", "ML 작업 폴더 목록"),
-    ("/llm",      "LLM 목록 + 전환"),
-    ("/config",   "현재 설정"),
-    ("/reload",   "설정 재로드"),
-    ("/log",      "마지막 로그"),
-    ("/clear",    "대화 초기화"),
-    ("/exit",     "종료"),
+    ("/? /help", "도움말",          False),
+    ("작업",     "",                True),
+    ("/list",    "작업 목록",       False),
+    ("/log",     "마지막 로그",     False),
+    ("LLM",      "",                True),
+    ("/llm",     "LLM 목록 + 전환", False),
+    ("/reload",  "설정 재로드",     False),
+    ("/config",  "현재 설정",       False),
+    ("세션",     "",                True),
+    ("/clear",   "대화 초기화",     False),
+    ("/exit",    "종료",            False),
 ]
 
 
@@ -689,14 +693,34 @@ def _skill_names():
 #  슬래시 명령어
 # -------------------------------------------------------------
 def _cmd_help():
-    print()
-    print("  할 수 있는 작업:")
-    print("    초기화(init)  검증(validate)  학습(train)  추론(predict)  배포(deploy)")
-    print()
-    print("  명령어:")
-    for cmd, desc in HELP_ITEMS:
-        print(f"    {cmd:<12} {desc}")
-    print()
+    try:
+        from rich.console import Console
+        from rich.table import Table
+        from rich import box as rich_box
+        console = Console()
+        print()
+        console.print("  할 수 있는 작업:", style="bold")
+        console.print("    초기화(init)  검증(validate)  학습(train)  추론(predict)  배포(deploy)")
+        print()
+        tbl = Table(show_header=True, header_style="bold", box=rich_box.SIMPLE_HEAVY,
+                    pad_edge=True, show_edge=True)
+        tbl.add_column("명령어", style="", min_width=12)
+        tbl.add_column("설명")
+        for cmd, desc, is_group in HELP_ITEMS:
+            if is_group:
+                tbl.add_row(f"[bold cyan]{cmd}[/bold cyan]", "")
+            else:
+                tbl.add_row(cmd, desc)
+        console.print(tbl)
+        print()
+    except ImportError:
+        print()
+        for cmd, desc, is_group in HELP_ITEMS:
+            if is_group:
+                print(f"  [{cmd}]")
+            else:
+                print(f"    {cmd:<12} {desc}")
+        print()
 
 
 def _cmd_skills():
@@ -727,7 +751,7 @@ def _cmd_config(cfg: dict, current: dict):
     print(f"  PIP_INDEX_URL = {os.environ.get('PIP_INDEX_URL', '(기본)')}")
 
 
-def _cmd_model():
+def _cmd_list():
     model_dir = BASE_DIR / "model"
     if not model_dir.exists():
         print("  model/ 폴더가 없습니다.")
@@ -736,7 +760,7 @@ def _cmd_model():
         if d.is_dir():
             has_run = "run.py ✓" if (d / "run.py").exists() else "run.py 없음"
             print(f"  - model/{d.name:<22} {has_run}")
-    print("  (작업 대상은 대화에서 폴더명으로 지정하세요. 예: 'sklearn_sample 학습해줘')")
+    print("  (작업 대상은 대화에서 폴더명으로 지정하세요.)")
 
 
 def _cmd_llm(cfg: dict, current: dict):
@@ -793,8 +817,8 @@ def chat_loop(cfg: dict, provider: dict, agent):
                 _cmd_help()
             elif cmd == "/config":
                 _cmd_config(cfg, provider)
-            elif cmd == "/projects":
-                _cmd_model()
+            elif cmd == "/list":
+                _cmd_list()
             elif cmd == "/log":
                 _cmd_log(last_log)
             elif cmd == "/llm":
