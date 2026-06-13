@@ -227,7 +227,7 @@ def run_wizard(cfg: dict) -> dict:
                     style="yellow")
                 continue
 
-            # model: Enter 시 목록 조회
+            # model: Enter 시 목록 조회 (base_url/api_key 있을 때만)
             if key == "model" and not v:
                 base = values.get("base_url", "").strip()
                 akey = values.get("api_key", "").strip()
@@ -238,7 +238,7 @@ def run_wizard(cfg: dict) -> dict:
                         for i, m in enumerate(models, 1):
                             print(f"    {i}) {m}")
                         print()
-                        sel = input("  번호 선택 (또는 직접 입력): ").strip()
+                        sel = input("  번호 선택 (또는 직접 입력, Enter=나중에 설정): ").strip()
                         if sel.isdigit() and 1 <= int(sel) <= len(models):
                             values[key] = models[int(sel) - 1]
                             say(f"  → {values[key]}", style="cyan")
@@ -247,14 +247,17 @@ def run_wizard(cfg: dict) -> dict:
                             values[key] = sel
                             break
                         else:
-                            say("  ⚠ 모델명을 입력하거나 번호를 선택하세요.", style="yellow")
-                            continue
+                            values[key] = ""
+                            break
                     else:
                         say("  ⚠ 목록 조회 실패. 직접 입력해주세요. (base_url/api_key 확인)", style="yellow")
                         continue
                 else:
-                    say("  ⚠ base_url과 api_key를 먼저 입력해야 목록을 조회할 수 있습니다.", style="yellow")
-                    continue
+                    # base_url/api_key 없으면 경고 한 번만 보여주고 직접 입력으로
+                    say("  (base_url/api_key가 없어 목록 조회 불가 — 직접 입력하거나 Enter로 건너뛰세요)", style="grey50")
+                    v2 = input(f"  {label} : ").strip()
+                    values[key] = v2
+                    break
 
             values[key] = v
             break
