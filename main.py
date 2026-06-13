@@ -312,28 +312,24 @@ def show_welcome(provider: dict):
             border_style="cyan", width=46,
         ))
         print()
-        console.print(f"  현재 LLM: [cyan]{provider['name']}[/cyan] ({provider['model']})")
+        console.print(f"  MODEL: [cyan]{provider['name']}[/cyan] ({provider['model']})")
         print()
         console.print("  무엇이든 자연어로 요청하세요. 예시:")
         console.print('    [grey50]"model 폴더 보여줘"[/grey50]')
         console.print('    [grey50]"sklearn_sample 학습해줘"[/grey50]')
         print()
-        console.print("  [bold]명령어[/bold]")
-        for cmd, desc in HELP_ITEMS:
-            console.print(f"    [cyan]{cmd:<9}[/cyan] {desc}")
+        console.print("  명령어 목록은 [cyan]/help[/cyan] 또는 [cyan]/?[/cyan] 입력")
     except ImportError:
         print("  🐳  aiu-agent")
         print("  AI STUDIO 자동화 어시스턴트")
         print()
-        print(f"  현재 LLM: {provider['name']} ({provider['model']})")
+        print(f"  MODEL: {provider['name']} ({provider['model']})")
         print()
         print("  무엇이든 자연어로 요청하세요. 예시:")
         print('    "model 폴더 보여줘"')
         print('    "sklearn_sample 학습해줘"')
         print()
-        print("  명령어")
-        for cmd, desc in HELP_ITEMS:
-            print(f"    {cmd:<9} {desc}")
+        print("  명령어 목록은 /help 또는 /? 입력")
     print()
 
 
@@ -695,7 +691,7 @@ def chat_loop(cfg: dict, provider: dict, agent):
             if cmd == "/exit":
                 print("  종료합니다.")
                 break
-            elif cmd == "/help":
+            elif cmd in ("/help", "/?"):
                 _cmd_help()
             elif cmd == "/skills":
                 _cmd_skills()
