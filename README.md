@@ -1,6 +1,6 @@
 # aiu-agent (POC)
 
-🐋 AI STUDIO 자동화 어시스턴트 — LangChain DeepAgents 기반 프로세스 CLI 자동화.
+🐳 AI STUDIO 자동화 어시스턴트 — LangChain DeepAgents 기반 프로세스 CLI 자동화.
 
 ## 설치
 
@@ -39,7 +39,7 @@ Windows : start.bat
 ```
 > sklearn_sample 학습해줘
 
-🐋 ─────────────────────────────────────────────
+🐳 ─────────────────────────────────────────────
 [에이전트 응답...]
   (3.2s)
 ```

@@ -267,7 +267,7 @@ def show_welcome(provider: dict):
         console = Console()
         console.clear()
         console.print(Align.center(Panel(
-            "[bold cyan]🐋  aiu-agent[/bold cyan]\n"
+            "[bold cyan]🐳  aiu-agent[/bold cyan]\n"
             "[grey50]AI STUDIO 자동화 어시스턴트[/grey50]",
             border_style="cyan", width=46,
         )))
@@ -283,7 +283,7 @@ def show_welcome(provider: dict):
             console.print(f"    [cyan]{cmd:<9}[/cyan] {desc}")
     except ImportError:
         os.system("cls" if os.name == "nt" else "clear")
-        print("  🐋  aiu-agent")
+        print("  🐳  aiu-agent")
         print("  AI STUDIO 자동화 어시스턴트")
         print()
         print(f"  현재 LLM: {provider['name']} ({provider['model']})")
@@ -694,9 +694,9 @@ def chat_loop(cfg: dict, provider: dict, agent):
 
             print()
             if console:
-                console.print("[grey50]🐋 " + "─" * 49 + "[/grey50]")
+                console.print("[grey50]🐳 " + "─" * 49 + "[/grey50]")
             else:
-                print("🐋 " + "─" * 49)
+                print("🐳 " + "─" * 49)
             print(answer)
             print(f"\n  ({elapsed:.1f}s)")
         except Exception as e:
