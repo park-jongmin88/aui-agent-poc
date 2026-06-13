@@ -26,26 +26,44 @@ SAMPLE_CONFIG = """\
 #  수정 후 CLI에서 /reload 로 즉시 반영할 수 있습니다.
 # =====================================================
 llm:
-  default: my-llm                # 시작 시 사용할 provider의 name
+  default: my-llm
+
   providers:
+    # ── 사용할 LLM (필수) ──────────────────────────
     - name: my-llm
-      type: openai                               # openai(호환) | anthropic
-      base_url: http://your-llm-server:8000/v1   # TODO: 사내 LLM 주소 (OpenAI 호환)
-      api_key: your-api-key                      # TODO: API 키
-      model: your-model-name                     # TODO: 모델명
-    # 추가 LLM은 아래 형식으로 계속 등록 (CLI의 /llm 으로 전환)
+      type: openai
+      base_url: http://your-llm-server:8000/v1   # TODO
+      api_key: your-api-key                      # TODO
+      model: your-model-name                     # TODO
+
+    # ── 참고 샘플 (주석 해제 후 사용) ───────────────
+
+    # groq
+    # - name: groq
+    #   type: openai
+    #   base_url: https://api.groq.com/openai/v1
+    #   api_key: gsk_...
+    #   model: llama-3.3-70b-versatile
+
+    # Anthropic Claude (base_url 불필요)
     # - name: claude
-    #   type: anthropic        # Anthropic Claude API (base_url 불필요)
+    #   type: anthropic
     #   api_key: sk-ant-...
     #   model: claude-sonnet-4-6
-    # - name: backup-llm
-    #   type: openai
-    #   base_url: http://...
-    #   api_key: ...
-    #   model: ...
 
-pip:
-  index_url: ""                  # TODO: 사내 넥서스 주소 (비우면 기본 pip 설정)
+    # OpenAI 공식
+    # - name: openai
+    #   type: openai
+    #   base_url: https://api.openai.com/v1
+    #   api_key: sk-...
+    #   model: gpt-4o
+
+    # Ollama (로컬)
+    # - name: ollama
+    #   type: openai
+    #   base_url: http://localhost:11434/v1
+    #   api_key: ollama
+    #   model: llama3.2
 """
 
 PLACEHOLDER_TOKENS = ("your-", "http://your-")
@@ -164,42 +182,73 @@ def run_wizard(cfg: dict) -> dict:
 
     _flush_stdin()
 
-    # type 먼저 선택
-    print("  LLM 타입 선택:")
-    print("    1) openai  - OpenAI 호환 (groq, 사내 LLM, ollama 등)")
-    print("    2) anthropic - Anthropic Claude API")
-    while True:
-        t_sel = input("  타입 번호 [1] : ").strip() or "1"
-        if t_sel in ("1", "2"):
-            break
-        print("  1 또는 2 를 입력하세요.")
-    ptype = "openai" if t_sel == "1" else "anthropic"
-    print()
-
-    # anthropic은 base_url 불필요
-    if ptype == "openai":
-        fields = [
-            ("name",     "이름(별칭)        "),
-            ("base_url", "주소(base_url)   "),
-            ("api_key",  "API 키           "),
-            ("model",    "모델명           "),
-        ]
-    else:
-        fields = [
-            ("name",    "이름(별칭)        "),
-            ("api_key", "API 키           "),
-            ("model",   "모델명           "),
-        ]
+    fields = [
+        ("name",     "이름(별칭)        "),
+        ("base_url", "주소(base_url)   "),
+        ("api_key",  "API 키           "),
+        ("model",    "모델명           "),
+    ]
     values = {k: "" for k, _ in fields}
+    ptype = "openai"  # 마법사는 openai 고정 (그 외는 config.yaml 직접 편집)
+
+    def fetch_models(base_url: str, api_key: str) -> list[str]:
+        """OpenAI 호환 /v1/models 엔드포인트로 모델 목록 조회."""
+        try:
+            import urllib.request, json as _json
+            url = base_url.rstrip("/") + "/models"
+            req = urllib.request.Request(
+                url,
+                headers={"Authorization": f"Bearer {api_key}",
+                         "Content-Type": "application/json"},
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = _json.loads(resp.read())
+            models = [m["id"] for m in data.get("data", [])]
+            return sorted(models)
+        except Exception:
+            return []
 
     def ask(key, label):
         suffix = " [my-llm]" if key == "name" else ""
         while True:
-            v = input(f"  {label}{suffix} : ").strip()
+            hint = " (Enter=목록 조회)" if key == "model" else ""
+            v = input(f"  {label}{suffix}{hint} : ").strip()
+
+            # base_url 경로 감지
             if key == "base_url" and _looks_like_path(v):
                 say("  ⚠ URL 형식이 아닌 것 같습니다 (경로처럼 보입니다). 다시 입력해주세요.",
                     style="yellow")
                 continue
+
+            # model: Enter 시 목록 조회
+            if key == "model" and not v:
+                base = values.get("base_url", "").strip()
+                akey = values.get("api_key", "").strip()
+                if base and akey:
+                    say("  모델 목록 조회 중...", style="grey50")
+                    models = fetch_models(base, akey)
+                    if models:
+                        for i, m in enumerate(models, 1):
+                            print(f"    {i}) {m}")
+                        print()
+                        sel = input("  번호 선택 (또는 직접 입력): ").strip()
+                        if sel.isdigit() and 1 <= int(sel) <= len(models):
+                            values[key] = models[int(sel) - 1]
+                            say(f"  → {values[key]}", style="cyan")
+                            break
+                        elif sel:
+                            values[key] = sel
+                            break
+                        else:
+                            say("  ⚠ 모델명을 입력하거나 번호를 선택하세요.", style="yellow")
+                            continue
+                    else:
+                        say("  ⚠ 목록 조회 실패. 직접 입력해주세요. (base_url/api_key 확인)", style="yellow")
+                        continue
+                else:
+                    say("  ⚠ base_url과 api_key를 먼저 입력해야 목록을 조회할 수 있습니다.", style="yellow")
+                    continue
+
             values[key] = v
             break
 
@@ -224,7 +273,7 @@ def run_wizard(cfg: dict) -> dict:
             key, label = fields[int(sel) - 1]
             ask(key, label)
         else:
-            say("  1~4 사이의 번호를 입력하세요.", style="yellow")
+            say(f"  1~{len(fields)} 사이의 번호를 입력하세요.", style="yellow")
 
     name = values["name"] or "my-llm"
     provider = {"name": name, "type": ptype}
