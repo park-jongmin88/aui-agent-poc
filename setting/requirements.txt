@@ -3,6 +3,7 @@ langchain-openai
 langchain-anthropic
 pyyaml
 rich
+prompt_toolkit
 mlflow
 scikit-learn
 pandas

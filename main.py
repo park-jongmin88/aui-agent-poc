@@ -26,7 +26,7 @@ SAMPLE_CONFIG = """\
 #  수정 후 CLI에서 /reload 로 즉시 반영할 수 있습니다.
 # =====================================================
 llm:
-  default: my-llm
+  active: my-llm
 
   providers:
     # ── 사용할 LLM (필수) ──────────────────────────
@@ -49,6 +49,13 @@ llm:
     # - name: claude
     #   type: anthropic
     #   api_key: sk-ant-...
+    #   model: claude-sonnet-4-6
+
+    # Anthropic 호환 커스텀 엔드포인트 (사내 등)
+    # - name: claude-custom
+    #   type: anthropic
+    #   base_url: https://your-anthropic-proxy.io
+    #   api_key: sk-...
     #   model: claude-sonnet-4-6
 
     # OpenAI 공식
@@ -119,7 +126,7 @@ def get_default_provider(cfg: dict):
     providers = get_providers(cfg)
     if not providers:
         return None
-    default_name = (cfg.get("llm") or {}).get("default")
+    default_name = (cfg.get("llm") or {}).get("active")
     for p in providers:
         if p.get("name") == default_name:
             return p
@@ -282,7 +289,7 @@ def run_wizard(cfg: dict) -> dict:
     provider["api_key"] = values.get("api_key") or "your-api-key"
     provider["model"]   = values.get("model")   or "your-model-name"
     cfg.setdefault("llm", {})
-    cfg["llm"]["default"] = name
+    cfg["llm"]["active"] = name
     providers = get_providers(cfg)
     # 같은 이름이 있으면 교체, 없으면 맨 앞에 추가
     providers = [p for p in providers if p.get("name") != name]
@@ -781,26 +788,64 @@ def _cmd_llm(cfg: dict, current: dict):
 
 
 # -------------------------------------------------------------
+#  content 정규화 (Anthropic thinking 블록 등 처리)
+# -------------------------------------------------------------
+def _extract_text(content) -> str:
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "\n".join(
+            block.get("text", "")
+            for block in content
+            if isinstance(block, dict) and block.get("type") == "text"
+        ).strip()
+    return str(content)
+
+
+# -------------------------------------------------------------
 #  대화 루프
 # -------------------------------------------------------------
 def chat_loop(cfg: dict, provider: dict, agent):
     try:
         from rich.console import Console
+        from rich.markdown import Markdown
+        from rich.live import Live
+        from rich.spinner import Spinner
+        from rich.text import Text
         console = Console()
+        USE_RICH = True
     except ImportError:
         console = None
+        USE_RICH = False
+
+    try:
+        from prompt_toolkit import PromptSession
+        from prompt_toolkit.styles import Style
+        pt_style = Style.from_dict({"prompt": "bold ansicyan"})
+        session = PromptSession(style=pt_style)
+        USE_PT = True
+    except ImportError:
+        USE_PT = False
 
     history = []
     last_log: dict = {}
-    SEP = "─" * 52
+    SEP = "[cyan]" + "─" * 52 + "[/cyan]" if USE_RICH else "─" * 52
+
+    def print_sep():
+        if USE_RICH:
+            console.print(SEP)
+        else:
+            print("─" * 52)
 
     while True:
         try:
-            if console:
-                console.print("[bold cyan]>[/bold cyan] ", end="")
+            if USE_PT:
+                user_input = session.prompt("❯ ").strip()
+            elif USE_RICH:
+                console.print("[bold cyan]❯[/bold cyan] ", end="")
                 user_input = input().strip()
             else:
-                user_input = input("> ").strip()
+                user_input = input("❯ ").strip()
         except (KeyboardInterrupt, EOFError):
             print("\n  종료합니다.")
             break
@@ -836,7 +881,6 @@ def chat_loop(cfg: dict, provider: dict, agent):
                 cfg = load_config()
                 apply_pip_index(cfg)
                 new_p = get_default_provider(cfg)
-                # 현재 사용 중인 이름이 여전히 있으면 그것을 유지
                 for p in get_providers(cfg):
                     if p.get("name") == provider.get("name"):
                         new_p = p
@@ -853,29 +897,58 @@ def chat_loop(cfg: dict, provider: dict, agent):
                 history = []
                 print("  대화 히스토리를 초기화했습니다.")
             else:
-                print("  알 수 없는 명령입니다. /help 를 입력하세요.")
+                print("  알 수 없는 명령입니다. /help 또는 /? 를 입력하세요.")
             continue
 
         # 에이전트 호출
         history.append({"role": "user", "content": user_input})
         try:
+            import threading
             t0 = time.time()
-            result = agent.invoke({"messages": history})
-            messages = result["messages"]
-            answer = messages[-1].content
-            history = messages
+            result_box = [None]
+            error_box  = [None]
+
+            def _invoke():
+                try:
+                    result_box[0] = agent.invoke({"messages": history})
+                except Exception as ex:
+                    error_box[0] = ex
+
+            thread = threading.Thread(target=_invoke, daemon=True)
+            thread.start()
+
+            if USE_RICH:
+                spin_frames = ["🐳 생각 중   ", "🐳 생각 중.  ", "🐳 생각 중.. ", "🐳 생각 중..."]
+                fi = 0
+                with Live(console=console, refresh_per_second=4, transient=True) as live:
+                    while thread.is_alive():
+                        live.update(Text(spin_frames[fi % len(spin_frames)], style="dim cyan"))
+                        fi += 1
+                        time.sleep(0.25)
+            else:
+                thread.join()
+
+            thread.join()
             elapsed = time.time() - t0
 
+            if error_box[0]:
+                raise error_box[0]
+
+            messages = result_box[0]["messages"]
+            answer   = _extract_text(messages[-1].content)
+            history  = messages
+
             print()
-            print(SEP)
+            print_sep()
             print()
-            if console:
-                console.print(f"🐳 {answer}", style="dim")
+            if USE_RICH:
+                console.print("🐳 ", style="dim cyan", end="")
+                console.print(Markdown(answer))
             else:
                 print(f"🐳 {answer}")
-            print(f"  ({elapsed:.1f}s)")
+            console.print(f"  [grey50]({elapsed:.1f}s)[/grey50]") if USE_RICH else print(f"  ({elapsed:.1f}s)")
             print()
-            print(SEP)
+            print_sep()
             print()
         except Exception as e:
             show_error(e, last_log)
