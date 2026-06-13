@@ -376,27 +376,47 @@ def classify_error(e: Exception) -> str:
 
 
 def show_error(e: Exception, last_log: dict):
-    """한글 안내 + 짧은 로그를 박스로 표시. 전체 내용은 last_log에 저장."""
+    """한글 안내(info, yellow) + 에러 로그(error, red)를 응답과 동일한
+    빈줄-라인-빈줄 규칙으로 표시. 전체 내용은 last_log에 저장."""
     guide = classify_error(e)
     short = f"{type(e).__name__}: {str(e)}"
     last_log["type"] = "error"
     last_log["text"] = short
     last_log["guide"] = guide
 
+    SEP = "─" * 52
     try:
         from rich.console import Console
         from rich.panel import Panel
         console = Console()
-        console.print(f"  ⚠ {guide}")
+        print()
+        print(SEP)
+        print()
+        console.print(Panel(f"⚠️ {guide}", title="info", border_style="yellow", width=70))
+        print()
         console.print(Panel(short[:300], title="error", border_style="red", width=70))
+        print()
         console.print("  (전체 로그: /log)")
+        print()
+        print(SEP)
+        print()
     except ImportError:
-        print(f"  ⚠ {guide}")
+        print()
+        print(SEP)
+        print()
+        print("  ┌─ info " + "─" * 41)
+        print(f"  │ ⚠️ {guide}")
+        print("  └" + "─" * 49)
+        print()
         print("  ┌─ error " + "─" * 40)
         for line in short[:300].splitlines() or [short[:300]]:
             print(f"  │ {line}")
         print("  └" + "─" * 49)
+        print()
         print("  (전체 로그: /log)")
+        print()
+        print(SEP)
+        print()
 
 
 def _cmd_log(last_log: dict):
@@ -742,7 +762,6 @@ def chat_loop(cfg: dict, provider: dict, agent):
             print(SEP)
             print()
         except Exception as e:
-            print()
             show_error(e, last_log)
             history.pop()
 
