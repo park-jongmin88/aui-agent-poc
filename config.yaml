@@ -1,0 +1,20 @@
+# =====================================================
+#  aiu-agent 설정
+#  TODO 표시된 값을 환경에 맞게 수정하세요.
+#  수정 후 CLI에서 /reload 로 즉시 반영할 수 있습니다.
+# =====================================================
+llm:
+  default: my-llm                # 시작 시 사용할 provider의 name
+  providers:
+    - name: my-llm
+      base_url: http://your-llm-server:8000/v1   # TODO: 사내 LLM 주소 (OpenAI 호환)
+      api_key: your-api-key                      # TODO: API 키
+      model: your-model-name                     # TODO: 모델명
+    # 추가 LLM은 아래 형식으로 계속 등록 (CLI의 /llm 으로 전환)
+    # - name: backup-llm
+    #   base_url: http://...
+    #   api_key: ...
+    #   model: ...
+
+pip:
+  index_url: ""                  # TODO: 사내 넥서스 주소 (비우면 기본 pip 설정)
