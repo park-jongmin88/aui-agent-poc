@@ -1,6 +1,6 @@
 # aiu-agent (POC)
 
-🐋 AI STUDIO 자동화 어시스턴트 — LangChain DeepAgents 기반 ML/DL 프로세스 CLI 자동화.
+🐋 AI STUDIO 자동화 어시스턴트 — LangChain DeepAgents 기반 프로세스 CLI 자동화.
 
 ## 설치
 
