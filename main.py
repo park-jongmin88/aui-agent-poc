@@ -45,6 +45,35 @@ pip:
 PLACEHOLDER_TOKENS = ("your-", "http://your-")
 
 
+def _flush_stdin():
+    """터미널에 남아있던 처리되지 않은 입력을 비운다.
+    (이전 작업의 명령줄이 다음 input()에 끼어드는 것을 방지)"""
+    try:
+        if os.name == "nt":
+            import msvcrt
+            while msvcrt.kbhit():
+                msvcrt.getch()
+        else:
+            import termios
+            termios.tcflush(sys.stdin.fileno(), termios.TCIFLUSH)
+    except Exception:
+        pass
+
+
+def _looks_like_path(s: str) -> bool:
+    """base_url 등에 경로가 잘못 들어온 경우를 감지."""
+    if not s:
+        return False
+    s_low = s.lower()
+    if "\\" in s:
+        return True
+    if s_low.startswith(("c:", "/home/", "/root/", "/users/")):
+        return True
+    if s_low.startswith(("http://", "https://")):
+        return False
+    return False
+
+
 # -------------------------------------------------------------
 #  config.yaml 로딩 / 생성 / 마법사
 # -------------------------------------------------------------
@@ -123,6 +152,8 @@ def run_wizard(cfg: dict) -> dict:
         print("        (붙여넣기: Ctrl+V 또는 Shift+Insert / 마우스 우클릭)")
     print()
 
+    _flush_stdin()
+
     fields = [
         ("name", "이름(별칭)        "),
         ("base_url", "주소(base_url)   "),
@@ -133,7 +164,14 @@ def run_wizard(cfg: dict) -> dict:
 
     def ask(key, label):
         suffix = " [my-llm]" if key == "name" else ""
-        values[key] = input(f"  {label}{suffix} : ").strip()
+        while True:
+            v = input(f"  {label}{suffix} : ").strip()
+            if key == "base_url" and _looks_like_path(v):
+                say("  ⚠ URL 형식이 아닌 것 같습니다 (경로처럼 보입니다). 다시 입력해주세요.",
+                    style="yellow")
+                continue
+            values[key] = v
+            break
 
     for key, label in fields:
         ask(key, label)
@@ -260,17 +298,19 @@ def generate_run_scripts():
 
 def show_welcome(provider: dict):
     """체크 통과 후 화면을 정리하고 환영 화면을 표시한다."""
+    # ANSI escape로 화면 클리어 (console.clear()보다 일부 터미널에서 안정적)
+    sys.stdout.write("\033[2J\033[H")
+    sys.stdout.flush()
+
     try:
         from rich.console import Console
         from rich.panel import Panel
-        from rich.align import Align
         console = Console()
-        console.clear()
-        console.print(Align.center(Panel(
+        console.print(Panel(
             "[bold cyan]🐳  aiu-agent[/bold cyan]\n"
             "[grey50]AI STUDIO 자동화 어시스턴트[/grey50]",
             border_style="cyan", width=46,
-        )))
+        ))
         print()
         console.print(f"  현재 LLM: [cyan]{provider['name']}[/cyan] ({provider['model']})")
         print()
@@ -282,7 +322,6 @@ def show_welcome(provider: dict):
         for cmd, desc in HELP_ITEMS:
             console.print(f"    [cyan]{cmd:<9}[/cyan] {desc}")
     except ImportError:
-        os.system("cls" if os.name == "nt" else "clear")
         print("  🐳  aiu-agent")
         print("  AI STUDIO 자동화 어시스턴트")
         print()
@@ -618,7 +657,6 @@ def chat_loop(cfg: dict, provider: dict, agent):
     SEP = "─" * 52
 
     while True:
-        print(SEP)
         try:
             if console:
                 console.print("[bold cyan]>[/bold cyan] ", end="")
@@ -693,12 +731,16 @@ def chat_loop(cfg: dict, provider: dict, agent):
             elapsed = time.time() - t0
 
             print()
+            print(SEP)
+            print()
             if console:
-                console.print("[grey50]🐳 " + "─" * 49 + "[/grey50]")
+                console.print(f"🐳 {answer}", style="dim")
             else:
-                print("🐳 " + "─" * 49)
-            print(answer)
-            print(f"\n  ({elapsed:.1f}s)")
+                print(f"🐳 {answer}")
+            print(f"  ({elapsed:.1f}s)")
+            print()
+            print(SEP)
+            print()
         except Exception as e:
             print()
             show_error(e, last_log)
