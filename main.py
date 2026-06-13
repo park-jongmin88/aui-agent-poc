@@ -647,7 +647,7 @@ def check_llm(cfg: dict, interactive: bool = True):
 
     while True:
         try:
-            _build_chat_model(provider, timeout=15).invoke("ping")
+            _build_chat_model(provider, timeout=15).invoke([{"role": "user", "content": "hi"}])
             print(f"  [4/4] LLM 연결 ({provider['name']})        ✓")
             return provider
         except Exception as e:
@@ -871,7 +871,7 @@ def chat_loop(cfg: dict, provider: dict, agent):
                 if chosen:
                     try:
                         print(f"  {chosen['name']} 연결 확인 중...")
-                        _build_chat_model(chosen, timeout=15).invoke("ping")
+                        _build_chat_model(chosen, timeout=15).invoke([{"role": "user", "content": "hi"}])
                         provider = chosen
                         agent = load_agent(provider)
                         print(f"  전환 완료 → {provider['name']}")
@@ -886,7 +886,7 @@ def chat_loop(cfg: dict, provider: dict, agent):
                         new_p = p
                         break
                 try:
-                    _build_chat_model(new_p, timeout=15).invoke("ping")
+                    _build_chat_model(new_p, timeout=15).invoke([{"role": "user", "content": "hi"}])
                     provider = new_p
                     agent = load_agent(provider)
                     print(f"  재로드 완료 (LLM: {provider['name']})")
