@@ -40,4 +40,4 @@ chmod +x aiu-agent-run.sh
 .venv/bin/python main.py --setup
 
 echo
-echo "다음부터는 ./aiu-agent-run.sh 으로 바로 실행할 수 있습니다."
+echo "다음부터는 ./start.sh 으로 바로 실행할 수 있습니다."

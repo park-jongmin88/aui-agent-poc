@@ -1,10 +1,10 @@
 # =============================================================
 #  aiu-agent - 진입점 (CLI)  [DeepAgents 기반]
-#  AI STUDIO - ML/DL 프로세스 자동화
+#  AI STUDIO - 자동화 어시스턴트
 #
 #  실행 모드:
 #    python main.py            체크 후 CLI 진입
-#    python main.py --setup    의존성 설치 + 체크 + CLI 진입 (quickstart용)
+#    python main.py --setup    의존성 설치 + 체크 + CLI 진입 (install.bat/sh 용)
 #    python main.py --check    체크만 수행하고 종료
 # =============================================================
 import os
@@ -235,27 +235,149 @@ def install_dependencies() -> bool:
 #  --setup : 실행 스크립트 생성
 # -------------------------------------------------------------
 def generate_run_scripts():
-    """aiu-agent-run.bat / .sh 생성 (이후 quickstart 없이 바로 실행).
+    """start.bat / start.sh 생성 (이후 install 없이 바로 실행).
     bat 자체에 echo 블록을 두면 콘솔 stdin이 오염될 수 있어 여기서 생성한다."""
     venv_py_win = r".venv\Scripts\python.exe"
     bat = (
         "@echo off\r\n"
         "title aiu-agent\r\n"
-        f'"%~dp0{venv_py_win}" "%%~dp0main.py" %%*\r\n'
-    ).replace("%%~dp0main.py", "%~dp0main.py")
-    (BASE_DIR / "aiu-agent-run.bat").write_bytes(bat.encode("cp949"))
+        f'"%~dp0{venv_py_win}" "%~dp0main.py" %*\r\n'
+    )
+    (BASE_DIR / "start.bat").write_bytes(bat.encode("cp949"))
 
     sh = (
         "#!/usr/bin/env bash\n"
         'DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"\n'
         '"$DIR/.venv/bin/python" "$DIR/main.py" "$@"\n'
     )
-    sh_path = BASE_DIR / "aiu-agent-run.sh"
+    sh_path = BASE_DIR / "start.sh"
     sh_path.write_text(sh, encoding="utf-8")
     try:
         os.chmod(sh_path, 0o755)
     except OSError:
         pass
+
+
+def show_welcome(provider: dict):
+    """체크 통과 후 화면을 정리하고 환영 화면을 표시한다."""
+    try:
+        from rich.console import Console
+        from rich.panel import Panel
+        from rich.align import Align
+        console = Console()
+        console.clear()
+        console.print(Align.center(Panel(
+            "[bold cyan]🐋  aiu-agent[/bold cyan]\n"
+            "[grey50]AI STUDIO 자동화 어시스턴트[/grey50]",
+            border_style="cyan", width=46,
+        )))
+        print()
+        console.print(f"  현재 LLM: [cyan]{provider['name']}[/cyan] ({provider['model']})")
+        print()
+        console.print("  무엇이든 자연어로 요청하세요. 예시:")
+        console.print('    [grey50]"model 폴더 보여줘"[/grey50]')
+        console.print('    [grey50]"sklearn_sample 학습해줘"[/grey50]')
+        print()
+        console.print("  [bold]명령어[/bold]")
+        for cmd, desc in HELP_ITEMS:
+            console.print(f"    [cyan]{cmd:<9}[/cyan] {desc}")
+    except ImportError:
+        os.system("cls" if os.name == "nt" else "clear")
+        print("  🐋  aiu-agent")
+        print("  AI STUDIO 자동화 어시스턴트")
+        print()
+        print(f"  현재 LLM: {provider['name']} ({provider['model']})")
+        print()
+        print("  무엇이든 자연어로 요청하세요. 예시:")
+        print('    "model 폴더 보여줘"')
+        print('    "sklearn_sample 학습해줘"')
+        print()
+        print("  명령어")
+        for cmd, desc in HELP_ITEMS:
+            print(f"    {cmd:<9} {desc}")
+    print()
+
+
+HELP_ITEMS = [
+    ("/help", "명령어 목록"),
+    ("/skills", "로드된 스킬 목록"),
+    ("/config", "현재 설정 (키는 마스킹)"),
+    ("/model", "model/ 하위 폴더 목록"),
+    ("/llm", "등록된 LLM 목록 + 전환"),
+    ("/reload", "config.yaml 재로드 + 에이전트 재구성"),
+    ("/log", "마지막 로그(에러 등) 자세히 보기"),
+    ("/clear", "대화 히스토리 초기화"),
+    ("/exit", "종료"),
+]
+
+
+# -------------------------------------------------------------
+#  에러 분류
+# -------------------------------------------------------------
+ERROR_GUIDES = [
+    ("tool_use_failed", "LLM이 도구 호출 형식을 잘못 생성했습니다 (모델 호환성 문제).\n"
+                         "    다른 LLM(예: GPT-4 계열)을 쓰면 줄어듭니다. /llm 으로 전환해보세요."),
+    ("401", "API 키가 올바르지 않습니다. config.yaml 의 api_key 를 확인하세요."),
+    ("authentication", "API 키가 올바르지 않습니다. config.yaml 의 api_key 를 확인하세요."),
+    ("404", "모델을 찾을 수 없습니다. config.yaml 의 model 값을 확인하세요."),
+    ("model_not_found", "모델을 찾을 수 없습니다. config.yaml 의 model 값을 확인하세요."),
+    ("429", "요청 한도를 초과했습니다. 잠시 후 다시 시도하세요."),
+    ("rate_limit", "요청 한도를 초과했습니다. 잠시 후 다시 시도하세요."),
+    ("timeout", "LLM 서버에 연결할 수 없습니다. base_url 과 네트워크 상태를 확인하세요."),
+    ("connection", "LLM 서버에 연결할 수 없습니다. base_url 과 네트워크 상태를 확인하세요."),
+]
+
+
+def classify_error(e: Exception) -> str:
+    text = f"{type(e).__name__} {e}".lower()
+    for keyword, guide in ERROR_GUIDES:
+        if keyword in text:
+            return guide
+    return "예상치 못한 오류가 발생했습니다."
+
+
+def show_error(e: Exception, last_log: dict):
+    """한글 안내 + 짧은 로그를 박스로 표시. 전체 내용은 last_log에 저장."""
+    guide = classify_error(e)
+    short = f"{type(e).__name__}: {str(e)}"
+    last_log["type"] = "error"
+    last_log["text"] = short
+    last_log["guide"] = guide
+
+    try:
+        from rich.console import Console
+        from rich.panel import Panel
+        console = Console()
+        console.print(f"  ⚠ {guide}")
+        console.print(Panel(short[:300], title="error", border_style="red", width=70))
+        console.print("  (전체 로그: /log)")
+    except ImportError:
+        print(f"  ⚠ {guide}")
+        print("  ┌─ error " + "─" * 40)
+        for line in short[:300].splitlines() or [short[:300]]:
+            print(f"  │ {line}")
+        print("  └" + "─" * 49)
+        print("  (전체 로그: /log)")
+
+
+def _cmd_log(last_log: dict):
+    if not last_log:
+        print("  표시할 로그가 없습니다.")
+        return
+    try:
+        from rich.console import Console
+        from rich.panel import Panel
+        console = Console()
+        body = last_log.get("text", "")
+        if last_log.get("guide"):
+            body = f"[안내] {last_log['guide']}\n\n{body}"
+        console.print(Panel(body, title=f"log: {last_log.get('type', '')}",
+                             border_style="grey50"))
+    except ImportError:
+        print(f"--- log: {last_log.get('type', '')} ---")
+        if last_log.get("guide"):
+            print(f"[안내] {last_log['guide']}\n")
+        print(last_log.get("text", ""))
 
 
 # -------------------------------------------------------------
@@ -316,8 +438,9 @@ def main():
         print("\n  체크 완료. (--check 모드 종료)")
         return
 
-    # 스킬 로딩 + CLI 진입
+    # 스킬 로딩 + 환영화면 + CLI 진입
     agent = load_agent(provider)
+    show_welcome(provider)
     chat_loop(cfg, provider, agent)
 
 
@@ -417,16 +540,10 @@ def _skill_names():
 #  슬래시 명령어
 # -------------------------------------------------------------
 def _cmd_help():
-    print("""
-  /help     명령어 목록
-  /skills   로드된 스킬 목록
-  /config   현재 설정 (키는 마스킹)
-  /model    model/ 하위 폴더 목록
-  /llm      등록된 LLM 목록 + 전환
-  /reload   config.yaml 재로드 + 에이전트 재구성
-  /clear    대화 히스토리 초기화
-  /exit     종료
-""")
+    print()
+    for cmd, desc in HELP_ITEMS:
+        print(f"  {cmd:<9} {desc}")
+    print()
 
 
 def _cmd_skills():
@@ -490,15 +607,24 @@ def _cmd_llm(cfg: dict, current: dict):
 #  대화 루프
 # -------------------------------------------------------------
 def chat_loop(cfg: dict, provider: dict, agent):
-    print()
-    print("  준비 완료. 명령을 입력하세요. (/help 로 도움말)")
-    print("-" * 52)
+    try:
+        from rich.console import Console
+        console = Console()
+    except ImportError:
+        console = None
 
     history = []
+    last_log: dict = {}
+    SEP = "─" * 52
 
     while True:
+        print(SEP)
         try:
-            user_input = input("aiu> ").strip()
+            if console:
+                console.print("[bold cyan]>[/bold cyan] ", end="")
+                user_input = input().strip()
+            else:
+                user_input = input("> ").strip()
         except (KeyboardInterrupt, EOFError):
             print("\n  종료합니다.")
             break
@@ -519,6 +645,8 @@ def chat_loop(cfg: dict, provider: dict, agent):
                 _cmd_config(cfg, provider)
             elif cmd == "/model":
                 _cmd_model()
+            elif cmd == "/log":
+                _cmd_log(last_log)
             elif cmd == "/llm":
                 chosen = _cmd_llm(cfg, provider)
                 if chosen:
@@ -529,7 +657,7 @@ def chat_loop(cfg: dict, provider: dict, agent):
                         agent = load_agent(provider)
                         print(f"  전환 완료 → {provider['name']}")
                     except Exception as e:
-                        print(f"  전환 실패: {type(e).__name__}: {str(e)[:100]}")
+                        show_error(e, last_log)
             elif cmd == "/reload":
                 cfg = load_config()
                 apply_pip_index(cfg)
@@ -545,8 +673,8 @@ def chat_loop(cfg: dict, provider: dict, agent):
                     agent = load_agent(provider)
                     print(f"  재로드 완료 (LLM: {provider['name']})")
                 except Exception as e:
-                    print(f"  재로드 했지만 LLM 연결 실패: {str(e)[:100]}")
-                    print("  config.yaml 을 확인하세요. (기존 세션은 유지됩니다)")
+                    show_error(e, last_log)
+                    print("  (기존 세션은 유지됩니다)")
             elif cmd == "/clear":
                 history = []
                 print("  대화 히스토리를 초기화했습니다.")
@@ -562,12 +690,18 @@ def chat_loop(cfg: dict, provider: dict, agent):
             messages = result["messages"]
             answer = messages[-1].content
             history = messages
+            elapsed = time.time() - t0
+
             print()
+            if console:
+                console.print("[grey50]🐋 " + "─" * 49 + "[/grey50]")
+            else:
+                print("🐋 " + "─" * 49)
             print(answer)
-            print(f"\n  ({time.time() - t0:.1f}s)")
-            print("-" * 52)
+            print(f"\n  ({elapsed:.1f}s)")
         except Exception as e:
-            print(f"  [오류] {type(e).__name__}: {e}")
+            print()
+            show_error(e, last_log)
             history.pop()
 
 

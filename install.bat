@@ -1,5 +1,5 @@
 @echo off
-title aiu-agent Quick Start
+title aiu-agent Install
 
 REM ====================================================
 REM  [운영자 설정] 사내 넥서스 PyPI 주소 (비우면 기본 pip)
@@ -33,5 +33,5 @@ echo [부트스트랩] 기본 패키지(rich, pyyaml) 설치 중...
 
 .venv\Scripts\python.exe main.py --setup
 echo.
-echo 다음부터는 aiu-agent-run.bat 으로 바로 실행할 수 있습니다.
+echo 다음부터는 start.bat 으로 바로 실행할 수 있습니다.
 pause
