@@ -1,0 +1,8 @@
+deepagents
+langchain-openai
+pyyaml
+rich
+mlflow
+scikit-learn
+pandas
+numpy

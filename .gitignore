@@ -1,0 +1,8 @@
+.venv/
+config.yaml
+__pycache__/
+*.pyc
+model_result/*
+!model_result/.gitkeep
+mlruns/
+*.db
