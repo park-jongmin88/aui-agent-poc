@@ -390,7 +390,7 @@ def show_welcome(provider: dict):
             border_style="cyan", width=46,
         ))
         print()
-        console.print(f"  MODEL: [cyan]{provider['name']}[/cyan] ({provider['model']})")
+        console.print(f"  LLM: [cyan]{provider['name']}[/cyan] ({provider['model']})")
         print()
         console.print("  무엇이든 자연어로 요청하세요. 예시:")
         console.print('    [grey50]"model 폴더 보여줘"[/grey50]')
@@ -401,7 +401,7 @@ def show_welcome(provider: dict):
         print("  🐳  aiu-agent")
         print("  AI STUDIO 자동화 어시스턴트")
         print()
-        print(f"  MODEL: {provider['name']} ({provider['model']})")
+        print(f"  LLM: {provider['name']} ({provider['model']})")
         print()
         print("  무엇이든 자연어로 요청하세요. 예시:")
         print('    "model 폴더 보여줘"')
@@ -412,15 +412,14 @@ def show_welcome(provider: dict):
 
 
 HELP_ITEMS = [
-    ("/help", "명령어 목록"),
-    ("/skills", "로드된 스킬 목록"),
-    ("/config", "현재 설정 (키는 마스킹)"),
-    ("/model", "model/ 하위 폴더 목록"),
-    ("/llm", "등록된 LLM 목록 + 전환"),
-    ("/reload", "config.yaml 재로드 + 에이전트 재구성"),
-    ("/log", "마지막 로그(에러 등) 자세히 보기"),
-    ("/clear", "대화 히스토리 초기화"),
-    ("/exit", "종료"),
+    ("/? /help",  "도움말 (할 수 있는 작업 안내 포함)"),
+    ("/projects", "ML 작업 폴더 목록"),
+    ("/llm",      "LLM 목록 + 전환"),
+    ("/config",   "현재 설정"),
+    ("/reload",   "설정 재로드"),
+    ("/log",      "마지막 로그"),
+    ("/clear",    "대화 초기화"),
+    ("/exit",     "종료"),
 ]
 
 
@@ -691,8 +690,12 @@ def _skill_names():
 # -------------------------------------------------------------
 def _cmd_help():
     print()
+    print("  할 수 있는 작업:")
+    print("    초기화(init)  검증(validate)  학습(train)  추론(predict)  배포(deploy)")
+    print()
+    print("  명령어:")
     for cmd, desc in HELP_ITEMS:
-        print(f"  {cmd:<9} {desc}")
+        print(f"    {cmd:<12} {desc}")
     print()
 
 
@@ -788,11 +791,9 @@ def chat_loop(cfg: dict, provider: dict, agent):
                 break
             elif cmd in ("/help", "/?"):
                 _cmd_help()
-            elif cmd == "/skills":
-                _cmd_skills()
             elif cmd == "/config":
                 _cmd_config(cfg, provider)
-            elif cmd == "/model":
+            elif cmd == "/projects":
                 _cmd_model()
             elif cmd == "/log":
                 _cmd_log(last_log)
