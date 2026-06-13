@@ -1,5 +1,6 @@
 deepagents
 langchain-openai
+langchain-anthropic
 pyyaml
 rich
 mlflow

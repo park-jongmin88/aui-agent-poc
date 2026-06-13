@@ -29,11 +29,17 @@ llm:
   default: my-llm                # 시작 시 사용할 provider의 name
   providers:
     - name: my-llm
+      type: openai                               # openai(호환) | anthropic
       base_url: http://your-llm-server:8000/v1   # TODO: 사내 LLM 주소 (OpenAI 호환)
       api_key: your-api-key                      # TODO: API 키
       model: your-model-name                     # TODO: 모델명
     # 추가 LLM은 아래 형식으로 계속 등록 (CLI의 /llm 으로 전환)
+    # - name: claude
+    #   type: anthropic        # Anthropic Claude API (base_url 불필요)
+    #   api_key: sk-ant-...
+    #   model: claude-sonnet-4-6
     # - name: backup-llm
+    #   type: openai
     #   base_url: http://...
     #   api_key: ...
     #   model: ...
@@ -105,7 +111,11 @@ def get_default_provider(cfg: dict):
 def is_placeholder(provider: dict) -> bool:
     if not provider:
         return True
-    for key in ("base_url", "api_key", "model"):
+    ptype = (provider.get("type") or "openai").lower()
+    check_keys = ["api_key", "model"]
+    if ptype == "openai":
+        check_keys.append("base_url")
+    for key in check_keys:
         v = str(provider.get(key) or "")
         if not v or any(tok in v for tok in PLACEHOLDER_TOKENS):
             return True
@@ -154,13 +164,33 @@ def run_wizard(cfg: dict) -> dict:
 
     _flush_stdin()
 
-    fields = [
-        ("name", "이름(별칭)        "),
-        ("base_url", "주소(base_url)   "),
-        ("api_key", "API 키           "),
-        ("model", "모델명           "),
-    ]
-    values = {"name": "", "base_url": "", "api_key": "", "model": ""}
+    # type 먼저 선택
+    print("  LLM 타입 선택:")
+    print("    1) openai  - OpenAI 호환 (groq, 사내 LLM, ollama 등)")
+    print("    2) anthropic - Anthropic Claude API")
+    while True:
+        t_sel = input("  타입 번호 [1] : ").strip() or "1"
+        if t_sel in ("1", "2"):
+            break
+        print("  1 또는 2 를 입력하세요.")
+    ptype = "openai" if t_sel == "1" else "anthropic"
+    print()
+
+    # anthropic은 base_url 불필요
+    if ptype == "openai":
+        fields = [
+            ("name",     "이름(별칭)        "),
+            ("base_url", "주소(base_url)   "),
+            ("api_key",  "API 키           "),
+            ("model",    "모델명           "),
+        ]
+    else:
+        fields = [
+            ("name",    "이름(별칭)        "),
+            ("api_key", "API 키           "),
+            ("model",   "모델명           "),
+        ]
+    values = {k: "" for k, _ in fields}
 
     def ask(key, label):
         suffix = " [my-llm]" if key == "name" else ""
@@ -197,12 +227,11 @@ def run_wizard(cfg: dict) -> dict:
             say("  1~4 사이의 번호를 입력하세요.", style="yellow")
 
     name = values["name"] or "my-llm"
-    provider = {
-        "name": name,
-        "base_url": values["base_url"] or "http://your-llm-server:8000/v1",
-        "api_key": values["api_key"] or "your-api-key",
-        "model": values["model"] or "your-model-name",
-    }
+    provider = {"name": name, "type": ptype}
+    if ptype == "openai":
+        provider["base_url"] = values.get("base_url") or "http://your-llm-server:8000/v1"
+    provider["api_key"] = values.get("api_key") or "your-api-key"
+    provider["model"]   = values.get("model")   or "your-model-name"
     cfg.setdefault("llm", {})
     cfg["llm"]["default"] = name
     providers = get_providers(cfg)
@@ -522,15 +551,32 @@ def check_config(interactive: bool = True):
 
 
 def _build_chat_model(provider: dict, timeout: int | None = None):
-    from langchain_openai import ChatOpenAI
-    kwargs = dict(
-        base_url=provider["base_url"],
-        api_key=provider["api_key"],
-        model=provider["model"],
-    )
-    if timeout:
-        kwargs["timeout"] = timeout
-    return ChatOpenAI(**kwargs)
+    ptype = (provider.get("type") or "openai").lower()
+
+    if ptype == "anthropic":
+        from langchain_anthropic import ChatAnthropic
+        kwargs = dict(
+            api_key=provider["api_key"],
+            model=provider["model"],
+        )
+        if provider.get("base_url"):
+            kwargs["base_url"] = provider["base_url"]
+        if timeout:
+            kwargs["timeout"] = timeout
+        return ChatAnthropic(**kwargs)
+
+    if ptype == "openai":
+        from langchain_openai import ChatOpenAI
+        kwargs = dict(
+            base_url=provider["base_url"],
+            api_key=provider["api_key"],
+            model=provider["model"],
+        )
+        if timeout:
+            kwargs["timeout"] = timeout
+        return ChatOpenAI(**kwargs)
+
+    raise ValueError(f"지원하지 않는 LLM type 입니다: '{ptype}' (openai | anthropic)")
 
 
 def check_llm(cfg: dict, interactive: bool = True):
