@@ -32,6 +32,12 @@ echo [부트스트랩] 기본 패키지(rich, pyyaml) 설치 중...
 .venv\Scripts\python.exe -m pip install rich pyyaml ruamel.yaml %PIP_OPTS% --quiet --disable-pip-version-check
 
 .venv\Scripts\python.exe main.py --setup
+if errorlevel 1 (
+    echo.
+    echo   [오류] 설치 중 문제가 발생했습니다. 위 메시지를 확인하세요.
+    pause
+    exit /b 1
+)
 echo.
 echo 다음부터는 start.bat 으로 바로 실행할 수 있습니다.
 pause
