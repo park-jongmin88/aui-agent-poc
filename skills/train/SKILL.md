@@ -5,7 +5,7 @@ description: "선택된 모델 폴더의 run.py를 실행해 학습을 수행하
 # train - 모델 학습 및 MLflow 등록
 
 ## 절차
-1. 대상 폴더를 확인한다. 지정이 없으면 model/ 하위 폴더 목록을 보여주고 선택받는다.
+1. 대상 폴더를 확인한다. 지정이 없으면 workspace/models/ 하위 폴더 목록을 보여주고 선택받는다.
 2. 실행 전 validate 스킬의 검증 절차를 간단히 수행한다. (9-섹션 존재 여부만)
 3. 섹션 2(MLflow 연동 영역)의 MLFLOW_TRACKING_URI 가 채워졌는지 확인한다.
    placeholder(your-mlflow 등) 그대로면 사용자에게 주소/계정을 물어보고,
@@ -15,5 +15,5 @@ description: "선택된 모델 폴더의 run.py를 실행해 학습을 수행하
 6. 실패 시 에러 로그의 핵심 부분만 요약해 원인과 해결 방향을 안내한다.
 
 ## 주의
-- 학습 결과물 저장 경로는 run.py 내부 정의를 따른다 (기본 model_result/).
+- 학습 결과물 저장 경로는 run.py 내부 정의를 따른다 (기본 workspace/results/).
 - 장시간 학습이 예상되면 실행 전에 사용자에게 알린다.

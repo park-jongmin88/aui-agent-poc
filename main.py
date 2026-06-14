@@ -20,6 +20,7 @@ _ryaml.preserve_quotes = True
 _ryaml.width = 120
 
 BASE_DIR = Path(__file__).resolve().parent
+WORKSPACE_DIR = BASE_DIR / "workspace"
 CONFIG_PATH = BASE_DIR / "config.yaml"
 VERSION = "0.2.0 (POC)"
 
@@ -779,14 +780,14 @@ def _cmd_config(cfg: dict, current: dict):
 
 
 def _cmd_list():
-    model_dir = BASE_DIR / "model"
+    model_dir = WORKSPACE_DIR / "models"
     if not model_dir.exists():
-        print("  model/ 폴더가 없습니다.")
+        print("  workspace/models/ 폴더가 없습니다.")
         return
     for d in sorted(model_dir.iterdir()):
         if d.is_dir():
             has_run = "run.py ✓" if (d / "run.py").exists() else "run.py 없음"
-            print(f"  - model/{d.name:<22} {has_run}")
+            print(f"  - workspace/models/{d.name:<18} {has_run}")
     print("  (작업 대상은 대화에서 폴더명으로 지정하세요.)")
 
 

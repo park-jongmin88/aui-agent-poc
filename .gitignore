@@ -2,7 +2,9 @@
 config.yaml
 __pycache__/
 *.pyc
-model_result/*
-!model_result/.gitkeep
-mlruns/
+workspace/results/*
+!workspace/results/.gitkeep
+workspace/local_test/*
+!workspace/local_test/.gitkeep
+workspace/models/*/mlruns/
 *.db
