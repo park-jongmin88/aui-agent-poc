@@ -384,6 +384,8 @@ def install_dependencies() -> bool:
         from rich.live import Live
         from rich.panel import Panel
         from rich.console import Console
+        from rich.text import Text
+        from rich.console import Group
 
         console = Console()
         console.print("  [3/4] 의존성 설치 중...")
@@ -396,7 +398,6 @@ def install_dependencies() -> bool:
         spin_frames = ["🐳 설치 중   ", "🐳 설치 중.  ", "🐳 설치 중.. ", "🐳 설치 중..."]
         fi = 0
         with Live(console=console, refresh_per_second=4, transient=True) as live:
-            from rich.console import Group
             live.update(Group(
                 Text(spin_frames[0], style="cyan"),
                 Panel("\n".join(tail), border_style="grey50", height=N + 2)
