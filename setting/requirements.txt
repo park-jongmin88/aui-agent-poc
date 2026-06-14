@@ -2,6 +2,7 @@ deepagents
 langchain-openai
 langchain-anthropic
 pyyaml
+ruamel.yaml
 rich
 prompt_toolkit
 mlflow

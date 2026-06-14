@@ -13,7 +13,10 @@ import time
 import subprocess
 from pathlib import Path
 
-import yaml
+from ruamel.yaml import YAML as _YAML
+_ryaml = _YAML()
+_ryaml.preserve_quotes = True
+_ryaml.width = 120
 
 BASE_DIR = Path(__file__).resolve().parent
 CONFIG_PATH = BASE_DIR / "config.yaml"
@@ -115,7 +118,8 @@ def load_config(create_if_missing: bool = True) -> dict:
         CONFIG_PATH.write_text(SAMPLE_CONFIG, encoding="utf-8")
         print(f"        config.yaml 이 없어 새로 생성했습니다 → {CONFIG_PATH}")
     with open(CONFIG_PATH, encoding="utf-8") as f:
-        return yaml.safe_load(f) or {}
+        data = _ryaml.load(f)
+    return dict(data) if data else {}
 
 
 def get_providers(cfg: dict) -> list:
@@ -292,15 +296,27 @@ def run_wizard(cfg: dict) -> dict:
     provider["api_key"] = values.get("api_key") or "your-api-key"
     provider["model"]   = values.get("model")   or "your-model-name"
     cfg.setdefault("llm", {})
-    cfg["llm"]["active"] = name
     providers = get_providers(cfg)
     # 같은 이름이 있으면 교체, 없으면 맨 앞에 추가
     providers = [p for p in providers if p.get("name") != name]
     providers.insert(0, provider)
     cfg["llm"]["providers"] = providers
 
+    # 주석 보존을 위해 파일을 ruamel로 다시 로드해 필요한 부분만 교체
+    import io
+    if CONFIG_PATH.exists():
+        with open(CONFIG_PATH, encoding="utf-8") as f:
+            doc = _ryaml.load(f)
+    else:
+        doc = _ryaml.load(io.StringIO(SAMPLE_CONFIG))
+    if doc is None:
+        doc = _ryaml.load(io.StringIO(SAMPLE_CONFIG))
+    if "llm" not in doc:
+        doc["llm"] = {}
+    doc["llm"]["active"] = name
+    doc["llm"]["providers"] = providers
     with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-        yaml.safe_dump(cfg, f, allow_unicode=True, sort_keys=False)
+        _ryaml.dump(doc, f)
 
     print()
     if is_placeholder(provider):
@@ -650,7 +666,7 @@ def check_llm(cfg: dict, interactive: bool = True):
 
     while True:
         try:
-            _build_chat_model(provider, timeout=15).invoke([{"role": "user", "content": "hi"}])
+            _build_chat_model(provider, timeout=15).invoke([HumanMessage(content="hi")])
             print(f"  [4/4] LLM 연결 ({provider['name']})        ✓")
             return provider
         except Exception as e:
@@ -874,7 +890,7 @@ def chat_loop(cfg: dict, provider: dict, agent):
                 if chosen:
                     try:
                         print(f"  {chosen['name']} 연결 확인 중...")
-                        _build_chat_model(chosen, timeout=15).invoke([{"role": "user", "content": "hi"}])
+                        _build_chat_model(chosen, timeout=15).invoke([HumanMessage(content="hi")])
                         provider = chosen
                         agent = load_agent(provider)
                         print(f"  전환 완료 → {provider['name']}")
@@ -889,7 +905,7 @@ def chat_loop(cfg: dict, provider: dict, agent):
                         new_p = p
                         break
                 try:
-                    _build_chat_model(new_p, timeout=15).invoke([{"role": "user", "content": "hi"}])
+                    _build_chat_model(new_p, timeout=15).invoke([HumanMessage(content="hi")])
                     provider = new_p
                     agent = load_agent(provider)
                     print(f"  재로드 완료 (LLM: {provider['name']})")
