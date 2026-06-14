@@ -167,8 +167,7 @@ def apply_pip_index(cfg: dict):
 
 
 def run_wizard(cfg: dict) -> dict:
-    """대화형으로 첫 LLM provider를 입력받아 config.yaml 저장.
-    입력 후 리뷰 화면에서 항목별 재입력이 가능하다."""
+    """대화형으로 LLM provider를 입력받아 config.yaml 저장."""
     try:
         from rich.console import Console
         from rich.panel import Panel
@@ -199,6 +198,19 @@ def run_wizard(cfg: dict) -> dict:
 
     _flush_stdin()
 
+    # type 선택
+    print("  LLM 타입을 선택하세요:")
+    print("    1) openai    — OpenAI 호환 (groq, 사내 LLM, ollama 등)")
+    print("    2) anthropic — Anthropic Claude API (사내 프록시 포함)")
+    print()
+    while True:
+        t_sel = input("  타입 번호 [1]: ").strip() or "1"
+        if t_sel in ("1", "2"):
+            break
+        say("  1 또는 2 를 입력하세요.", style="yellow")
+    ptype = "openai" if t_sel == "1" else "anthropic"
+    print()
+
     fields = [
         ("name",     "이름(별칭)        "),
         ("base_url", "주소(base_url)   "),
@@ -206,39 +218,36 @@ def run_wizard(cfg: dict) -> dict:
         ("model",    "모델명           "),
     ]
     values = {k: "" for k, _ in fields}
-    ptype = "openai"  # 마법사는 openai 고정 (그 외는 config.yaml 직접 편집)
 
-    def fetch_models(base_url: str, api_key: str) -> list[str]:
-        """OpenAI 호환 /v1/models 엔드포인트로 모델 목록 조회."""
+    def fetch_models(base_url: str, api_key: str) -> list:
         try:
             import urllib.request, json as _json
             url = base_url.rstrip("/") + "/models"
-            req = urllib.request.Request(
-                url,
-                headers={"Authorization": f"Bearer {api_key}",
-                         "Content-Type": "application/json"},
-            )
+            req = urllib.request.Request(url, headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            })
             with urllib.request.urlopen(req, timeout=10) as resp:
                 data = _json.loads(resp.read())
-            models = [m["id"] for m in data.get("data", [])]
-            return sorted(models)
+            return sorted([m["id"] for m in data.get("data", [])])
         except Exception:
             return []
 
     def ask(key, label):
         suffix = " [my-llm]" if key == "name" else ""
         while True:
-            hint = " (Enter=목록 조회)" if key == "model" else ""
+            hint = ""
+            if key == "model" and ptype == "openai":
+                hint = " (Enter=목록 조회)"
+            elif key == "base_url" and ptype == "anthropic":
+                hint = " (없으면 Enter — 공식 API 사용)"
             v = input(f"  {label}{suffix}{hint} : ").strip()
 
-            # base_url 경로 감지
-            if key == "base_url" and _looks_like_path(v):
-                say("  ⚠ URL 형식이 아닌 것 같습니다 (경로처럼 보입니다). 다시 입력해주세요.",
-                    style="yellow")
+            if key == "base_url" and v and _looks_like_path(v):
+                say("  ⚠ URL 형식이 아닌 것 같습니다. 다시 입력해주세요.", style="yellow")
                 continue
 
-            # model: Enter 시 목록 조회 (base_url/api_key 있을 때만)
-            if key == "model" and not v:
+            if key == "model" and not v and ptype == "openai":
                 base = values.get("base_url", "").strip()
                 akey = values.get("api_key", "").strip()
                 if base and akey:
@@ -248,25 +257,20 @@ def run_wizard(cfg: dict) -> dict:
                         for i, m in enumerate(models, 1):
                             print(f"    {i}) {m}")
                         print()
-                        sel = input("  번호 선택 (또는 직접 입력, Enter=나중에 설정): ").strip()
+                        sel = input("  번호 선택 (또는 직접 입력, Enter=건너뛰기): ").strip()
                         if sel.isdigit() and 1 <= int(sel) <= len(models):
                             values[key] = models[int(sel) - 1]
                             say(f"  → {values[key]}", style="cyan")
                             break
-                        elif sel:
+                        else:
                             values[key] = sel
                             break
-                        else:
-                            values[key] = ""
-                            break
                     else:
-                        say("  ⚠ 목록 조회 실패. 직접 입력해주세요. (base_url/api_key 확인)", style="yellow")
+                        say("  ⚠ 목록 조회 실패. 직접 입력해주세요.", style="yellow")
                         continue
                 else:
-                    # base_url/api_key 없으면 경고 한 번만 보여주고 직접 입력으로
-                    say("  (base_url/api_key가 없어 목록 조회 불가 — 직접 입력하거나 Enter로 건너뛰세요)", style="grey50")
-                    v2 = input(f"  {label} : ").strip()
-                    values[key] = v2
+                    say("  (목록 조회 불가 — 직접 입력하거나 Enter로 건너뛰세요)", style="grey50")
+                    values[key] = input(f"  {label} : ").strip()
                     break
 
             values[key] = v
@@ -275,63 +279,47 @@ def run_wizard(cfg: dict) -> dict:
     for key, label in fields:
         ask(key, label)
 
-    # ----- 리뷰 & 수정 루프 -----
+    # 리뷰 & 수정 루프
     while True:
         print()
         say("  --- 입력 확인 ---", style="bold")
+        print(f"   0) 타입              : {ptype}")
         for i, (key, label) in enumerate(fields, 1):
-            shown = values[key]
-            if key == "api_key" and shown:
-                shown = _mask(shown)
-            shown = shown or "(미입력)"
+            shown = _mask(values[key]) if key == "api_key" and values[key] else (values[key] or "(미입력)")
             print(f"   {i}) {label}: {shown}")
         print()
-        sel = input("  수정할 번호 (Enter=완료): ").strip()
+        sel = input("  수정할 번호 (0=타입 변경, Enter=완료): ").strip()
         if not sel:
             break
-        if sel.isdigit() and 1 <= int(sel) <= len(fields):
+        if sel == "0":
+            print("  1) openai  2) anthropic")
+            t2 = input("  타입 번호 [1]: ").strip() or "1"
+            if t2 in ("1", "2"):
+                ptype = "openai" if t2 == "1" else "anthropic"
+        elif sel.isdigit() and 1 <= int(sel) <= len(fields):
             key, label = fields[int(sel) - 1]
             ask(key, label)
         else:
-            say(f"  1~{len(fields)} 사이의 번호를 입력하세요.", style="yellow")
+            say(f"  0~{len(fields)} 사이의 번호를 입력하세요.", style="yellow")
 
+    # provider 구성
     name = values["name"] or "my-llm"
     provider = {"name": name, "type": ptype}
-    if ptype == "openai":
+    if ptype == "anthropic":
+        if values.get("base_url"):
+            provider["base_url"] = values["base_url"]
+    else:
         provider["base_url"] = values.get("base_url") or "http://your-llm-server:8000/v1"
     provider["api_key"] = values.get("api_key") or "your-api-key"
     provider["model"]   = values.get("model")   or "your-model-name"
-    cfg.setdefault("llm", {})
-    providers = get_providers(cfg)
-    # 같은 이름이 있으면 교체, 없으면 맨 앞에 추가
-    providers = [p for p in providers if p.get("name") != name]
-    providers.insert(0, provider)
-    cfg["llm"]["providers"] = providers
 
-    # 기존 config.yaml 백업 후 providers만 추가/교체 (주석 보존)
-    import io, shutil
-    if CONFIG_PATH.exists():
-        shutil.copy2(CONFIG_PATH, CONFIG_PATH.parent / "config.yaml.bak")
-        with open(CONFIG_PATH, encoding="utf-8") as f:
-            doc = _ryaml.load(f)
-    else:
-        doc = None
-    if doc is None:
-        doc = _ryaml.load(io.StringIO(SAMPLE_CONFIG))
-    if "llm" not in doc:
-        doc["llm"] = {}
-    doc["llm"]["active"] = name
-    existing = list(doc["llm"].get("providers") or [])
-    existing = [p for p in existing if (p.get("name") if hasattr(p, "get") else True) != name]
-    existing.insert(0, provider)
-    doc["llm"]["providers"] = existing
-    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-        _ryaml.dump(doc, f)
+    # 텍스트 블록 교체 저장 (주석/샘플 영역 보존, bak 없음)
+    _save_provider_to_config(name, ptype, provider)
+    cfg = load_config()
 
     print()
     if is_placeholder(provider):
-        say(f"  ⚠ 비워둔 항목이 있습니다. [yellow]{CONFIG_PATH}[/yellow] 를 열어 "
-            f"TODO 값을 채운 뒤 다시 실행해주세요.", style="yellow")
+        say(f"  ⚠ 비워둔 항목이 있습니다. [yellow]{CONFIG_PATH}[/yellow] 를 열어 TODO 값을 채워주세요.", style="yellow")
     else:
         say(f"  ✓ 저장 완료 → {CONFIG_PATH}", style="green")
     say(f"  (추가 LLM 등록·수정은 {CONFIG_PATH} 직접 편집 후 CLI에서 /reload)")
@@ -339,9 +327,53 @@ def run_wizard(cfg: dict) -> dict:
     return cfg
 
 
-# -------------------------------------------------------------
-#  --setup : 의존성 설치 (rich Live로 로그가 흘렀다 사라지는 표시)
-# -------------------------------------------------------------
+def _save_provider_to_config(name: str, ptype: str, provider: dict):
+    """config.yaml의 providers 블록만 텍스트 교체.
+    헤더 주석·샘플 주석 영역은 절대 건드리지 않는다."""
+    import re
+
+    if not CONFIG_PATH.exists():
+        CONFIG_PATH.write_text(SAMPLE_CONFIG, encoding="utf-8")
+
+    text = CONFIG_PATH.read_text(encoding="utf-8")
+
+    # active 값 교체
+    text = re.sub(r"(?m)^(\s*active\s*:).*$", f"  active: {name}", text)
+
+    # 새 provider YAML 블록
+    block_lines = [f"    - name: {name}", f"      type: {ptype}"]
+    if ptype == "anthropic":
+        if provider.get("base_url"):
+            block_lines.append(f"      base_url: {provider['base_url']}")
+    else:
+        block_lines.append(f"      base_url: {provider.get('base_url', '')}")
+    block_lines.append(f"      api_key: {provider.get('api_key', '')}")
+    block_lines.append(f"      model: {provider.get('model', '')}")
+    new_entry = "\n".join(block_lines)
+
+    # providers: 섹션 내 기존 항목들 교체
+    pat = re.compile(
+        r"(  providers:\n)"
+        r"((?:    #[^\n]*\n)*)"
+        r"((?:    - name:.*\n(?:      [^\n]+\n)*)*)",
+        re.MULTILINE
+    )
+    m = pat.search(text)
+    if m:
+        header = m.group(1)
+        comment = m.group(2)
+        existing_raw = m.group(3)
+        # 같은 name 항목 제거
+        entry_pat = re.compile(r"(    - name:.*?\n(?:      [^\n]+\n)*)", re.MULTILINE)
+        entries = [e for e in entry_pat.findall(existing_raw) if f"name: {name}" not in e]
+        entries.insert(0, new_entry + "\n")
+        text = text[:m.start()] + header + comment + "".join(entries) + text[m.end():]
+    else:
+        text += f"\n  providers:\n{new_entry}\n"
+
+    CONFIG_PATH.write_text(text, encoding="utf-8")
+
+
 def install_dependencies() -> bool:
     req = BASE_DIR / "setting" / "requirements.txt"
     cmd = [sys.executable, "-m", "pip", "install", "-r", str(req)]
