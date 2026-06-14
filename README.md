@@ -2,6 +2,24 @@
 
 🐳 AI STUDIO 자동화 어시스턴트 — LangChain DeepAgents 기반 프로세스 CLI 자동화.
 
+## 시작 전 권장 사항
+
+> **⚠️ install 실행 전에 `config.yaml` 을 먼저 열어 LLM 정보를 설정하는 것을 권장합니다.**
+>
+> 미리 설정하지 않아도 install 중 대화형으로 입력할 수 있지만,
+> API 키나 base_url 등 복잡한 값은 파일을 직접 편집하는 것이 더 편리합니다.
+>
+> ```yaml
+> llm:
+>   active: my-llm
+>   providers:
+>     - name: my-llm
+>       type: openai
+>       base_url: http://your-llm-server:8000/v1
+>       api_key: your-api-key
+>       model: your-model-name
+> ```
+
 ## 설치
 
 | 환경 | 실행 |

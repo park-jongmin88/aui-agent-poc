@@ -9,7 +9,7 @@ REM ====================================================
 set NEXUS_PYPI=
 set NEXUS_HOST=
 
-echo aiu-agent 준비 중입니다. 잠시만 기다려주세요...
+echo [aiu-agent] 준비 중입니다. 잠시만 기다려주세요...
 echo.
 
 python --version > nul 2>&1
@@ -20,7 +20,7 @@ if errorlevel 1 (
 )
 
 if not exist .venv (
-    echo [부트스트랩] 가상환경 생성 중...
+    echo [aiu-agent] 가상환경 생성 중...
     python -m venv .venv
 )
 
@@ -28,7 +28,7 @@ set PIP_OPTS=
 if not "%NEXUS_PYPI%"=="" set PIP_OPTS=--index-url %NEXUS_PYPI% --trusted-host %NEXUS_HOST%
 if not "%NEXUS_PYPI%"=="" set PIP_INDEX_URL=%NEXUS_PYPI%
 
-echo [부트스트랩] 기본 패키지(rich, pyyaml) 설치 중...
+echo [aiu-agent] 기본 패키지 설치 중...
 .venv\Scripts\python.exe -m pip install rich pyyaml ruamel.yaml %PIP_OPTS% --quiet --disable-pip-version-check
 
 .venv\Scripts\python.exe main.py --setup

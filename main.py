@@ -23,58 +23,63 @@ WORKSPACE_DIR = BASE_DIR / "workspace"
 CONFIG_PATH = BASE_DIR / "config.yaml"
 VERSION = "0.2.0 (POC)"
 
-SAMPLE_CONFIG = """\
-# =====================================================
+SAMPLE_CONFIG = """# =====================================================
 #  aiu-agent 설정
 #  TODO 표시된 값을 환경에 맞게 수정하세요.
 #  수정 후 CLI에서 /reload 로 즉시 반영할 수 있습니다.
+#
+#  [LLM 설정 안내]
+#  active : 현재 사용할 LLM의 name 값을 지정하세요.
+#           CLI에서 /llm 명령으로 세션 중 전환도 가능합니다.
+#  type   : openai (OpenAI 호환) | anthropic (Anthropic API)
+#  providers 에 여러 LLM을 등록해두고 active 로 선택합니다.
 # =====================================================
 llm:
   active: my-llm
 
   providers:
-    # ── 사용할 LLM (필수) ──────────────────────────
+    # ── 사용 중인 LLM ──────────────────────────────
     - name: my-llm
       type: openai
       base_url: http://your-llm-server:8000/v1   # TODO
       api_key: your-api-key                      # TODO
       model: your-model-name                     # TODO
 
-    # ── 참고 샘플 (주석 해제 후 사용) ───────────────
-
-    # groq
-    # - name: groq
-    #   type: openai
-    #   base_url: https://api.groq.com/openai/v1
-    #   api_key: gsk_...
-    #   model: llama-3.3-70b-versatile
-
-    # Anthropic Claude (base_url 불필요)
-    # - name: claude
-    #   type: anthropic
-    #   api_key: sk-ant-...
-    #   model: claude-sonnet-4-6
-
-    # Anthropic 호환 커스텀 엔드포인트 (사내 등)
-    # - name: claude-custom
-    #   type: anthropic
-    #   base_url: https://your-anthropic-proxy.io
-    #   api_key: sk-...
-    #   model: claude-sonnet-4-6
-
-    # OpenAI 공식
-    # - name: openai
-    #   type: openai
-    #   base_url: https://api.openai.com/v1
-    #   api_key: sk-...
-    #   model: gpt-4o
-
-    # Ollama (로컬)
-    # - name: ollama
-    #   type: openai
-    #   base_url: http://localhost:11434/v1
-    #   api_key: ollama
-    #   model: llama3.2
+# ── 참고 샘플 (providers 아래에 추가해서 사용) ─────
+#
+# groq (OpenAI 호환, 무료 티어 있음)
+# - name: groq
+#   type: openai
+#   base_url: https://api.groq.com/openai/v1
+#   api_key: gsk_...
+#   model: llama-3.3-70b-versatile
+#
+# OpenAI 공식
+# - name: openai
+#   type: openai
+#   base_url: https://api.openai.com/v1
+#   api_key: sk-...
+#   model: gpt-4o
+#
+# Anthropic Claude (base_url 불필요)
+# - name: claude
+#   type: anthropic
+#   api_key: sk-ant-...
+#   model: claude-sonnet-4-6
+#
+# Anthropic 호환 커스텀 엔드포인트 (사내 프록시 등)
+# - name: claude-custom
+#   type: anthropic
+#   base_url: https://your-anthropic-proxy.io
+#   api_key: sk-...
+#   model: claude-sonnet-4-6
+#
+# Ollama (로컬 실행)
+# - name: ollama
+#   type: openai
+#   base_url: http://localhost:11434/v1
+#   api_key: ollama
+#   model: llama3.2
 """
 
 PLACEHOLDER_TOKENS = ("your-", "http://your-")
@@ -303,19 +308,23 @@ def run_wizard(cfg: dict) -> dict:
     providers.insert(0, provider)
     cfg["llm"]["providers"] = providers
 
-    # 주석 보존을 위해 파일을 ruamel로 다시 로드해 필요한 부분만 교체
-    import io
+    # 기존 config.yaml 백업 후 providers만 추가/교체 (주석 보존)
+    import io, shutil
     if CONFIG_PATH.exists():
+        shutil.copy2(CONFIG_PATH, CONFIG_PATH.parent / "config.yaml.bak")
         with open(CONFIG_PATH, encoding="utf-8") as f:
             doc = _ryaml.load(f)
     else:
-        doc = _ryaml.load(io.StringIO(SAMPLE_CONFIG))
+        doc = None
     if doc is None:
         doc = _ryaml.load(io.StringIO(SAMPLE_CONFIG))
     if "llm" not in doc:
         doc["llm"] = {}
     doc["llm"]["active"] = name
-    doc["llm"]["providers"] = providers
+    existing = list(doc["llm"].get("providers") or [])
+    existing = [p for p in existing if (p.get("name") if hasattr(p, "get") else True) != name]
+    existing.insert(0, provider)
+    doc["llm"]["providers"] = existing
     with open(CONFIG_PATH, "w", encoding="utf-8") as f:
         _ryaml.dump(doc, f)
 
@@ -352,25 +361,35 @@ def install_dependencies() -> bool:
             cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
             text=True, encoding="utf-8", errors="replace", bufsize=1,
         )
-        with Live(console=console, refresh_per_second=8, transient=True) as live:
-            live.update(Panel("\n".join(tail), border_style="grey50", height=N + 2))
+        spin_frames = ["🐳 설치 중   ", "🐳 설치 중.  ", "🐳 설치 중.. ", "🐳 설치 중..."]
+        fi = 0
+        with Live(console=console, refresh_per_second=4, transient=True) as live:
+            from rich.console import Group
+            live.update(Group(
+                Text(spin_frames[0], style="cyan"),
+                Panel("\n".join(tail), border_style="grey50", height=N + 2)
+            ))
             for line in proc.stdout:
                 line = line.rstrip()
                 if not line:
                     continue
                 tail.append(line[:90])
                 tail = tail[-N:]
-                live.update(Panel("\n".join(tail), border_style="grey50", height=N + 2))
+                fi += 1
+                live.update(Group(
+                    Text(spin_frames[fi % len(spin_frames)], style="cyan"),
+                    Panel("\n".join(tail), border_style="grey50", height=N + 2)
+                ))
         proc.wait()
         ok = proc.returncode == 0
-        console.print(f"  [3/4] 의존성 설치             {'✓' if ok else '✗ 실패 (로그 확인 필요)'}")
+        console.print(f"  🐳 [3/4] 의존성 설치             {'✓' if ok else '✗ 실패 (로그 확인 필요)'}")
         return ok
     except ImportError:
         # rich가 없으면 일반 출력으로 폴백
         print("  [3/4] 의존성 설치 중... (수 분 소요)")
         ret = subprocess.run(cmd).returncode
         ok = ret == 0
-        print(f"  [3/4] 의존성 설치             {'✓' if ok else '✗ 실패'}")
+        print(f"  🐳 [3/4] 의존성 설치             {'✓' if ok else '✗ 실패'}")
         return ok
 
 
@@ -438,19 +457,16 @@ def show_welcome(provider: dict):
     print()
 
 
-# (cmd, desc, group) — group=True 이면 그룹 헤더 행
+# (group, cmd, desc) — group이 같으면 첫 행에만 표시 (병합 셀 느낌)
 HELP_ITEMS = [
-    ("/? /help", "도움말",          False),
-    ("작업",     "",                True),
-    ("/list",    "작업 목록",       False),
-    ("/log",     "마지막 로그",     False),
-    ("LLM",      "",                True),
-    ("/llm",     "LLM 목록 + 전환", False),
-    ("/reload",  "설정 재로드",     False),
-    ("/config",  "현재 설정",       False),
-    ("세션",     "",                True),
-    ("/clear",   "대화 초기화",     False),
-    ("/exit",    "종료",            False),
+    ("작업",  "/list",    "작업 목록"),
+    ("작업",  "/log",     "마지막 로그"),
+    ("LLM",   "/llm",     "LLM 목록 + 전환"),
+    ("LLM",   "/reload",  "설정 재로드"),
+    ("LLM",   "/config",  "현재 설정"),
+    ("세션",  "/clear",   "대화 초기화"),
+    ("세션",  "/exit",    "종료"),
+    ("",      "/? /help", "도움말"),
 ]
 
 
@@ -550,12 +566,12 @@ def _banner():
         c = Console()
         c.print("=" * 52, style="grey50")
         c.print(f"   aiu-agent  v{VERSION}", style="bold cyan")
-        c.print("   AI STUDIO - ML/DL 프로세스 자동화 CLI", style="grey50")
+        c.print("   AI STUDIO 자동화 어시스턴트", style="grey50")
         c.print("=" * 52, style="grey50")
     except ImportError:
         print("=" * 52)
         print(f"   aiu-agent  v{VERSION}")
-        print("   AI STUDIO - ML/DL 프로세스 자동화 CLI")
+        print("   AI STUDIO 자동화 어시스턴트")
         print("=" * 52)
     print()
 
@@ -568,7 +584,7 @@ def main():
     _banner()
 
     # [1/4] Python/가상환경 (여기 도달했으면 통과)
-    print("  [1/4] Python / 가상환경       ✓")
+    print("  🐳 [1/4] Python / 가상환경       ✓")
 
     # [2/4] 설정 (config.yaml) - 의존성 설치 전에 먼저 확인/입력
     cfg = check_config(interactive=(mode != "--check"))
@@ -582,7 +598,7 @@ def main():
             sys.exit(1)
         generate_run_scripts()
     else:
-        print("  [3/4] 의존성                  ✓ (--setup 으로 재설치 가능)")
+        print("  🐳 [3/4] 의존성                  ✓ (--setup 으로 재설치 가능)")
 
     # [4/4] 필수 체크 목록 - 하나라도 실패하면 차단
     #       향후 항목 추가 시 이 리스트에 (이름, 함수) 형태로 추가
@@ -614,17 +630,17 @@ def check_config(interactive: bool = True):
     provider = get_default_provider(cfg)
 
     if not is_placeholder(provider):
-        print("  [2/4] 설정(config.yaml)       ✓")
+        print("  🐳 [2/4] 설정(config.yaml)       ✓")
         return cfg
 
     if not interactive:
-        print("  [2/4] 설정(config.yaml)       ✗ 아직 설정되지 않았습니다.")
+        print("  🐳 [2/4] 설정(config.yaml)       ✗ 아직 설정되지 않았습니다.")
         print(f"        {CONFIG_PATH} 의 TODO 항목을 채운 뒤 다시 실행해주세요.")
         return None
 
     cfg = run_wizard(cfg)
     if not is_placeholder(get_default_provider(cfg)):
-        print("  [2/4] 설정(config.yaml)       ✓")
+        print("  🐳 [2/4] 설정(config.yaml)       ✓")
         return cfg
     return None
 
@@ -669,14 +685,14 @@ def check_llm(cfg: dict, interactive: bool = True):
     while True:
         try:
             _build_chat_model(provider, timeout=15).invoke([HumanMessage(content="hi")])
-            print(f"  [4/4] LLM 연결 ({provider['name']})        ✓")
+            print(f"  🐳 [4/4] LLM 연결 ({provider['name']})        ✓")
             return provider
         except AttributeError:
             # 응답 파싱 오류 (프록시 응답 포맷 불일치 등) — 연결은 된 것으로 간주
-            print(f"  [4/4] LLM 연결 ({provider['name']})        ✓")
+            print(f"  🐳 [4/4] LLM 연결 ({provider['name']})        ✓")
             return provider
         except Exception as e:
-            print(f"  [4/4] LLM 연결 ({provider['name']})        ✗")
+            print(f"  🐳 [4/4] LLM 연결 ({provider['name']})        ✗")
             print(f"        {type(e).__name__}: {str(e)[:120]}")
 
         # 실패 처리: 다른 provider가 있으면 선택, 없으면 차단 종료
@@ -736,22 +752,24 @@ def _cmd_help():
         print()
         tbl = Table(show_header=True, header_style="bold", box=rich_box.SIMPLE_HEAVY,
                     pad_edge=True, show_edge=True)
-        tbl.add_column("명령어", style="", min_width=12)
+        tbl.add_column("구분",   style="bold cyan", min_width=6)
+        tbl.add_column("명령어", min_width=12)
         tbl.add_column("설명")
-        for cmd, desc, is_group in HELP_ITEMS:
-            if is_group:
-                tbl.add_row(f"[bold cyan]{cmd}[/bold cyan]", "")
-            else:
-                tbl.add_row(cmd, desc)
+        prev_group = None
+        for group, cmd, desc in HELP_ITEMS:
+            g_label = f"[bold cyan]{group}[/bold cyan]" if group and group != prev_group else ""
+            tbl.add_row(g_label, cmd, desc)
+            prev_group = group
         console.print(tbl)
         print()
     except ImportError:
         print()
-        for cmd, desc, is_group in HELP_ITEMS:
-            if is_group:
-                print(f"  [{cmd}]")
-            else:
-                print(f"    {cmd:<12} {desc}")
+        prev_group = None
+        for group, cmd, desc in HELP_ITEMS:
+            if group and group != prev_group:
+                print(f"  [{group}]")
+            print(f"    {cmd:<12} {desc}")
+            prev_group = group
         print()
 
 

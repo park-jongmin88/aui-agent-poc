@@ -6,7 +6,7 @@
 # ====================================================
 NEXUS_PYPI=""
 
-echo "aiu-agent 준비 중입니다. 잠시만 기다려주세요..."
+echo "🐳 aiu-agent 준비 중입니다. 잠시만 기다려주세요..."
 echo
 
 if ! command -v python3 > /dev/null; then
@@ -15,7 +15,7 @@ if ! command -v python3 > /dev/null; then
 fi
 
 if [ ! -d .venv ]; then
-    echo "[부트스트랩] 가상환경 생성 중..."
+    echo "🐳 가상환경 생성 중..."
     python3 -m venv .venv
 fi
 
@@ -25,7 +25,7 @@ if [ -n "$NEXUS_PYPI" ]; then
     export PIP_INDEX_URL="$NEXUS_PYPI"
 fi
 
-echo "[부트스트랩] 기본 패키지(rich, pyyaml) 설치 중..."
+echo "🐳 기본 패키지 설치 중..."
 .venv/bin/python -m pip install rich pyyaml "ruamel.yaml" $PIP_OPTS --quiet --disable-pip-version-check
 
 
