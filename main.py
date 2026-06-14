@@ -14,7 +14,6 @@ import subprocess
 from pathlib import Path
 
 from ruamel.yaml import YAML as _YAML
-from langchain_core.messages import HumanMessage
 _ryaml = _YAML()
 _ryaml.preserve_quotes = True
 _ryaml.width = 120
@@ -663,6 +662,7 @@ def check_llm(cfg: dict, interactive: bool = True):
     """[4/4] 필수 체크 - LLM 연결. 실패 시 진행 차단 (다른 provider 선택 가능).
     향후 다른 필수 체크가 추가되면 이 함수처럼 (성공/None) 패턴으로 추가하고
     main()의 체크 목록에 등록한다."""
+    from langchain_core.messages import HumanMessage
     providers = get_providers(cfg)
     provider = get_default_provider(cfg)
 
@@ -891,6 +891,7 @@ def chat_loop(cfg: dict, provider: dict, agent):
                 chosen = _cmd_llm(cfg, provider)
                 if chosen:
                     try:
+                        from langchain_core.messages import HumanMessage
                         print(f"  {chosen['name']} 연결 확인 중...")
                         _build_chat_model(chosen, timeout=15).invoke([HumanMessage(content="hi")])
                         provider = chosen
@@ -907,6 +908,7 @@ def chat_loop(cfg: dict, provider: dict, agent):
                         new_p = p
                         break
                 try:
+                    from langchain_core.messages import HumanMessage
                     _build_chat_model(new_p, timeout=15).invoke([HumanMessage(content="hi")])
                     provider = new_p
                     agent = load_agent(provider)
