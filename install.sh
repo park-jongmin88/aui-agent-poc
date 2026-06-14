@@ -27,7 +27,7 @@ if [ -n "$NEXUS_PYPI" ]; then
 fi
 
 echo "[부트스트랩] 기본 패키지(rich, pyyaml) 설치 중..."
-.venv/bin/python -m pip install rich pyyaml $PIP_OPTS --quiet --disable-pip-version-check
+.venv/bin/python -m pip install rich pyyaml "ruamel.yaml" $PIP_OPTS --quiet --disable-pip-version-check
 
 # 실행 스크립트 생성 (다음부터는 이 파일로 바로 실행)
 cat > aiu-agent-run.sh << 'RUNEOF'
