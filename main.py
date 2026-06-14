@@ -14,6 +14,7 @@ import subprocess
 from pathlib import Path
 
 from ruamel.yaml import YAML as _YAML
+from langchain_core.messages import HumanMessage
 _ryaml = _YAML()
 _ryaml.preserve_quotes = True
 _ryaml.width = 120
