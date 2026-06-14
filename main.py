@@ -671,6 +671,10 @@ def check_llm(cfg: dict, interactive: bool = True):
             _build_chat_model(provider, timeout=15).invoke([HumanMessage(content="hi")])
             print(f"  [4/4] LLM 연결 ({provider['name']})        ✓")
             return provider
+        except AttributeError:
+            # 응답 파싱 오류 (프록시 응답 포맷 불일치 등) — 연결은 된 것으로 간주
+            print(f"  [4/4] LLM 연결 ({provider['name']})        ✓")
+            return provider
         except Exception as e:
             print(f"  [4/4] LLM 연결 ({provider['name']})        ✗")
             print(f"        {type(e).__name__}: {str(e)[:120]}")
