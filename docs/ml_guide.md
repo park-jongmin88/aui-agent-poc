@@ -434,3 +434,68 @@ y_pred = pipe.predict(X_test)
 # Pipeline도 MLflow에 그대로 저장 가능
 mlflow.sklearn.log_model(pipe, "model", registered_model_name=MODEL_NAME)
 ```
+
+---
+
+## 8. 평가 지표 선택 가이드
+
+### 분류 문제
+
+| 상황 | 추천 지표 | 이유 |
+|---|---|---|
+| 클래스 균형, 일반적 | accuracy | 가장 직관적 |
+| 클래스 불균형 | F1-score (weighted) | 소수 클래스 반영 |
+| 암 진단, 사기 탐지 (FN 최소화) | Recall | 놓치면 안 되는 경우 |
+| 스팸 필터 (FP 최소화) | Precision | 오분류 비용이 클 때 |
+| 전체 성능 종합 | AUC-ROC | 임계값 무관한 평가 |
+| 다중 분류 | F1 (macro/weighted) | macro=클래스 균등, weighted=샘플 수 반영 |
+
+```python
+# 상황별 코드
+from sklearn.metrics import (
+    accuracy_score, f1_score, precision_score,
+    recall_score, roc_auc_score
+)
+
+# 불균형 데이터 → F1 + AUC
+f1  = f1_score(y_test, y_pred, average="weighted")
+auc = roc_auc_score(y_test, y_prob)  # y_prob: 확률값
+
+# 다중 분류 → macro vs weighted
+f1_macro    = f1_score(y_test, y_pred, average="macro")     # 클래스 균등
+f1_weighted = f1_score(y_test, y_pred, average="weighted")  # 샘플 수 반영
+```
+
+### 회귀 문제
+
+| 지표 | 특징 | 추천 상황 |
+|---|---|---|
+| RMSE | 큰 오차에 민감 | 이상치 없을 때 |
+| MAE | 이상치에 강건 | 이상치 있을 때 |
+| R² | 0~1, 설명력 | 모델 비교 시 |
+| MAPE | 퍼센트 오차 | 스케일 다를 때 |
+
+```python
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+import numpy as np
+
+rmse = mean_squared_error(y_test, y_pred) ** 0.5
+mae  = mean_absolute_error(y_test, y_pred)
+r2   = r2_score(y_test, y_pred)
+mape = np.mean(np.abs((y_test - y_pred) / y_test)) * 100
+
+# MLflow 로깅
+mlflow.log_metrics({"rmse": rmse, "mae": mae, "r2": r2, "mape": mape})
+```
+
+### 지표 해석 기준 (참고)
+
+| 지표 | 나쁨 | 보통 | 좋음 |
+|---|---|---|---|
+| Accuracy (균형) | < 0.7 | 0.7~0.85 | > 0.85 |
+| F1-score | < 0.6 | 0.6~0.8 | > 0.8 |
+| AUC-ROC | < 0.7 | 0.7~0.9 | > 0.9 |
+| R² | < 0.5 | 0.5~0.8 | > 0.8 |
+| RMSE | 문제 도메인에 따라 다름 | — | 낮을수록 좋음 |
+
+> 절대적 기준이 아님 — 도메인과 비즈니스 목적에 따라 다름.

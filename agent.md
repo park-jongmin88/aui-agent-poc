@@ -114,6 +114,8 @@ MLflow 관련 질문이나 run.py 작성 시 아래 문서를 참고한다:
 - `docs/mlflow_api.md` — MLflow 핵심 API (연결, 로깅, 모델 저장, 추론, 에러)
 - `docs/mlflow_registry.md` — Model Registry, 버전 관리, 실험 조회
 - `docs/ml_guide.md` — sklearn/PyTorch/TensorFlow 핵심 패턴, 전처리, 평가 지표, 모델 선택 가이드
+- `docs/runpy_patterns.md` — 데이터 타입별 run.py 완성 패턴 (표/이미지/텍스트/시계열)
+- `docs/troubleshooting.md` — aiu-agent/MLflow/sklearn/PyTorch/TF 트러블슈팅
 
 특히 다음 상황에서 참고:
 - run.py 섹션 7(log_model) 작성 시 → mlflow_api.md 섹션 4
@@ -122,4 +124,6 @@ MLflow 관련 질문이나 run.py 작성 시 아래 문서를 참고한다:
 - 모델 코드 작성 시 → ml_guide.md (프레임워크별 학습 패턴)
 - 평가 지표 선택 시 → ml_guide.md 섹션 3
 - 전처리 코드 작성 시 → ml_guide.md 섹션 2
+- 데이터 타입별 run.py 패턴 → runpy_patterns.md
+- 오류 발생 시 → troubleshooting.md
 - 실험명/모델명 규칙 → mlflow_registry.md 섹션 6
