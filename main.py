@@ -473,7 +473,7 @@ def show_welcome(provider: dict):
         print()
         console.print("  무엇이든 자연어로 요청하세요. 예시:")
         console.print('    [grey50]"작업 목록 보여줘"[/grey50]')
-        console.print('    [grey50]"sklearn_sample 학습해줘"[/grey50]')
+        console.print('    [grey50]"workspace/models/sklearn_sample 학습해줘"[/grey50]')
         print()
         console.print("  명령어 목록은 [cyan]/help[/cyan] 또는 [cyan]/?[/cyan] 입력")
     except ImportError:
@@ -484,7 +484,7 @@ def show_welcome(provider: dict):
         print()
         print("  무엇이든 자연어로 요청하세요. 예시:")
         print('    "작업 목록 보여줘"')
-        print('    "sklearn_sample 학습해줘"')
+        print('    "workspace/models/sklearn_sample 학습해줘"')
         print()
         print("  명령어 목록은 /help 또는 /? 입력")
     print()

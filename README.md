@@ -87,6 +87,6 @@ setting/             requirements.txt
 ```
 > workspace/models/my_model 폴더로 run.py 만들어줘   → init
 > 내 run.py 양식 맞는지 봐줘                         → validate
-> sklearn_sample 학습해줘                             → train
+> workspace/models/sklearn_sample 학습해줘            → train
 > 방금 등록한 모델 추론 테스트                         → predict
 ```
