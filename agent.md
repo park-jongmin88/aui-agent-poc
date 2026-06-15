@@ -89,3 +89,21 @@ workspace/
 - .current 파일에 저장
 - 미지정 시: .current 확인 → 없으면 목록 보여주고 선택받기
 - 선택 후 .current 업데이트
+
+## 하단 상태바 (bottom_toolbar)
+- prompt_toolkit이 있으면 하단에 자동 표시
+- 현재 폴더명, 단계별 네비게이션, LLM 정보 표시
+- .current 와 .aiu_state.json 읽어서 실시간 갱신
+- 모델 폴더 변경 시 자동 업데이트
+
+## 샘플 모델 폴더
+workspace/models/ 에 다양한 케이스별 샘플이 있다:
+- sklearn_sample/ : DATA_ONLY (CSV 데이터)
+- sklearn_pretrained/ : LOAD_MODEL (pkl 모델 파일)
+- custom_code_sample/ : RUN_CODE (학습 코드 .py)
+- multifile_sample/ : 혼합 (CSV + 전처리 코드)
+- template_only/ : TEMPLATE (빈 폴더)
+- pytorch_sample/ : PyTorch 시작용
+- tensorflow_sample/ : TF/Keras 시작용
+
+각 폴더의 source/README.md 를 먼저 읽어 타입과 파일 구성을 파악한다.
