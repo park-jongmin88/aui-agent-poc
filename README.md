@@ -147,7 +147,7 @@ config.sample.json      설정 예시 (형상 포함)
 install.bat / .sh       최초 설치 → start.bat / start.sh 생성
 start.bat / .sh         이후 실행
 skills/
-  common/               공통 유틸 (게이트, 상태관리, MLflow 설정)
+  common/               공통 유틸 (게이트, 상태관리, MLflow 설정, Win/Linux 프로세스 제어)
   init/                 폴더 분석 + run.py 자동 생성
   validate/             run.py 9섹션 구조/내용 검증
   local_run/            MLflow 없이 로컬 학습 테스트 (선택)

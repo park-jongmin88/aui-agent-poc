@@ -1,130 +1,155 @@
 """
 skills/train/scripts/run_train.py
 
-workspace/run.py 를 실행해 모델을 학습하고 MLflow에 등록한다.
-실행 중 표준 출력을 실시간으로 스트리밍하고,
-완료 시 run_id, 모델명, 주요 메트릭을 JSON으로 반환한다.
+현재 작업 폴더의 run.py 를 실행해 학습하고 MLflow에 등록한다.
+Windows/Linux/macOS 공통, 예외처리 완비.
 
 사용:
-    python skills/train/scripts/run_train.py [--check-only]
-    --check-only : run.py 존재/MLflow 설정 여부만 확인하고 종료
+    python skills/train/scripts/run_train.py [폴더명] [--check-only]
+    --check-only : run.py 존재/MLflow 설정 여부만 확인
 """
-import sys
-import subprocess
-import time
-import re
-import json
+import sys, subprocess, time, re, json
 from pathlib import Path
 
-# 공통 유틸
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
-from skills.common import ok, fail, RUN_PY, ROOT
+from skills.common import (
+    ok, fail, progress, get_current_folder, set_state,
+    check_gate, safe_path_str, MODELS_DIR, ROOT
+)
 
-CHECK_ONLY = "--check-only" in sys.argv
+
+def get_folder(name=None):
+    try:
+        if name and not name.startswith("--"):
+            f = MODELS_DIR / name
+            if not f.exists(): fail(f"폴더 없음: workspace/models/{name}")
+            return f
+        f = get_current_folder()
+        if not f: fail("현재 작업 폴더가 없습니다. 폴더를 선택해주세요.")
+        return f
+    except SystemExit: raise
+    except Exception as e: fail(f"폴더 확인 오류: {e}")
 
 
-def check_run_py():
-    """run.py 존재 및 MLflow 설정 여부 확인."""
-    if not RUN_PY.exists():
+def check_run_py(folder: Path) -> dict:
+    """run.py 존재 및 MLflow 설정 확인."""
+    run_py = folder / "run.py"
+    if not run_py.exists():
         fail(
-            "workspace/run.py 가 없습니다.\n"
-            "먼저 작업 폴더를 선택하고 준비(init)를 실행해주세요."
+            f"workspace/models/{folder.name}/run.py 가 없습니다.\n"
+            "먼저 준비(init)를 실행해주세요."
         )
+    try:
+        text = run_py.read_text(encoding="utf-8")
+    except Exception:
+        text = run_py.read_text(encoding="utf-8", errors="replace")
 
-    text = RUN_PY.read_text(encoding="utf-8")
-
-    # MLflow URI 설정 확인
-    uri_match = re.search(r'MLFLOW_TRACKING_URI\s*=\s*["\'](.+?)["\']', text)
-    uri = uri_match.group(1) if uri_match else ""
+    uri_m = re.search(r'MLFLOW_TRACKING_URI\s*=\s*["\'](.*?)["\']', text)
+    uri = uri_m.group(1) if uri_m else ""
     if not uri or "your-mlflow" in uri:
         fail(
-            "workspace/run.py 의 MLflow 주소가 설정되지 않았습니다.\n"
-            "섹션 2의 MLFLOW_TRACKING_URI 를 실제 주소로 수정해주세요."
+            f"run.py의 MLflow 주소가 설정되지 않았습니다.\n"
+            "섹션 2의 MLFLOW_TRACKING_URI를 확인해주세요."
         )
 
-    # EXPERIMENT_NAME 확인
-    exp_match = re.search(r'EXPERIMENT_NAME\s*=\s*["\'](.+?)["\']', text)
-    exp = exp_match.group(1) if exp_match else ""
+    exp_m   = re.search(r'EXPERIMENT_NAME\s*=\s*["\'](.*?)["\']', text)
+    model_m = re.search(r'MODEL_NAME\s*=\s*["\'](.*?)["\']', text)
+    return {
+        "uri": uri,
+        "experiment": exp_m.group(1) if exp_m else "",
+        "model": model_m.group(1) if model_m else "",
+        "run_py": run_py,
+    }
 
-    # MODEL_NAME 확인
-    model_match = re.search(r'MODEL_NAME\s*=\s*["\'](.+?)["\']', text)
-    model = model_match.group(1) if model_match else ""
 
-    return {"uri": uri, "experiment": exp, "model": model}
-
-
-def run_training(info: dict):
-    """run.py 실행 + 실시간 출력 스트리밍."""
-    print(json.dumps({
-        "status": "running",
-        "message": f"학습 시작 → MLflow: {info['uri']} / 실험: {info['experiment']}",
-    }, ensure_ascii=False), flush=True)
+def run_training(folder: Path, info: dict):
+    progress(f"학습 시작 → MLflow: {info['uri']} / 실험: {info['experiment']}")
 
     start = time.time()
-    proc = subprocess.Popen(
-        [sys.executable, str(RUN_PY)],
-        cwd=str(ROOT / "workspace"),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        bufsize=1,
-    )
-
-    output_lines = []
-    run_id = None
-    accuracy = None
-
-    for line in proc.stdout:
-        line = line.rstrip()
-        if not line:
-            continue
-        output_lines.append(line)
-
-        # 실시간 진행 상황 스트리밍
-        print(json.dumps({"status": "progress", "line": line}, ensure_ascii=False), flush=True)
-
-        # MLflow run_id 파싱
-        m = re.search(r'run_id[=:\s]+([a-f0-9]{32})', line)
-        if m:
-            run_id = m.group(1)
-
-        # [AIU] 결과 라인 파싱
-        if "[AIU]" in line:
-            acc_m = re.search(r'acc[=:\s]+([\d.]+)', line)
-            if acc_m:
-                accuracy = float(acc_m.group(1))
-
-    proc.wait()
-    elapsed = time.time() - start
-
-    if proc.returncode != 0:
-        fail(
-            f"학습 실행 중 오류가 발생했습니다. (exit code: {proc.returncode})\n"
-            + "\n".join(output_lines[-5:])  # 마지막 5줄만
+    proc = None
+    try:
+        proc = subprocess.Popen(
+            [sys.executable, str(info["run_py"])],
+            cwd=str(folder),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            encoding="utf-8",
+            errors="replace",
+            bufsize=1,
         )
 
-    ok({
-        "run_id": run_id,
-        "model": info["model"],
-        "experiment": info["experiment"],
-        "mlflow_uri": info["uri"],
-        "elapsed": round(elapsed, 1),
-        "accuracy": accuracy,
-        "message": (
-            f"✓ 학습 완료 ({elapsed:.1f}s)\n"
-            f"  모델: {info['model']}\n"
-            f"  run_id: {run_id or '(파싱 실패 - MLflow에서 확인)'}\n"
-            + (f"  accuracy: {accuracy:.4f}" if accuracy else "")
+        output_lines, run_id, accuracy = [], None, None
+        try:
+            for raw in proc.stdout:
+                line = raw.rstrip()
+                if not line: continue
+                output_lines.append(line)
+                progress(line)
+
+                m = re.search(r'run_id[=:\s]+([a-f0-9]{32})', line)
+                if m: run_id = m.group(1)
+                if "[AIU]" in line:
+                    am = re.search(r'acc(?:uracy)?[=:\s]+([\d.]+)', line)
+                    if am:
+                        try: accuracy = float(am.group(1))
+                        except ValueError: pass
+        except Exception: pass
+
+        try:
+            proc.wait(timeout=1800)  # 최대 30분
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            fail("학습이 30분을 초과했습니다. run.py를 확인하세요.")
+
+        elapsed = round(time.time() - start, 1)
+        if proc.returncode != 0:
+            tail = "\n".join(output_lines[-8:]) if output_lines else "(출력 없음)"
+            fail(f"학습 실행 중 오류 (종료코드: {proc.returncode}):\n{tail}")
+
+        set_state(folder,
+            status="trained",
+            last_action="train",
+            last_run_id=run_id,
+            last_run_at=time.strftime("%Y-%m-%dT%H:%M:%S"),
         )
-    })
+
+        ok({
+            "run_id": run_id,
+            "model": info["model"],
+            "experiment": info["experiment"],
+            "mlflow_uri": info["uri"],
+            "elapsed": elapsed,
+            "accuracy": accuracy,
+            "message": (
+                f"✓ 학습 완료 ({elapsed}s)\n"
+                f"  모델   : {info['model']}\n"
+                f"  run_id : {run_id or '(MLflow UI에서 확인)'}\n"
+                + (f"  accuracy: {accuracy:.4f}\n" if accuracy else "")
+                + "\n→ '추론 테스트해줘'로 predict를 진행하세요."
+            )
+        })
+    except SystemExit: raise
+    except Exception as e:
+        fail(f"학습 중 예상치 못한 오류: {e}")
+    finally:
+        if proc and proc.poll() is None:
+            try: proc.kill()
+            except Exception: pass
 
 
 if __name__ == "__main__":
-    info = check_run_py()
+    check_only = "--check-only" in sys.argv
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    folder = get_folder(args[0] if args else None)
 
-    if CHECK_ONLY:
-        ok({"check": "ok", **info})
+    # 게이트 확인
+    passed, msg = check_gate(folder, "train")
+    if not passed: fail(msg)
+
+    info = check_run_py(folder)
+    if check_only:
+        ok({"check": "ok", "experiment": info["experiment"],
+            "model": info["model"], "mlflow_uri": info["uri"],
+            "message": "사전 확인 완료 — 학습을 시작할 수 있습니다."})
     else:
-        run_training(info)
+        run_training(folder, info)

@@ -10,8 +10,9 @@ description: "현재 작업 폴더의 run.py를 실행해 모델을 학습하고
 
 ## 스크립트 호출 방식
 ```
-python skills/train/scripts/run_train.py --check-only   # 사전 확인
-python skills/train/scripts/run_train.py                # 실제 실행
+python skills/train/scripts/run_train.py [폴더명] --check-only   # 사전 확인
+python skills/train/scripts/run_train.py [폴더명]                # 실제 실행
+# 폴더명 생략 시 .current 자동 사용
 ```
 실행 중 스트리밍:
 - `{"status": "running", "message": "..."}` → 시작 안내

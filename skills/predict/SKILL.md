@@ -10,21 +10,29 @@ description: "MLflow에 등록된 모델을 로컬에서 로드해 추론 테스
 
 ## 스크립트 호출 방식
 ```
-python skills/predict/scripts/run_predict.py [모델명] [버전]
+python skills/predict/scripts/run_predict.py [폴더명]
 ```
-- 모델명/버전 생략 시 `.aiu_state.json`의 model_name, last_run_id 자동 사용
+- 폴더명 생략 시 `.current` 자동 사용
+- 모델 정보(model_name, last_run_id)는 `.aiu_state.json`에서 자동 로드
+- 결과: `{"status": "ok", "data": {...}}`
 
 ## 절차
 1. 현재 작업 폴더 + 게이트 확인
-2. ML 패키지 확인 (train에서 설치했으면 생략)
+2. ML 패키지(mlflow) 확인 (없으면 설치 안내)
 3. 스크립트 실행 후 결과 파싱:
    ```
    ✓ 추론 테스트 완료
-     모델  : {model_uri}
-     결과  : {result_sample}
+     모델 로드: {data.model_uri}
+     → 서빙 준비 완료
    ```
-4. `.aiu_state.json`에 `status=predicted` 자동 저장 (스크립트가 처리)
-5. 하단 툴바 자동 갱신
+4. 실패 시 `data.message`(또는 error message)로 원인 안내
+5. `.aiu_state.json`에 `status=predicted` 자동 저장 (스크립트가 처리)
+6. 하단 툴바 자동 갱신
+
+## 모델 로드 순서
+1. `models:/{model_name}/latest` 우선 시도
+2. 실패 시 `runs:/{run_id}/model` 시도
+3. 둘 다 실패 시 오류 안내
 
 ## 주의
 - mlflow 패키지 필요 (requirements-ml.txt)
