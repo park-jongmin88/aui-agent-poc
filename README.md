@@ -35,6 +35,18 @@
 
 설치 후 `start.bat`(Windows) / `start.sh`(macOS·Linux)로 바로 실행하세요.
 
+## ML 작업 전 추가 설치
+
+학습/추론 기능을 사용하려면 ML 패키지를 추가 설치해야 합니다:
+
+```bash
+# Windows
+.venv\Scripts\python -m pip install -r setting\requirements-ml.txt
+
+# Linux/Mac
+.venv/bin/python -m pip install -r setting/requirements-ml.txt
+```
+
 ## 설정
 - `config.json`: LLM 목록 (여러 개 등록 가능, `/llm` 으로 전환)
   - `active`: 현재 사용할 LLM의 name 값을 지정

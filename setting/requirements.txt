@@ -3,7 +3,3 @@ langchain-openai
 langchain-anthropic
 rich
 prompt_toolkit
-mlflow
-scikit-learn
-pandas
-numpy

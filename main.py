@@ -402,9 +402,11 @@ def show_welcome(provider: dict):
         print()
         console.print(f"  LLM: [cyan]{provider['name']}[/cyan] ({provider['model']})")
         print()
-        console.print("  무엇이든 자연어로 요청하세요. 예시:")
-        console.print('    [grey50]"작업 목록 보여줘"[/grey50]')
-        console.print('    [grey50]"workspace/models/sklearn_sample 학습해줘"[/grey50]')
+        console.print("  자연어로 요청하세요. 작업 순서 예시:")
+        console.print('    [grey50]1) "sklearn_sample 준비해줘"       → 폴더 분석 후 run.py 생성[/grey50]')
+        console.print('    [grey50]2) "검증해줘"                       → run.py 구조 검증[/grey50]')
+        console.print('    [grey50]3) "학습 시작해줘"                  → 학습 실행 + MLflow 등록[/grey50]')
+        console.print('    [grey50]4) "결과 확인해줘"                  → 추론 테스트[/grey50]')
         print()
         console.print("  명령어 목록은 [cyan]/help[/cyan] 또는 [cyan]/?[/cyan] 입력")
     except ImportError:
@@ -413,9 +415,11 @@ def show_welcome(provider: dict):
         print()
         print(f"  LLM: {provider['name']} ({provider['model']})")
         print()
-        print("  무엇이든 자연어로 요청하세요. 예시:")
-        print('    "작업 목록 보여줘"')
-        print('    "workspace/models/sklearn_sample 학습해줘"')
+        print("  자연어로 요청하세요. 작업 순서 예시:")
+        print('    1) "sklearn_sample 준비해줘"       → 폴더 분석 후 run.py 생성')
+        print('    2) "검증해줘"                       → run.py 구조 검증')
+        print('    3) "학습 시작해줘"                  → 학습 실행 + MLflow 등록')
+        print('    4) "결과 확인해줘"                  → 추론 테스트')
         print()
         print("  명령어 목록은 /help 또는 /? 입력")
     print()
@@ -787,11 +791,32 @@ def _cmd_list():
     if not model_dir.exists():
         print("  workspace/models/ 폴더가 없습니다.")
         return
-    for d in sorted(model_dir.iterdir()):
-        if d.is_dir():
+    folders = sorted([d for d in model_dir.iterdir() if d.is_dir()])
+    if not folders:
+        print("  작업 폴더가 없습니다. workspace/models/ 에 폴더를 추가하세요.")
+        return
+    try:
+        from rich.console import Console
+        from rich.table import Table
+        from rich import box as rich_box
+        console = Console()
+        tbl = Table(box=rich_box.SIMPLE_HEAVY, show_header=True, header_style="bold")
+        tbl.add_column("번호", style="cyan", min_width=4)
+        tbl.add_column("폴더명", min_width=24)
+        tbl.add_column("run.py", min_width=10)
+        tbl.add_column("파일 목록")
+        for i, d in enumerate(folders, 1):
+            has_run = "[green]✓ 있음[/green]" if (d / "run.py").exists() else "[grey50]없음[/grey50]"
+            files = [f.name for f in d.iterdir() if f.is_file()]
+            file_str = ", ".join(files[:3]) + ("..." if len(files) > 3 else "") if files else "(비어있음)"
+            tbl.add_row(str(i), d.name, has_run, file_str)
+        console.print(tbl)
+    except ImportError:
+        for i, d in enumerate(folders, 1):
             has_run = "run.py ✓" if (d / "run.py").exists() else "run.py 없음"
-            print(f"  - workspace/models/{d.name:<18} {has_run}")
-    print("  (작업 대상은 대화에서 폴더명으로 지정하세요.)")
+            print(f"  {i}) {d.name:<24} {has_run}")
+    print()
+    print("  번호나 이름으로 지정하세요. 예: '1번 준비해줘', 'sklearn_sample 학습해줘'")
 
 
 def _cmd_llm(cfg: dict, current: dict):
