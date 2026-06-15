@@ -107,3 +107,15 @@ workspace/models/ 에 다양한 케이스별 샘플이 있다:
 - tensorflow_sample/ : TF/Keras 시작용
 
 각 폴더의 source/README.md 를 먼저 읽어 타입과 파일 구성을 파악한다.
+
+## 참고 문서 (docs/)
+MLflow 관련 질문이나 run.py 작성 시 아래 문서를 참고한다:
+
+- `docs/mlflow_api.md` — MLflow 핵심 API (연결, 로깅, 모델 저장, 추론, 에러)
+- `docs/mlflow_registry.md` — Model Registry, 버전 관리, 실험 조회
+
+특히 다음 상황에서 참고:
+- run.py 섹션 7(log_model) 작성 시 → mlflow_api.md 섹션 4
+- 모델 버전/Stage 관리 → mlflow_registry.md 섹션 3
+- 추론 코드 작성 시 → mlflow_api.md 섹션 7
+- 실험명/모델명 규칙 → mlflow_registry.md 섹션 6
