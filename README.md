@@ -4,6 +4,35 @@
 
 ---
 
+## ⚠ 사전 준비 (설치 전 필수 확인)
+
+이 프로그램을 설치하기 전에 아래 항목을 먼저 확인하세요.
+
+### 1. Python 설치
+- **Python 3.10 이상** 필요
+- 설치 확인: `python --version` (Windows) / `python3 --version` (Linux/Mac)
+- 미설치 시 [python.org](https://www.python.org/downloads/) 또는 사내 배포 채널에서 설치
+- Windows 설치 시 **"Add Python to PATH"** 체크 필수
+
+### 2. pip 인덱스(사내 넥서스) 설정
+- 사내망에서는 pip이 **사내 넥서스**를 바라보도록 설정되어 있어야 합니다.
+- 설정 확인:
+  ```bash
+  pip config list
+  ```
+  `global.index-url` 또는 `global.index` 에 사내 넥서스 주소가 보이면 정상입니다.
+- 설정이 없다면 아래로 등록하세요 (주소는 사내 가이드 참고):
+  ```bash
+  pip config set global.index-url https://<사내-넥서스-주소>/simple
+  pip config set global.trusted-host <사내-넥서스-호스트>
+  ```
+
+### 3. 네트워크
+- 사내 넥서스 또는 PyPI에 접근 가능한 네트워크 환경이어야 합니다.
+- 오프라인/속도 개선이 필요하면 아래 **wheel 미리 받기**를 이용하세요.
+
+---
+
 ## 설치
 
 | 환경 | 명령 |
