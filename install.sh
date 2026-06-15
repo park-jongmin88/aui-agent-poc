@@ -16,7 +16,8 @@ fi
 
 if [ ! -d .venv ]; then
     echo "🐳 가상환경 생성 중..."
-    python3 -m venv .venv
+    python3 -m venv --without-pip .venv
+    .venv/bin/python -m ensurepip --default-pip
 fi
 
 PIP_OPTS=""
