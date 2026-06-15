@@ -341,69 +341,58 @@ def _pkg_display_name(spec: str) -> str:
 
 
 def _install_one(pip_exe, spec, extra_args):
-    """패키지 1개 설치. 설치 중 스피너를 같은 줄에 갱신.
-    (성공여부, 출력텍스트) 반환. Windows/Linux 공통, 인터럽트 안전."""
-    import threading
-
+    """패키지 1개 설치. Windows/Linux 공통, 인터럽트 안전.
+    스피너 스레드 없이 단순 출력 (스피너가 Windows 콘솔에서 인터럽트 유발 가능).
+    (성공여부, 출력텍스트) 반환."""
     cmd = [pip_exe, "-m", "pip", "install",
            "--no-input", "--disable-pip-version-check"] + extra_args + [spec]
 
     name = _pkg_display_name(spec)
-    done = {"flag": False}
     start = time.time()
 
-    # ASCII 스피너 (Windows 구형 콘솔 호환)
-    spinner_chars = ["|", "/", "-", "\\"]
+    # 설치 시작 안내 (스피너 없이 한 줄)
+    try:
+        sys.stdout.write(f"    · {name} 설치 중... (시간이 걸릴 수 있습니다)\n")
+        sys.stdout.flush()
+    except Exception:
+        pass
 
-    def spin():
-        i = 0
-        while not done["flag"]:
-            elapsed = int(time.time() - start)
-            ch = spinner_chars[i % len(spinner_chars)]
-            try:
-                sys.stdout.write(f"\r    {ch} {name} 설치 중... ({elapsed}s)   ")
-                sys.stdout.flush()
-            except Exception:
-                pass
-            i += 1
-            time.sleep(0.2)
-
-    spinner = threading.Thread(target=spin, daemon=True)
     proc = None
     try:
-        # 바이트로 받아 나중에 안전하게 디코딩 (디코딩 중 인터럽트 방지)
         proc = subprocess.Popen(
             cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
         )
-        spinner.start()
-        out, _ = proc.communicate()
-        done["flag"] = True
-        spinner.join(timeout=1)
+        # communicate를 인터럽트로부터 보호:
+        # Windows 콘솔에서 들어오는 우발적 KeyboardInterrupt에도
+        # 설치 프로세스를 죽이지 않고 끝까지 기다린다.
+        out = None
+        while True:
+            try:
+                out, _ = proc.communicate()
+                break
+            except KeyboardInterrupt:
+                continue
 
         elapsed = int(time.time() - start)
         text = out.decode("utf-8", errors="replace") if out else ""
         ok = proc.returncode == 0
 
-        # 같은 줄을 결과로 덮어쓰기
         mark = "✓" if ok else "✗"
-        sys.stdout.write(f"\r    {mark} {name}".ljust(50) + f"({elapsed}s)\n")
-        sys.stdout.flush()
+        try:
+            sys.stdout.write(f"    {mark} {name}".ljust(50) + f"({elapsed}s)\n")
+            sys.stdout.flush()
+        except Exception:
+            pass
         return ok, text
-    except KeyboardInterrupt:
-        done["flag"] = True
-        if proc:
-            try: proc.kill()
-            except Exception: pass
-        sys.stdout.write(f"\r    ! {name} 설치 중단됨\n")
-        sys.stdout.flush()
-        raise
     except Exception as e:
-        done["flag"] = True
         if proc:
             try: proc.kill()
             except Exception: pass
-        sys.stdout.write(f"\r    ✗ {name} 오류: {e}\n")
-        sys.stdout.flush()
+        try:
+            sys.stdout.write(f"    ✗ {name} 오류: {e}\n")
+            sys.stdout.flush()
+        except Exception:
+            pass
         return False, str(e)
 
 
