@@ -307,7 +307,16 @@ def _save_provider_to_config(name: str, ptype: str, provider: dict):
 
 def install_dependencies() -> bool:
     req = BASE_DIR / "setting" / "requirements.txt"
-    cmd = [sys.executable, "-m", "pip", "install", "--no-input", "-r", str(req)]
+
+    # .venv 안의 python을 명시적으로 사용 (sys.executable이 시스템 python을 가리킬 수 있음)
+    if os.name == "nt":
+        venv_python = BASE_DIR / ".venv" / "Scripts" / "python.exe"
+    else:
+        venv_python = BASE_DIR / ".venv" / "bin" / "python"
+
+    # venv python이 없으면 sys.executable 폴백
+    pip_exe = str(venv_python) if venv_python.exists() else sys.executable
+    cmd = [pip_exe, "-m", "pip", "install", "--no-input", "-r", str(req)]
     if os.environ.get("PIP_INDEX_URL"):
         cmd += ["--index-url", os.environ["PIP_INDEX_URL"]]
 
