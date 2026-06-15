@@ -349,9 +349,10 @@ def install_dependencies() -> bool:
         console.print(f"  🐳 [3/4] 의존성 설치             {'✓' if ok else '✗ 실패 (로그 확인 필요)'}")
         return ok
     except ImportError:
-        # rich가 없으면 일반 출력으로 폴백
-        print("  [3/4] 의존성 설치 중... (수 분 소요)")
-        ret = subprocess.run(cmd).returncode
+        # rich가 없으면 일반 출력으로 폴백 (pip 출력 억제로 Windows Ctrl+C 방지)
+        print("  🐳 [3/4] 의존성 설치 중...")
+        with open(os.devnull, "w") as devnull:
+            ret = subprocess.run(cmd, stdout=devnull, stderr=devnull).returncode
         ok = ret == 0
         print(f"  🐳 [3/4] 의존성 설치             {'✓' if ok else '✗ 실패'}")
         return ok
