@@ -1,4 +1,6 @@
+# ML 작업 (학습/추론 시 설치)
 mlflow
 scikit-learn
 pandas
 numpy
+joblib

@@ -421,6 +421,14 @@ def install_dependencies(show_header: bool = True) -> bool:
     if os.environ.get("PIP_INDEX_URL"):
         extra_args += ["--index-url", os.environ["PIP_INDEX_URL"]]
 
+    # wheels/ 폴더가 있으면 우선 사용 (사내 넥서스에서 미리 받은 wheel)
+    # 넥서스에 없는 패키지는 자동으로 기본 인덱스로 폴백되도록 --find-links만 추가
+    wheel_dir = BASE_DIR / "wheels"
+    if wheel_dir.exists() and any(wheel_dir.iterdir()):
+        extra_args += ["--find-links", str(wheel_dir)]
+        if show_header:
+            print(f"  🐳 wheels/ 폴더 감지 — 로컬 wheel 우선 사용")
+
     if show_header:
         print("  🐳 [3/4] 의존성 설치 중...")
 

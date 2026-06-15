@@ -32,6 +32,25 @@
 
 ---
 
+## wheel 미리 받기 (선택 — 설치 속도 향상)
+
+사내 넥서스나 인터넷이 되는 환경에서 wheel을 미리 받아두면,
+이후 설치가 빨라지고 오프라인 환경에서도 설치할 수 있습니다.
+
+```bash
+# Windows
+setting\download_wheels.bat
+
+# Linux/Mac
+./setting/download_wheels.sh
+```
+
+실행하면 `wheels/` 폴더에 모든 의존성 wheel이 받아집니다.
+이후 `install` 시 `wheels/` 폴더를 자동 감지해 우선 사용합니다.
+(넥서스에 없는 패키지는 자동으로 기본 인덱스에서 받습니다.)
+
+---
+
 ## 실행
 
 설치 후 생성된 파일로 실행합니다:
@@ -168,8 +187,10 @@ workspace/
   templates/            run.py 베이스 템플릿 (수정 금지)
   results/              로컬 학습 결과물
 setting/
-  requirements.txt      에이전트 구동 패키지
-  requirements-ml.txt   ML 작업 패키지 (학습/추론 시 설치)
+  requirements.txt          에이전트 구동 패키지
+  requirements-ml.txt       ML 작업 패키지 (학습/추론 시 설치)
+  requirements-serve.txt    로컬 서빙 패키지 (local_serve 시 설치)
+  download_wheels.bat/.sh   wheel 미리 받기 (사내 넥서스/오프라인용)
 ```
 
 ## 샘플 모델 폴더
