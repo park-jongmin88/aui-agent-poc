@@ -418,6 +418,50 @@ HELP_ITEMS = [
 ]
 
 
+def _show_resume_hint():
+    """시작 시 마지막 작업 폴더와 상태를 안내한다."""
+    try:
+        from skills.common import get_current_folder, get_state
+        folder = get_current_folder()
+        if not folder:
+            return
+        state = get_state(folder)
+        if not state:
+            return
+
+        status_map = {
+            "initialized": "run.py 생성 완료 → 검증 필요",
+            "validated":   "검증 완료 → 학습 실행 가능",
+            "trained":     "학습 완료 → 추론 테스트 가능",
+            "predicted":   "추론 테스트 완료 → 배포 가능",
+        }
+        status = state.get("status", "")
+        next_step = status_map.get(status, "")
+        last_at = (state.get("last_run_at", "")[:16].replace("T", " ")
+                   if state.get("last_run_at") else "")
+
+        try:
+            from rich.console import Console
+            from rich.panel import Panel
+            console = Console()
+            body = f"[cyan]{folder.name}[/cyan]"
+            if last_at:
+                body += f"  [grey50]({last_at})[/grey50]"
+            if next_step:
+                body += f"\n→ {next_step}"
+            if state.get("last_run_id"):
+                body += f"\n  run_id: [grey50]{state['last_run_id']}[/grey50]"
+            console.print(Panel(body, title="🐳 마지막 작업", border_style="cyan", width=60))
+            print()
+        except ImportError:
+            print(f"  🐳 마지막 작업: {folder.name}")
+            if next_step:
+                print(f"     → {next_step}")
+            print()
+    except Exception:
+        pass
+
+
 # -------------------------------------------------------------
 #  에러 분류
 # -------------------------------------------------------------
@@ -581,6 +625,7 @@ def main():
     # 스킬 로딩 + 환영화면 + CLI 진입
     agent = load_agent(provider)
     show_welcome(provider)
+    _show_resume_hint()
     chat_loop(cfg, provider, agent)
 
 

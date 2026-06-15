@@ -1,35 +1,74 @@
 """
 aiu-agent 스킬 스크립트 공통 유틸리티
-모든 스크립트는 이 모듈을 사용한다.
-
-출력 규약:
-  - 성공: sys.stdout에 JSON {"status": "ok", "data": {...}}
-  - 실패: sys.exit(1) + sys.stderr에 에러 메시지
 """
 import json
 import sys
 from pathlib import Path
+from datetime import datetime
 
-# 프로젝트 루트 (skills/common/ 기준 상위 2단계)
+# 프로젝트 루트
 ROOT = Path(__file__).resolve().parents[2]
 WORKSPACE_DIR = ROOT / "workspace"
-RUN_PY = WORKSPACE_DIR / "run.py"
 MODELS_DIR = WORKSPACE_DIR / "models"
 TEMPLATES_DIR = WORKSPACE_DIR / "templates"
-RESULTS_DIR = WORKSPACE_DIR / "results"
+CURRENT_FILE = WORKSPACE_DIR / ".current"
 
 
 def ok(data: dict):
-    """성공 결과 출력 후 종료."""
     print(json.dumps({"status": "ok", "data": data}, ensure_ascii=False))
     sys.exit(0)
 
 
 def fail(message: str):
-    """실패 메시지 출력 후 종료."""
     print(json.dumps({"status": "error", "message": message}, ensure_ascii=False),
           file=sys.stderr)
     sys.exit(1)
+
+
+def get_current_folder() -> Path | None:
+    """현재 작업 폴더 반환."""
+    if not CURRENT_FILE.exists():
+        return None
+    name = CURRENT_FILE.read_text(encoding="utf-8").strip()
+    if not name:
+        return None
+    folder = MODELS_DIR / name
+    return folder if folder.exists() else None
+
+
+def set_current_folder(name: str):
+    """현재 작업 폴더 설정."""
+    CURRENT_FILE.write_text(name, encoding="utf-8")
+
+
+def get_run_py(folder: Path) -> Path:
+    """모델 폴더의 run.py 경로 반환."""
+    return folder / "run.py"
+
+
+def get_source_dir(folder: Path) -> Path:
+    """모델 폴더의 source/ 경로 반환."""
+    return folder / "source"
+
+
+def get_state(folder: Path) -> dict:
+    """모델 폴더의 작업 상태 반환."""
+    state_file = folder / ".aiu_state.json"
+    if not state_file.exists():
+        return {}
+    try:
+        return json.loads(state_file.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def set_state(folder: Path, **kwargs):
+    """모델 폴더의 작업 상태 업데이트."""
+    state = get_state(folder)
+    state.update(kwargs)
+    state["updated_at"] = datetime.now().isoformat()
+    state_file = folder / ".aiu_state.json"
+    state_file.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def list_model_folders() -> list[dict]:
@@ -38,13 +77,19 @@ def list_model_folders() -> list[dict]:
         return []
     result = []
     for i, d in enumerate(sorted(MODELS_DIR.iterdir()), 1):
-        if d.is_dir():
+        if d.is_dir() and not d.name.startswith('.'):
+            state = get_state(d)
+            source_files = list((d / "source").iterdir()) if (d / "source").exists() else []
             result.append({
                 "no": i,
                 "name": d.name,
                 "path": str(d),
                 "has_run_py": (d / "run.py").exists(),
-                "files": [f.name for f in d.iterdir() if f.is_file()]
+                "source_files": [f.name for f in source_files if f.is_file()],
+                "last_action": state.get("last_action"),
+                "last_run_id": state.get("last_run_id"),
+                "last_run_at": state.get("last_run_at"),
+                "status": state.get("status"),
             })
     return result
 
@@ -54,13 +99,11 @@ def get_model_folder(name_or_no) -> Path | None:
     folders = list_model_folders()
     if not folders:
         return None
-    # 번호로 찾기
     if str(name_or_no).isdigit():
         no = int(name_or_no)
         for f in folders:
             if f["no"] == no:
                 return Path(f["path"])
-    # 이름으로 찾기
     for f in folders:
         if f["name"] == str(name_or_no):
             return Path(f["path"])
