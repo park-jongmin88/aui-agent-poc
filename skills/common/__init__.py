@@ -126,12 +126,21 @@ def check_gate(folder: Path, skill: str) -> tuple:
 
 
 def _is_status_reached(current: str, required: str) -> bool:
-    """현재 상태가 required 이상인지 확인."""
+    """현재 상태가 required 이상인지 확인.
+    local_tested(선택 단계)는 validated와 trained 사이로 취급한다."""
     try:
-        all_stages = STAGE_ORDER + STAGE_OPTIONAL
-        cur_idx = all_stages.index(current) if current in all_stages else -1
-        req_idx = all_stages.index(required) if required in all_stages else -1
-        return cur_idx >= req_idx
+        # 순서 점수: local_tested는 validated(1)와 trained(2) 사이 = 1.5
+        rank = {
+            "initialized":  0,
+            "validated":    1,
+            "local_tested": 1.5,
+            "trained":      2,
+            "predicted":    3,
+            "deployed":     4,
+        }
+        cur = rank.get(current, -1)
+        req = rank.get(required, 999)
+        return cur >= req
     except Exception:
         return False
 

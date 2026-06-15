@@ -20,8 +20,9 @@ AI STUDIO 프로세스 자동화 에이전트.
 [validate] ── initialized 없으면 차단
     ↓ status=validated
     ↓
-[local_run] ── 선택 단계 (건너뛰기 가능)
+[local_run] ── 선택 단계 (건너뛰기 가능), validated 필요
     ↓ status=local_tested
+    ↓        └──▶ [local_serve] ── local_tested 필요 (results/ 로컬 모델 사용)
     ↓
 [train] ── validated 또는 local_tested 없으면 차단
            실행 전 "로컬 테스트 먼저 할까요, 바로 등록할까요?" 선택지 제공
@@ -32,6 +33,14 @@ AI STUDIO 프로세스 자동화 에이전트.
     ↓
 [deploy] ── (POC: 안내만)
 ```
+
+상태 순서: initialized < validated < local_tested < trained < predicted < deployed
+(local_tested는 validated와 trained 사이의 선택 단계)
+
+## local_serve 주의
+- local_serve는 **local_tested 상태에서만** 동작한다 (results/ 의 로컬 모델 파일 필요)
+- train만 한 경우(status=trained)는 MLflow에만 등록되어 로컬 파일이 없으므로
+  "먼저 local_run을 실행하세요"로 안내하고 차단한다
 
 ## 건너뛰기 허용
 - local_run은 선택 단계: validated 상태면 train 바로 가능
