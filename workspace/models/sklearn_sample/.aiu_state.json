@@ -1,1 +1,9 @@
-{}
+{
+  "status": "initialized",
+  "last_action": "init",
+  "mode": "TEMPLATE",
+  "framework": "sklearn",
+  "experiment_name": "test-exp",
+  "model_name": "test-model",
+  "updated_at": "2026-06-15T09:39:59.876432"
+}
