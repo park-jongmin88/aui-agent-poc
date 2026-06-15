@@ -8,3 +8,5 @@ workspace/local_test/*
 !workspace/local_test/.gitkeep
 workspace/models/*/mlruns/
 *.db
+
+model/
