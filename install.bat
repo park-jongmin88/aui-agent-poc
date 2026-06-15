@@ -21,8 +21,7 @@ if errorlevel 1 (
 
 if not exist .venv (
     echo [aiu-agent] 가상환경 생성 중...
-    python -m venv --without-pip .venv
-    .venv\Scripts\python.exe -m ensurepip --default-pip
+    python -m venv .venv
 )
 
 set PIP_OPTS=
