@@ -29,7 +29,7 @@ if not "%NEXUS_PYPI%"=="" set PIP_OPTS=--index-url %NEXUS_PYPI% --trusted-host %
 if not "%NEXUS_PYPI%"=="" set PIP_INDEX_URL=%NEXUS_PYPI%
 
 echo [aiu-agent] 기본 패키지 설치 중...
-.venv\Scripts\python.exe -m pip install rich %PIP_OPTS% --quiet --no-input --disable-pip-version-check >nul 2>&1
+.venv\Scripts\python.exe -c "import subprocess,sys; subprocess.run([sys.executable,'-m','pip','install','rich','--quiet','--no-input','--disable-pip-version-check']+(['--index-url','%NEXUS_PYPI%','--trusted-host','%NEXUS_HOST%'] if '%NEXUS_PYPI%' else []),stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)"
 
 .venv\Scripts\python.exe main.py --setup
 if errorlevel 1 (
