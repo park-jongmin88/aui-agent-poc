@@ -8,21 +8,32 @@ description: "현재 작업 폴더의 run.py가 9-섹션 표준 구조를 따르
 - status=initialized 없으면 차단
 - "먼저 init(준비)을 실행해주세요" 안내
 
+## 스크립트 호출 방식
+```
+python skills/validate/scripts/validate_run.py [폴더명]
+```
+- 폴더명 생략 시 `.current` 자동 사용
+- 결과: `{"status": "ok", "data": {...}}`
+
 ## 절차
 1. 현재 작업 폴더 확인 (.current)
 2. 게이트 확인: status=initialized?
-3. `skills/validate/scripts/validate_run.py [폴더명]` 실행
-4. 검증 항목:
-   - **구조**: 9섹션 존재 여부, 필수 함수 존재
-   - **내용**: TODO 미입력 항목, NotImplementedError 존재
-   - **설정**: MLflow 주소 설정 여부
-   - **메타**: 실험명/모델명 기본값 여부 (경고)
-5. 결과 보고:
-   - ✓ 통과: "검증 완료 — 로컬 테스트 또는 학습 가능"
-             `.aiu_state.json`에 `status=validated` 저장
-   - ✗ 실패: 항목별 상세 안내 (라인번호 포함)
-             에이전트가 수정 도움 제공
-6. 실패 항목 수정 후 재검증 권장
+3. 스크립트 실행 후 결과 파싱:
+   - `data.passed == true`:
+     ```
+     ✓ 검증 통과
+       MLflow: {data.mlflow_uri}
+       실험명: {data.experiment_name} / 모델명: {data.model_name}
+     → 로컬 테스트('로컬 실행해줘') 또는 바로 학습('학습 시작해줘') 가능합니다.
+     ```
+   - `data.passed == false`:
+     ```
+     ✗ 검증 실패 — 수정이 필요합니다:
+     {data.issues 목록}
+     → 수정 후 다시 '검증해줘'를 실행하세요.
+     ```
+4. `data.warnings` 가 있으면 경고로 안내 (통과는 됨)
+5. 실패 항목 수정 도움 제공 (에이전트가 run.py 직접 수정 가능)
 
 ## 검증 통과 기준
 - 9섹션 모두 존재
@@ -30,6 +41,10 @@ description: "현재 작업 폴더의 run.py가 9-섹션 표준 구조를 따르
 - NotImplementedError 없음
 - MLFLOW_TRACKING_URI 설정됨
 
+## 통과 시
+- `.aiu_state.json`에 `status=validated` 자동 저장 (스크립트가 처리)
+- 하단 툴바 자동 갱신
+
 ## 주의
-- 검증만 수행, 파일 수정하지 않는다
-- 경고(warning)는 통과 처리 (실험명/모델명 기본값 등)
+- 검증만 수행, 파일을 직접 수정하지 않는다
+- 단, 사용자가 수정 도움 요청 시 에이전트가 run.py 수정 후 재검증 가능
