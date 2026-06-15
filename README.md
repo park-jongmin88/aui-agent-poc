@@ -95,8 +95,16 @@ MLFLOW_PASSWORD = ""
   (2.1s)
 
 ────────────────────────────────────────────────────
->
+
+━━━ 📁 sklearn_sample  │  ✅init ──▶ [validate] ──▶ ○train ──▶ ○predict ──▶ ○deploy  │  groq: llama-3.3
+❯
 ```
+
+하단 상태바가 항상 표시됩니다:
+- `✅` 완료 단계 (초록)
+- `[현재]` 진행 가능한 다음 단계 (파란 bold)
+- `○` 미도달 단계 (회색)
+- 모델 폴더 변경 시 자동 갱신
 
 ### 작업 순서
 
@@ -147,4 +155,8 @@ workspace/
 setting/
   requirements.txt      에이전트 구동 패키지
   requirements-ml.txt   ML 작업 패키지
+workspace/
+  .current              현재 작업 폴더 (하단 상태바에 표시)
+  models/*/
+    .aiu_state.json     단계별 진행 상태 (toolbar 네비게이션 기반)
 ```
