@@ -66,14 +66,21 @@ def progress(message: str):
 def check_gate(folder: Path, skill: str) -> tuple:
     """단계 게이트 확인. (통과여부, 안내메시지) 반환."""
     try:
-        # local_serve: local_tested 또는 trained 둘 다 허용
+        # local_serve: local_tested 만 허용 (results/ 에 로컬 모델이 있어야 함)
         if skill == "local_serve":
             status = get_state(folder).get("status", "")
-            if status in ("local_tested", "trained", "predicted", "deployed"):
+            if status == "local_tested":
                 return True, ""
+            # trained/predicted 상태지만 local_run을 안 한 경우 명확히 안내
+            if status in ("trained", "predicted", "deployed"):
+                return False, (
+                    "로컬 서빙은 로컬 테스트(local_run) 결과물이 필요합니다.\n"
+                    "학습(train)은 MLflow에만 등록하므로 로컬 모델 파일이 없습니다.\n"
+                    "'로컬 실행해줘'로 local_run을 먼저 실행하세요."
+                )
             return False, (
-                "로컬 서빙 전에 로컬 테스트(local_run) 또는 학습(train)이 필요합니다.\n"
-                f"현재 상태: {status or '없음'}"
+                "로컬 서빙 전에 로컬 테스트(local_run)가 필요합니다.\n"
+                f"현재 상태: {status or '없음'}\n'로컬 실행해줘'를 먼저 실행하세요."
             )
 
         required = STAGE_REQUIRED.get(skill)
