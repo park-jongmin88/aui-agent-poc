@@ -308,7 +308,6 @@ def _save_provider_to_config(name: str, ptype: str, provider: dict):
 def install_dependencies(show_header: bool = True) -> bool:
     req = BASE_DIR / "setting" / "requirements.txt"
 
-    # .venv 안의 python을 명시적으로 사용
     if os.name == "nt":
         venv_python = BASE_DIR / ".venv" / "Scripts" / "python.exe"
     else:
@@ -319,53 +318,16 @@ def install_dependencies(show_header: bool = True) -> bool:
     if os.environ.get("PIP_INDEX_URL"):
         cmd += ["--index-url", os.environ["PIP_INDEX_URL"]]
 
-    try:
-        from rich.live import Live
-        from rich.panel import Panel
-        from rich.console import Console
-        from rich.text import Text
-        from rich.console import Group
+    if show_header:
+        print("  🐳 [3/4] 의존성 설치 중...")
 
-        console = Console()
-        if show_header:
-            console.print("  🐳 [3/4] 의존성 설치 중...")
-        N = 3
-        tail: list[str] = [""] * N
-        proc = subprocess.Popen(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            text=True, encoding="utf-8", errors="replace", bufsize=1,
-        )
-        spin_frames = ["🐳 설치 중   ", "🐳 설치 중.  ", "🐳 설치 중.. ", "🐳 설치 중..."]
-        fi = 0
-        with Live(console=console, refresh_per_second=4, transient=True) as live:
-            live.update(Group(
-                Text(spin_frames[0], style="cyan"),
-                Panel("\n".join(tail), border_style="grey50", height=N + 2)
-            ))
-            for line in proc.stdout:
-                line = line.rstrip()
-                if not line:
-                    continue
-                tail.append(line[:90])
-                tail = tail[-N:]
-                fi += 1
-                live.update(Group(
-                    Text(spin_frames[fi % len(spin_frames)], style="cyan"),
-                    Panel("\n".join(tail), border_style="grey50", height=N + 2)
-                ))
-        proc.wait()
-        ok = proc.returncode == 0
-        console.print(f"  🐳 [3/4] 의존성 설치             {'✓' if ok else '✗ 실패 (로그 확인 필요)'}")
-        return ok
-    except ImportError:
-        # rich 없음 (첫 설치) — stdout 억제, stderr는 보이게 (오류 확인용)
-        if show_header:
-            print("  🐳 [3/4] 의존성 설치 중...")
-        with open(os.devnull, "w") as devnull:
-            result = subprocess.run(cmd, stdout=devnull)
-        ok = result.returncode == 0
-        print(f"  🐳 [3/4] 의존성 설치             {'✓' if ok else '✗ 실패'}")
-        return ok
+    # stdout/stderr 모두 억제 (Windows cmd Ctrl+C 트리거 방지)
+    with open(os.devnull, "w") as devnull:
+        ret = subprocess.call(cmd, stdout=devnull, stderr=devnull)
+
+    ok = ret == 0
+    print(f"  🐳 [3/4] 의존성 설치             {'✓' if ok else '✗ 실패 (로그: pip install -r setting/requirements.txt)'}")
+    return ok
 
 
 # -------------------------------------------------------------
