@@ -305,16 +305,15 @@ def _save_provider_to_config(name: str, ptype: str, provider: dict):
         _json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
-def install_dependencies() -> bool:
+def install_dependencies(show_header: bool = True) -> bool:
     req = BASE_DIR / "setting" / "requirements.txt"
 
-    # .venv 안의 python을 명시적으로 사용 (sys.executable이 시스템 python을 가리킬 수 있음)
+    # .venv 안의 python을 명시적으로 사용
     if os.name == "nt":
         venv_python = BASE_DIR / ".venv" / "Scripts" / "python.exe"
     else:
         venv_python = BASE_DIR / ".venv" / "bin" / "python"
 
-    # venv python이 없으면 sys.executable 폴백
     pip_exe = str(venv_python) if venv_python.exists() else sys.executable
     cmd = [pip_exe, "-m", "pip", "install", "--no-input", "-r", str(req)]
     if os.environ.get("PIP_INDEX_URL"):
@@ -328,8 +327,9 @@ def install_dependencies() -> bool:
         from rich.console import Group
 
         console = Console()
-        console.print("  [3/4] 의존성 설치 중...")
-        N = 3  # 표시할 줄 수 (고정)
+        if show_header:
+            console.print("  🐳 [3/4] 의존성 설치 중...")
+        N = 3
         tail: list[str] = [""] * N
         proc = subprocess.Popen(
             cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
@@ -358,11 +358,12 @@ def install_dependencies() -> bool:
         console.print(f"  🐳 [3/4] 의존성 설치             {'✓' if ok else '✗ 실패 (로그 확인 필요)'}")
         return ok
     except ImportError:
-        # rich가 없으면 일반 출력으로 폴백 (pip 출력 억제로 Windows Ctrl+C 방지)
-        print("  🐳 [3/4] 의존성 설치 중...")
+        # rich 없음 (첫 설치) — stdout 억제, stderr는 보이게 (오류 확인용)
+        if show_header:
+            print("  🐳 [3/4] 의존성 설치 중...")
         with open(os.devnull, "w") as devnull:
-            ret = subprocess.run(cmd, stdout=devnull, stderr=devnull).returncode
-        ok = ret == 0
+            result = subprocess.run(cmd, stdout=devnull)
+        ok = result.returncode == 0
         print(f"  🐳 [3/4] 의존성 설치             {'✓' if ok else '✗ 실패'}")
         return ok
 
@@ -573,7 +574,7 @@ def main():
         print("✓ (생성됨)" if not CONFIG_PATH.exists() else "✓")
 
         print("  🐳 [3/4] 의존성 설치 중...")
-        if not install_dependencies():
+        if not install_dependencies(show_header=False):
             sys.exit(1)
         generate_run_scripts()
 

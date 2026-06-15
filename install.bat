@@ -47,7 +47,4 @@ if errorlevel 1 (
 )
 echo.
 echo 다음부터는 start.bat 으로 바로 실행할 수 있습니다.
-echo.
-echo ML 작업(학습/추론)을 위해 추가 설치가 필요합니다:
-echo   .venv\Scripts\python -m pip install -r setting\requirements-ml.txt
 pause
