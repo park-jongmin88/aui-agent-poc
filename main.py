@@ -554,22 +554,35 @@ def main():
     # [1/4] Python/가상환경 (여기 도달했으면 통과)
     print("  🐳 [1/4] Python / 가상환경       ✓")
 
-    # [2/4] 설정 (config.json) - 의존성 설치 전에 먼저 확인/입력
+    if mode == "--setup":
+        # 설치 모드: 의존성 설치 + config.json 생성만 (마법사/LLM체크 없음)
+        # stdin이 오염될 수 있으므로 입력을 일절 받지 않음
+        print("  🐳 [2/4] 설정(config.json)        ", end="")
+        cfg = load_config()  # 없으면 자동 생성
+        apply_pip_index(cfg)
+        print("✓ (생성됨)" if not CONFIG_PATH.exists() else "✓")
+
+        print("  🐳 [3/4] 의존성 설치 중...")
+        if not install_dependencies():
+            sys.exit(1)
+        generate_run_scripts()
+
+        print()
+        print("  설치 완료! start.bat (또는 ./start.sh) 으로 실행하세요.")
+        print(f"  LLM 정보를 미리 설정하려면 {CONFIG_PATH} 를 편집하세요.")
+        return
+
+    # --check 또는 일반 실행
+    # [2/4] 설정 확인 (없거나 placeholder면 마법사)
     cfg = check_config(interactive=(mode != "--check"))
     if cfg is None:
         sys.exit(1)
     apply_pip_index(cfg)
 
-    # [3/4] 의존성 설치 (setup 모드에서만 실제 설치)
-    if mode == "--setup":
-        if not install_dependencies():
-            sys.exit(1)
-        generate_run_scripts()
-    else:
-        print("  🐳 [3/4] 의존성                  ✓ (--setup 으로 재설치 가능)")
+    # [3/4] 의존성 (이미 설치됨)
+    print("  🐳 [3/4] 의존성                  ✓")
 
-    # [4/4] 필수 체크 목록 - 하나라도 실패하면 차단
-    #       향후 항목 추가 시 이 리스트에 (이름, 함수) 형태로 추가
+    # [4/4] 필수 체크 목록
     checks = [
         ("llm", lambda: check_llm(cfg, interactive=(mode != "--check"))),
     ]

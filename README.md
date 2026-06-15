@@ -4,15 +4,6 @@
 
 ---
 
-## 시작 전
-
-> **⚠️ install 실행 전에 `config.json` 을 먼저 열어 LLM 정보를 설정하는 것을 권장합니다.**
->
-> 미리 설정하지 않아도 install 중 대화형으로 입력할 수 있습니다.
-> `config.sample.json` 을 참고하세요.
-
----
-
 ## 설치
 
 | 환경 | 명령 |
@@ -20,13 +11,12 @@
 | Windows | `install.bat` |
 | macOS / Linux / Codespaces | `./install.sh` |
 
-처음 한 번만 실행하면 됩니다:
+처음 한 번만 실행합니다. 설치 중 입력은 필요 없습니다:
 
-1. 가상환경 생성 + 에이전트 구동 패키지 설치
-2. `config.json` 없으면 자동 생성 → LLM 정보 입력 (대화형)
-3. LLM 연결 확인 → **자동으로 CLI 진입**
-
-설치 완료 후 `start.bat` (Windows) / `./start.sh` (그 외) 로 바로 실행하세요.
+1. 가상환경 생성
+2. 필요 패키지 설치
+3. `config.json` 없으면 자동 생성
+4. `start.bat` / `start.sh` 생성
 
 ### ML 작업 전 추가 설치
 
@@ -42,30 +32,59 @@
 
 ---
 
-## 설정
+## 실행
 
-### config.json
-LLM 연결 정보를 관리합니다. **형상에 포함되지 않습니다** (`.gitignore`).
+설치 후 생성된 파일로 실행합니다:
+
+| 환경 | 명령 |
+|---|---|
+| Windows | `start.bat` |
+| macOS / Linux / Codespaces | `./start.sh` |
+
+처음 실행 시 LLM 설정이 없으면 입력을 요청합니다.
+
+---
+
+## LLM 설정
+
+`config.json` 파일을 편집합니다. `config.sample.json` 을 참고하세요.
+
+```json
+{
+  "llm": {
+    "active": "my-llm",
+    "providers": [
+      {
+        "name": "my-llm",
+        "type": "openai",
+        "base_url": "http://your-llm-server:8000/v1",
+        "api_key": "your-api-key",
+        "model": "your-model-name"
+      }
+    ]
+  }
+}
+```
 
 - `active`: 현재 사용할 LLM의 `name` 값
 - `type`: `openai` (OpenAI 호환) | `anthropic` (Anthropic API)
 - 여러 LLM을 등록하고 CLI에서 `/llm` 으로 전환 가능
 - 수정 후 `/reload` 로 즉시 반영
-
-`config.sample.json` 을 참고해 작성하세요.
+- **형상에 포함되지 않습니다** (`.gitignore`)
 
 ### MLflow 설정
+
 각 모델 폴더의 `run.py` 섹션 2에 직접 기입합니다:
 
 ```python
-MLFLOW_TRACKING_URI = "http://your-mlflow:5000"  # TODO
-MLFLOW_USERNAME = ""  # TODO
-MLFLOW_PASSWORD = ""  # TODO
+MLFLOW_TRACKING_URI = "http://your-mlflow:5000"
+MLFLOW_USERNAME = ""
+MLFLOW_PASSWORD = ""
 ```
 
 ---
 
-## 사용
+## 사용법
 
 ```
 > 1번 준비해줘
