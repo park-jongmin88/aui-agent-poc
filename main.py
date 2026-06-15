@@ -314,45 +314,26 @@ def install_dependencies(show_header: bool = True) -> bool:
         venv_python = BASE_DIR / ".venv" / "bin" / "python"
 
     pip_exe = str(venv_python) if venv_python.exists() else sys.executable
-    cmd = [pip_exe, "-m", "pip", "install", "--no-input", "-r", str(req)]
+    cmd = [pip_exe, "-m", "pip", "install",
+           "--no-input", "--disable-pip-version-check",
+           "-r", str(req)]
     if os.environ.get("PIP_INDEX_URL"):
         cmd += ["--index-url", os.environ["PIP_INDEX_URL"]]
 
     if show_header:
         print("  🐳 [3/4] 의존성 설치 중...")
 
-    # pip 실행 - 출력을 실시간으로 표시 (넥서스 환경에서 진행상황 확인용)
-    try:
-        import pip._internal.cli.main as pip_main
-        import io, contextlib
-        pip_args = ["install", "--no-input", "-r", str(req)]
-        if os.environ.get("PIP_INDEX_URL"):
-            pip_args += ["--index-url", os.environ["PIP_INDEX_URL"]]
-        buf = io.StringIO()
-        with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
-            ret = pip_main.main(pip_args)
-        if ret != 0:
-            print("  pip 오류:")
-            for line in buf.getvalue().splitlines()[-10:]:
-                print(f"    {line}")
-    except Exception:
-        ret = 1
-
-    if ret != 0:
-        # 실패 시 subprocess로 재시도 (출력 실시간 표시)
-        proc = subprocess.Popen(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            text=True, encoding="utf-8", errors="replace", bufsize=1
-        )
-        for line in proc.stdout:
-            line = line.rstrip()
-            if line:
-                print(f"    {line}")
-        proc.wait()
-        ret = proc.returncode
-
-    ok = ret == 0
-    print(f"  🐳 [3/4] 의존성 설치             {'✓' if ok else '✗ 실패 (로그: pip install -r setting/requirements.txt)'}")
+    proc = subprocess.Popen(
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        text=True, encoding="utf-8", errors="replace", bufsize=1
+    )
+    for line in proc.stdout:
+        line = line.rstrip()
+        if line:
+            print(f"    {line}")
+    proc.wait()
+    ok = proc.returncode == 0
+    print(f"  🐳 [3/4] 의존성 설치             {'✓' if ok else '✗ 실패'}")
     return ok
 
 
