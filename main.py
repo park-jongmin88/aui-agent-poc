@@ -321,9 +321,21 @@ def install_dependencies(show_header: bool = True) -> bool:
     if show_header:
         print("  🐳 [3/4] 의존성 설치 중...")
 
-    # stdout/stderr 모두 억제 (Windows cmd Ctrl+C 트리거 방지)
-    with open(os.devnull, "w") as devnull:
-        ret = subprocess.call(cmd, stdout=devnull, stderr=devnull)
+    # pip을 Python API로 직접 호출 (subprocess 미사용 → Windows Ctrl+C 방지)
+    try:
+        import pip._internal.cli.main as pip_main
+        import io, contextlib
+        pip_args = ["install", "--no-input", "-r", str(req)]
+        if os.environ.get("PIP_INDEX_URL"):
+            pip_args += ["--index-url", os.environ["PIP_INDEX_URL"]]
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
+            ret = pip_main.main(pip_args)
+    except Exception:
+        # pip API 실패 시 subprocess 폴백
+        with open(os.devnull, "w") as devnull:
+            proc = subprocess.run(cmd, stdout=devnull, stderr=devnull)
+        ret = proc.returncode
 
     ok = ret == 0
     print(f"  🐳 [3/4] 의존성 설치             {'✓' if ok else '✗ 실패 (로그: pip install -r setting/requirements.txt)'}")
