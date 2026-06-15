@@ -897,12 +897,77 @@ def _extract_text(content) -> str:
 # -------------------------------------------------------------
 #  대화 루프
 # -------------------------------------------------------------
+def _get_toolbar_text(provider: dict) -> str:
+    """bottom_toolbar 텍스트 생성 — 현재 모델 + 단계 네비게이션."""
+    try:
+        sys.path.insert(0, str(BASE_DIR))
+        from skills.common import get_current_folder, get_state
+        folder = get_current_folder()
+        folder_name = folder.name if folder else "없음"
+        status = get_state(folder).get("status", "") if folder else ""
+    except Exception:
+        folder_name = "없음"
+        status = ""
+
+    STAGES = [
+        ("init",     "initialized"),
+        ("validate", "validated"),
+        ("train",    "trained"),
+        ("predict",  "predicted"),
+        ("deploy",   "deployed"),
+    ]
+
+    STATUS_ORDER = ["initialized", "validated", "local_tested", "trained", "predicted", "deployed"]
+
+    def stage_icon(stage_name: str, required_status: str) -> str:
+        if not status:
+            if stage_name == "init":
+                return "<ansicyan><b>[init]</b></ansicyan>"
+            return f"<ansiwhite>{stage_name}</ansiwhite>"
+
+        try:
+            current_idx = STATUS_ORDER.index(status) if status in STATUS_ORDER else -1
+            required_idx = STATUS_ORDER.index(required_status) if required_status in STATUS_ORDER else -1
+        except ValueError:
+            current_idx = required_idx = -1
+
+        if status == required_status or (stage_name == "init" and status in STATUS_ORDER):
+            if stage_name == "deploy" and status == "deployed":
+                return "<ansigreen>✅deploy</ansigreen>"
+            if current_idx > required_idx:
+                return f"<ansigreen>✅{stage_name}</ansigreen>"
+            elif current_idx == required_idx:
+                return f"<ansicyan><b>[{stage_name}]</b></ansicyan>"
+        if current_idx > required_idx:
+            return f"<ansigreen>✅{stage_name}</ansigreen>"
+        elif current_idx == required_idx - 1 or (stage_name == "init" and not status):
+            return f"<ansicyan><b>[{stage_name}]</b></ansicyan>"
+        elif status == "error":
+            return f"<ansired>❌{stage_name}</ansired>"
+        else:
+            return f"<ansiwhite>{stage_name}</ansiwhite>"
+
+    nav_parts = []
+    for i, (sname, sstat) in enumerate(STAGES):
+        nav_parts.append(stage_icon(sname, sstat))
+        if i < len(STAGES) - 1:
+            nav_parts.append("<ansiwhite> ──▶ </ansiwhite>")
+
+    llm_name = provider.get("name", "?")
+    model_name = provider.get("model", "?")
+    short_model = model_name.split("/")[-1] if "/" in model_name else model_name
+    if len(short_model) > 20:
+        short_model = short_model[:20] + "…"
+
+    nav = "".join(nav_parts)
+    return f"━━━ 📁 {folder_name}  │  {nav}  │  {llm_name}: {short_model} ━━━"
+
+
 def chat_loop(cfg: dict, provider: dict, agent):
     try:
         from rich.console import Console
         from rich.markdown import Markdown
         from rich.live import Live
-        from rich.spinner import Spinner
         from rich.text import Text
         console = Console()
         USE_RICH = True
@@ -913,8 +978,20 @@ def chat_loop(cfg: dict, provider: dict, agent):
     try:
         from prompt_toolkit import PromptSession
         from prompt_toolkit.styles import Style
-        pt_style = Style.from_dict({"prompt": "bold ansicyan"})
-        session = PromptSession(style=pt_style)
+        from prompt_toolkit.formatted_text import HTML
+
+        pt_style = Style.from_dict({
+            "prompt": "bold ansicyan",
+            "bottom-toolbar": "bg:#1a1a2e #aaaaaa",
+        })
+
+        def get_toolbar():
+            return HTML(_get_toolbar_text(provider))
+
+        session = PromptSession(
+            style=pt_style,
+            bottom_toolbar=get_toolbar,
+        )
         USE_PT = True
     except ImportError:
         USE_PT = False
@@ -932,6 +1009,8 @@ def chat_loop(cfg: dict, provider: dict, agent):
     while True:
         try:
             if USE_PT:
+                # provider가 변경될 수 있으므로 매번 toolbar 함수 재생성
+                session.bottom_toolbar = lambda: HTML(_get_toolbar_text(provider))
                 user_input = session.prompt("❯ ").strip()
             elif USE_RICH:
                 console.print("[bold cyan]❯[/bold cyan] ", end="")
