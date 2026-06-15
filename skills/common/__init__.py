@@ -6,12 +6,12 @@ import sys
 from pathlib import Path
 from datetime import datetime
 
-# 프로젝트 루트
 ROOT = Path(__file__).resolve().parents[2]
 WORKSPACE_DIR = ROOT / "workspace"
 MODELS_DIR = WORKSPACE_DIR / "models"
 TEMPLATES_DIR = WORKSPACE_DIR / "templates"
 CURRENT_FILE = WORKSPACE_DIR / ".current"
+CONFIG_PATH = ROOT / "config.json"
 
 
 def ok(data: dict):
@@ -23,6 +23,54 @@ def fail(message: str):
     print(json.dumps({"status": "error", "message": message}, ensure_ascii=False),
           file=sys.stderr)
     sys.exit(1)
+
+
+def get_config() -> dict:
+    """config.json 로드."""
+    if not CONFIG_PATH.exists():
+        return {}
+    try:
+        return json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def get_mlflow_config() -> dict:
+    """config.json의 mlflow 섹션 반환."""
+    cfg = get_config()
+    return cfg.get("mlflow", {
+        "tracking_uri": "",
+        "username": "",
+        "password": ""
+    })
+
+
+def save_mlflow_config(tracking_uri: str, username: str = "", password: str = ""):
+    """MLflow 설정을 config.json에 저장."""
+    cfg = get_config()
+    cfg["mlflow"] = {
+        "tracking_uri": tracking_uri,
+        "username": username,
+        "password": password
+    }
+    CONFIG_PATH.write_text(
+        json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
+
+def is_mlflow_configured() -> bool:
+    """MLflow 주소가 설정됐는지 확인."""
+    uri = get_mlflow_config().get("tracking_uri", "")
+    return bool(uri) and "your-mlflow" not in uri
+
+
+def is_ml_installed() -> bool:
+    """ML 패키지(mlflow 등) 설치 여부 확인."""
+    try:
+        import mlflow
+        return True
+    except ImportError:
+        return False
 
 
 def get_current_folder() -> Path | None:
@@ -41,16 +89,6 @@ def set_current_folder(name: str):
     CURRENT_FILE.write_text(name, encoding="utf-8")
 
 
-def get_run_py(folder: Path) -> Path:
-    """모델 폴더의 run.py 경로 반환."""
-    return folder / "run.py"
-
-
-def get_source_dir(folder: Path) -> Path:
-    """모델 폴더의 source/ 경로 반환."""
-    return folder / "source"
-
-
 def get_state(folder: Path) -> dict:
     """모델 폴더의 작업 상태 반환."""
     state_file = folder / ".aiu_state.json"
@@ -67,8 +105,9 @@ def set_state(folder: Path, **kwargs):
     state = get_state(folder)
     state.update(kwargs)
     state["updated_at"] = datetime.now().isoformat()
-    state_file = folder / ".aiu_state.json"
-    state_file.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+    (folder / ".aiu_state.json").write_text(
+        json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
 
 def list_model_folders() -> list[dict]:
@@ -90,6 +129,8 @@ def list_model_folders() -> list[dict]:
                 "last_run_id": state.get("last_run_id"),
                 "last_run_at": state.get("last_run_at"),
                 "status": state.get("status"),
+                "experiment_name": state.get("experiment_name"),
+                "model_name": state.get("model_name"),
             })
     return result
 

@@ -31,6 +31,11 @@ SAMPLE_CONFIG_JSON = {
                 "model": "your-model-name"
             }
         ]
+    },
+    "mlflow": {
+        "tracking_uri": "",
+        "username": "",
+        "password": ""
     }
 }
 
