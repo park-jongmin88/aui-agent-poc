@@ -179,10 +179,9 @@ def gen_section3(mode: str, framework: str, source_files: dict, source_dir: Path
             fname = csv_files[0]
             return f'''def prepare_data():
     """source/ 의 데이터 파일 로드."""
-    data_path = ROOT / "workspace" / "models" / Path(__file__).parent.name / "source" / "{fname}"
+    data_path = Path(__file__).resolve().parent / "source" / "{fname}"
     df = pd.read_csv(data_path)
-    # TODO: 타겟 컬럼명 확인
-    target_col = df.columns[-1]  # 마지막 컬럼을 타겟으로 가정
+    target_col = df.columns[-1]  # TODO: 타겟 컬럼명 확인 (현재: 마지막 컬럼)
     X = df.drop(columns=[target_col]).values
     y = df[target_col].values
     return train_test_split(X, y, test_size=0.2, random_state=42)'''
@@ -201,7 +200,7 @@ def gen_section4(mode: str, framework: str, source_files: dict, source_dir: Path
 
     if mode == "LOAD_MODEL" and model_files:
         mfile = model_files[0]
-        mpath = f'ROOT / "workspace" / "models" / Path(__file__).parent.name / "source" / "{mfile}"'
+        mpath = f'Path(__file__).resolve().parent / "source" / "{mfile}"'
 
         if framework == "sklearn":
             return f'''def build_model():
@@ -355,17 +354,26 @@ def gen_section8() -> str:
     )'''
 
 
-def gen_section9(folder_name: str) -> str:
+def gen_section9(folder_name: str, framework: str) -> str:
     """섹션 9: 런 스타트."""
+    # sklearn은 test 평가 메트릭 추가
+    eval_block = ""
+    if framework == "sklearn":
+        eval_block = '''
+        from sklearn.metrics import accuracy_score
+        test_acc = accuracy_score(y_test, model.predict(X_test))
+        mlflow.log_metric("test_accuracy", test_acc)
+        print(f"[AIU] test_accuracy={test_acc:.4f}")'''
+
     return f'''if __name__ == "__main__":
     USE_DATALAKE = False  # TODO: datalake 사용 여부
 
     SAVE_DIR = ROOT / "workspace" / "results" / "{folder_name}"
 
     with mlflow.start_run() as run:
-        X_train, y_train = prepare_data()
+        X_train, X_test, y_train, y_test = prepare_data()
         model = build_model()
-        train(model, X_train, y_train)
+        train(model, X_train, y_train){eval_block}
         log_model(model, get_input_example(X_train))
         write_config(SAVE_DIR)
         print(f"[AIU] run_id={{run.info.run_id}} model={{MODEL_NAME}} 등록 완료")'''
@@ -394,7 +402,7 @@ def generate(folder_name: str, experiment_name: str, model_name: str):
         "6": gen_section6(framework),
         "7": gen_section7(framework),
         "8": gen_section8(),
-        "9": gen_section9(folder_name),
+        "9": gen_section9(folder_name, framework),
     }
 
     section_titles = {
