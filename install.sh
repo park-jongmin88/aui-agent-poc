@@ -25,8 +25,6 @@ if [ -n "$NEXUS_PYPI" ]; then
     export PIP_INDEX_URL="$NEXUS_PYPI"
 fi
 
-echo "🐳 기본 패키지 설치 중..."
-.venv/bin/python _bootstrap.py
 
 
 .venv/bin/python main.py --setup
@@ -37,9 +35,9 @@ if [ $EXIT_CODE -ne 0 ]; then
     echo "  │ 위 메시지에서 원인을 확인하세요."
     echo "  │"
     echo "  │ 주요 원인:"
-    echo "  │   - LLM 연결 실패: config.yaml 의 base_url/api_key/type 확인"
+    echo "  │   - LLM 연결 실패: config.json 의 base_url/api_key/type 확인"
     echo "  │   - 의존성 설치 실패: 네트워크 또는 넥서스 설정 확인"
-    echo "  │   - 설정 누락: config.yaml 의 TODO 항목 미입력"
+    echo "  │   - 설정 누락: config.json 의 TODO 항목 미입력"
     echo "  │"
     echo "  │ 수정 후 ./start.sh 로 재실행하세요."
     echo "  └──────────────────────────────────────────────"
