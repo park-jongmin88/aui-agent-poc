@@ -321,7 +321,7 @@ def install_dependencies(show_header: bool = True) -> bool:
     if show_header:
         print("  🐳 [3/4] 의존성 설치 중...")
 
-    # pip을 Python API로 직접 호출 (subprocess 미사용 → Windows Ctrl+C 방지)
+    # pip 실행 - 출력을 실시간으로 표시 (넥서스 환경에서 진행상황 확인용)
     try:
         import pip._internal.cli.main as pip_main
         import io, contextlib
@@ -331,10 +331,24 @@ def install_dependencies(show_header: bool = True) -> bool:
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
             ret = pip_main.main(pip_args)
+        if ret != 0:
+            print("  pip 오류:")
+            for line in buf.getvalue().splitlines()[-10:]:
+                print(f"    {line}")
     except Exception:
-        # pip API 실패 시 subprocess 폴백
-        with open(os.devnull, "w") as devnull:
-            proc = subprocess.run(cmd, stdout=devnull, stderr=devnull)
+        ret = 1
+
+    if ret != 0:
+        # 실패 시 subprocess로 재시도 (출력 실시간 표시)
+        proc = subprocess.Popen(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            text=True, encoding="utf-8", errors="replace", bufsize=1
+        )
+        for line in proc.stdout:
+            line = line.rstrip()
+            if line:
+                print(f"    {line}")
+        proc.wait()
         ret = proc.returncode
 
     ok = ret == 0
