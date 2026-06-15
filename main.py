@@ -310,6 +310,103 @@ def _save_provider_to_config(name: str, ptype: str, provider: dict):
         _json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
+def _read_requirements(req_path):
+    """requirements.txt에서 설치할 패키지 목록을 읽는다.
+    주석(#)과 빈 줄, -r/-e 등 옵션 줄은 건너뛴다."""
+    pkgs = []
+    try:
+        for raw in req_path.read_text(encoding="utf-8").splitlines():
+            line = raw.strip()
+            if not line or line.startswith("#"):
+                continue
+            if line.startswith("-"):  # -r, -e, --hash 등 옵션 줄
+                continue
+            # 인라인 주석 제거
+            if " #" in line:
+                line = line.split(" #")[0].strip()
+            if line:
+                pkgs.append(line)
+    except Exception:
+        pass
+    return pkgs
+
+
+def _pkg_display_name(spec: str) -> str:
+    """버전 지정자를 떼고 패키지 이름만 추출 (표시용)."""
+    for sep in ("==", ">=", "<=", "~=", ">", "<", "!=", "["):
+        idx = spec.find(sep)
+        if idx > 0:
+            return spec[:idx].strip()
+    return spec.strip()
+
+
+def _install_one(pip_exe, spec, extra_args):
+    """패키지 1개 설치. 설치 중 스피너를 같은 줄에 갱신.
+    (성공여부, 출력텍스트) 반환. Windows/Linux 공통, 인터럽트 안전."""
+    import threading
+
+    cmd = [pip_exe, "-m", "pip", "install",
+           "--no-input", "--disable-pip-version-check"] + extra_args + [spec]
+
+    name = _pkg_display_name(spec)
+    done = {"flag": False}
+    start = time.time()
+
+    # ASCII 스피너 (Windows 구형 콘솔 호환)
+    spinner_chars = ["|", "/", "-", "\\"]
+
+    def spin():
+        i = 0
+        while not done["flag"]:
+            elapsed = int(time.time() - start)
+            ch = spinner_chars[i % len(spinner_chars)]
+            try:
+                sys.stdout.write(f"\r    {ch} {name} 설치 중... ({elapsed}s)   ")
+                sys.stdout.flush()
+            except Exception:
+                pass
+            i += 1
+            time.sleep(0.2)
+
+    spinner = threading.Thread(target=spin, daemon=True)
+    proc = None
+    try:
+        # 바이트로 받아 나중에 안전하게 디코딩 (디코딩 중 인터럽트 방지)
+        proc = subprocess.Popen(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+        )
+        spinner.start()
+        out, _ = proc.communicate()
+        done["flag"] = True
+        spinner.join(timeout=1)
+
+        elapsed = int(time.time() - start)
+        text = out.decode("utf-8", errors="replace") if out else ""
+        ok = proc.returncode == 0
+
+        # 같은 줄을 결과로 덮어쓰기
+        mark = "✓" if ok else "✗"
+        sys.stdout.write(f"\r    {mark} {name}".ljust(50) + f"({elapsed}s)\n")
+        sys.stdout.flush()
+        return ok, text
+    except KeyboardInterrupt:
+        done["flag"] = True
+        if proc:
+            try: proc.kill()
+            except Exception: pass
+        sys.stdout.write(f"\r    ! {name} 설치 중단됨\n")
+        sys.stdout.flush()
+        raise
+    except Exception as e:
+        done["flag"] = True
+        if proc:
+            try: proc.kill()
+            except Exception: pass
+        sys.stdout.write(f"\r    ✗ {name} 오류: {e}\n")
+        sys.stdout.flush()
+        return False, str(e)
+
+
 def install_dependencies(show_header: bool = True) -> bool:
     req = BASE_DIR / "setting" / "requirements.txt"
 
@@ -319,27 +416,52 @@ def install_dependencies(show_header: bool = True) -> bool:
         venv_python = BASE_DIR / ".venv" / "bin" / "python"
 
     pip_exe = str(venv_python) if venv_python.exists() else sys.executable
-    cmd = [pip_exe, "-m", "pip", "install",
-           "--no-input", "--disable-pip-version-check",
-           "-r", str(req)]
+
+    extra_args = []
     if os.environ.get("PIP_INDEX_URL"):
-        cmd += ["--index-url", os.environ["PIP_INDEX_URL"]]
+        extra_args += ["--index-url", os.environ["PIP_INDEX_URL"]]
 
     if show_header:
         print("  🐳 [3/4] 의존성 설치 중...")
 
-    proc = subprocess.Popen(
-        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-        text=True, encoding="utf-8", errors="replace", bufsize=1
-    )
-    for line in proc.stdout:
-        line = line.rstrip()
-        if line:
-            print(f"    {line}")
-    proc.wait()
-    ok = proc.returncode == 0
-    print(f"  🐳 [3/4] 의존성 설치             {'✓' if ok else '✗ 실패'}")
-    return ok
+    pkgs = _read_requirements(req)
+    if not pkgs:
+        # 목록을 못 읽으면 기존 방식(-r 일괄)으로 폴백
+        try:
+            cmd = [pip_exe, "-m", "pip", "install", "--no-input",
+                   "--disable-pip-version-check", "-r", str(req)] + extra_args
+            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            out, _ = proc.communicate()
+            ok = proc.returncode == 0
+        except Exception:
+            ok = False
+        print(f"  🐳 [3/4] 의존성 설치             {'✓' if ok else '✗ 실패'}")
+        return ok
+
+    # 패키지별 개별 설치
+    all_ok = True
+    failed = []
+    for spec in pkgs:
+        try:
+            ok, out = _install_one(pip_exe, spec, extra_args)
+            if not ok:
+                all_ok = False
+                failed.append((_pkg_display_name(spec), out))
+        except KeyboardInterrupt:
+            print("  🐳 설치가 중단되었습니다. 다시 install을 실행해주세요.")
+            return False
+
+    if all_ok:
+        print(f"  🐳 [3/4] 의존성 설치             ✓")
+    else:
+        print(f"  🐳 [3/4] 의존성 설치             ✗ 실패")
+        for name, out in failed:
+            tail = "\n".join(out.splitlines()[-3:]) if out else ""
+            print(f"    ✗ {name} 설치 실패")
+            if tail:
+                for t in tail.splitlines():
+                    print(f"        {t}")
+    return all_ok
 
 
 # -------------------------------------------------------------
