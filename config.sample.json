@@ -1,0 +1,56 @@
+{
+  "_comment": "config.json 작성 참고용 샘플입니다. 이 파일은 수정하지 마세요.",
+  "llm": {
+    "active": "my-llm",
+    "_active_comment": "현재 사용할 LLM의 name 값을 지정하세요. /llm 명령으로 세션 중 전환도 가능합니다.",
+    "providers": [
+      {
+        "_comment": "사용 중인 LLM (필수)",
+        "name": "my-llm",
+        "type": "openai",
+        "base_url": "http://your-llm-server:8000/v1",
+        "api_key": "your-api-key",
+        "model": "your-model-name"
+      },
+      {
+        "_comment": "groq (OpenAI 호환, 무료 티어 있음)",
+        "name": "groq",
+        "type": "openai",
+        "base_url": "https://api.groq.com/openai/v1",
+        "api_key": "gsk_...",
+        "model": "llama-3.3-70b-versatile"
+      },
+      {
+        "_comment": "OpenAI 공식",
+        "name": "openai",
+        "type": "openai",
+        "base_url": "https://api.openai.com/v1",
+        "api_key": "sk-...",
+        "model": "gpt-4o"
+      },
+      {
+        "_comment": "Anthropic Claude (base_url 불필요)",
+        "name": "claude",
+        "type": "anthropic",
+        "api_key": "sk-ant-...",
+        "model": "claude-sonnet-4-6"
+      },
+      {
+        "_comment": "Anthropic 호환 커스텀 엔드포인트 (사내 프록시 등)",
+        "name": "claude-custom",
+        "type": "anthropic",
+        "base_url": "https://your-anthropic-proxy.io",
+        "api_key": "sk-...",
+        "model": "claude-sonnet-4-6"
+      },
+      {
+        "_comment": "Ollama (로컬 실행)",
+        "name": "ollama",
+        "type": "openai",
+        "base_url": "http://localhost:11434/v1",
+        "api_key": "ollama",
+        "model": "llama3.2"
+      }
+    ]
+  }
+}

@@ -29,7 +29,7 @@ if not "%NEXUS_PYPI%"=="" set PIP_OPTS=--index-url %NEXUS_PYPI% --trusted-host %
 if not "%NEXUS_PYPI%"=="" set PIP_INDEX_URL=%NEXUS_PYPI%
 
 echo [aiu-agent] 기본 패키지 설치 중...
-.venv\Scripts\python.exe -m pip install rich pyyaml ruamel.yaml %PIP_OPTS% --quiet --disable-pip-version-check
+.venv\Scripts\python.exe -m pip install rich %PIP_OPTS% --quiet --no-input --disable-pip-version-check
 
 .venv\Scripts\python.exe main.py --setup
 if errorlevel 1 (

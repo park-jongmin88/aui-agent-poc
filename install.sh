@@ -26,7 +26,7 @@ if [ -n "$NEXUS_PYPI" ]; then
 fi
 
 echo "🐳 기본 패키지 설치 중..."
-.venv/bin/python -m pip install rich pyyaml "ruamel.yaml" $PIP_OPTS --quiet --disable-pip-version-check
+.venv/bin/python -m pip install rich $PIP_OPTS --quiet --no-input --disable-pip-version-check
 
 
 .venv/bin/python main.py --setup

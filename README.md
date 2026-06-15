@@ -4,7 +4,7 @@
 
 ## 시작 전 권장 사항
 
-> **⚠️ install 실행 전에 `config.yaml` 을 먼저 열어 LLM 정보를 설정하는 것을 권장합니다.**
+> **⚠️ install 실행 전에 `config.json` 을 먼저 열어 LLM 정보를 설정하는 것을 권장합니다.**
 >
 > 미리 설정하지 않아도 install 중 대화형으로 입력할 수 있지만,
 > API 키나 base_url 등 복잡한 값은 파일을 직접 편집하는 것이 더 편리합니다.
@@ -30,17 +30,18 @@
 처음 한 번만 실행하면 됩니다:
 
 1. 가상환경 생성 + 필요한 패키지 설치 (진행 상황이 화면에 표시됩니다)
-2. `config.yaml` 이 없으면 자동 생성. LLM 정보가 비어있으면 그 자리에서 입력받습니다
+2. `config.json` 이 없으면 자동 생성. LLM 정보가 비어있으면 그 자리에서 입력받습니다
 3. LLM 연결 확인 후 **자동으로 CLI에 진입**합니다
 
 설치 후 `start.bat`(Windows) / `start.sh`(macOS·Linux)로 바로 실행하세요.
 
 ## 설정
-- `config.yaml`: LLM 목록 (여러 개 등록 가능, `/llm` 으로 전환)
+- `config.json`: LLM 목록 (여러 개 등록 가능, `/llm` 으로 전환)
   - `active`: 현재 사용할 LLM의 name 값을 지정
   - `type`: `openai` (OpenAI 호환) | `anthropic` (Anthropic API)
   - 수정 후 `/reload` 로 즉시 반영
   - **형상에 올리지 않습니다 (.gitignore)**
+- `config.sample.json`: 샘플 예시 파일 (참고용, 형상에 포함)
 - MLflow 주소/계정: 각 모델 폴더 `run.py` 섹션 2에 직접 기입
 
 ## 사용
@@ -61,7 +62,7 @@
 | `/list` | 작업 목록 (workspace/models/) |
 | `/llm` | LLM 목록 + 전환 |
 | `/config` | 현재 설정 |
-| `/reload` | config.yaml 재로드 |
+| `/reload` | config.json 재로드 |
 | `/log` | 마지막 로그 |
 | `/clear` | 대화 초기화 |
 | `/exit` | 종료 |
@@ -71,7 +72,7 @@
 ```
 main.py              진입점 (CLI 대화 루프)
 agent.md             에이전트 정의 (항상 로드)
-config.yaml          LLM 설정 (없으면 자동 생성, 형상 제외)
+config.json          LLM 설정 (없으면 자동 생성, 형상 제외)
 install.bat/sh       최초 설치 → start.bat/sh 생성
 start.bat/sh         이후 실행
 skills/              5개 스킬 (init/validate/train/deploy/predict)

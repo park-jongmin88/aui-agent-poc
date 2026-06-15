@@ -12,75 +12,27 @@ import sys
 import time
 import subprocess
 from pathlib import Path
-
-from ruamel.yaml import YAML as _YAML
-_ryaml = _YAML()
-_ryaml.preserve_quotes = True
-_ryaml.width = 120
+import json as _json
 
 BASE_DIR = Path(__file__).resolve().parent
 WORKSPACE_DIR = BASE_DIR / "workspace"
-CONFIG_PATH = BASE_DIR / "config.yaml"
+CONFIG_PATH = BASE_DIR / "config.json"
 VERSION = "0.2.0 (POC)"
 
-SAMPLE_CONFIG = """# =====================================================
-#  aiu-agent 설정
-#  TODO 표시된 값을 환경에 맞게 수정하세요.
-#  수정 후 CLI에서 /reload 로 즉시 반영할 수 있습니다.
-#
-#  [LLM 설정 안내]
-#  active : 현재 사용할 LLM의 name 값을 지정하세요.
-#           CLI에서 /llm 명령으로 세션 중 전환도 가능합니다.
-#  type   : openai (OpenAI 호환) | anthropic (Anthropic API)
-#  providers 에 여러 LLM을 등록해두고 active 로 선택합니다.
-# =====================================================
-llm:
-  active: my-llm
-
-  providers:
-    # ── 사용 중인 LLM ──────────────────────────────
-    - name: my-llm
-      type: openai
-      base_url: http://your-llm-server:8000/v1   # TODO
-      api_key: your-api-key                      # TODO
-      model: your-model-name                     # TODO
-
-# ── 참고 샘플 (providers 아래에 추가해서 사용) ─────
-#
-# groq (OpenAI 호환, 무료 티어 있음)
-# - name: groq
-#   type: openai
-#   base_url: https://api.groq.com/openai/v1
-#   api_key: gsk_...
-#   model: llama-3.3-70b-versatile
-#
-# OpenAI 공식
-# - name: openai
-#   type: openai
-#   base_url: https://api.openai.com/v1
-#   api_key: sk-...
-#   model: gpt-4o
-#
-# Anthropic Claude (base_url 불필요)
-# - name: claude
-#   type: anthropic
-#   api_key: sk-ant-...
-#   model: claude-sonnet-4-6
-#
-# Anthropic 호환 커스텀 엔드포인트 (사내 프록시 등)
-# - name: claude-custom
-#   type: anthropic
-#   base_url: https://your-anthropic-proxy.io
-#   api_key: sk-...
-#   model: claude-sonnet-4-6
-#
-# Ollama (로컬 실행)
-# - name: ollama
-#   type: openai
-#   base_url: http://localhost:11434/v1
-#   api_key: ollama
-#   model: llama3.2
-"""
+SAMPLE_CONFIG_JSON = {
+    "llm": {
+        "active": "my-llm",
+        "providers": [
+            {
+                "name": "my-llm",
+                "type": "openai",
+                "base_url": "http://your-llm-server:8000/v1",
+                "api_key": "your-api-key",
+                "model": "your-model-name"
+            }
+        ]
+    }
+}
 
 PLACEHOLDER_TOKENS = ("your-", "http://your-")
 
@@ -115,17 +67,19 @@ def _looks_like_path(s: str) -> bool:
 
 
 # -------------------------------------------------------------
-#  config.yaml 로딩 / 생성 / 마법사
+#  config.json 로딩 / 생성 / 마법사
 # -------------------------------------------------------------
 def load_config(create_if_missing: bool = True) -> dict:
     if not CONFIG_PATH.exists():
         if not create_if_missing:
             return {}
-        CONFIG_PATH.write_text(SAMPLE_CONFIG, encoding="utf-8")
-        print(f"        config.yaml 이 없어 새로 생성했습니다 → {CONFIG_PATH}")
+        CONFIG_PATH.write_text(
+            _json.dumps(SAMPLE_CONFIG_JSON, ensure_ascii=False, indent=2),
+            encoding="utf-8"
+        )
+        print(f"        config.json 이 없어 새로 생성했습니다 → {CONFIG_PATH}")
     with open(CONFIG_PATH, encoding="utf-8") as f:
-        data = _ryaml.load(f)
-    return dict(data) if data else {}
+        return _json.load(f) or {}
 
 
 def get_providers(cfg: dict) -> list:
@@ -158,7 +112,7 @@ def is_placeholder(provider: dict) -> bool:
 
 
 def apply_pip_index(cfg: dict):
-    """우선순위: OS 환경변수 > config.yaml"""
+    """우선순위: OS 환경변수 > config.json"""
     if os.environ.get("PIP_INDEX_URL"):
         return
     url = ((cfg.get("pip") or {}).get("index_url") or "").strip()
@@ -167,7 +121,7 @@ def apply_pip_index(cfg: dict):
 
 
 def run_wizard(cfg: dict) -> dict:
-    """대화형으로 LLM provider를 입력받아 config.yaml 저장."""
+    """대화형으로 LLM provider를 입력받아 config.json 저장."""
     try:
         from rich.console import Console
         from rich.panel import Panel
@@ -313,6 +267,16 @@ def run_wizard(cfg: dict) -> dict:
     provider["api_key"] = values.get("api_key") or "your-api-key"
     provider["model"]   = values.get("model")   or "your-model-name"
 
+    # 저장 전 빈 항목 확인
+    empty_keys = [label.strip() for key, label in fields if not values.get(key)]
+    if empty_keys:
+        print()
+        say(f"  ⚠ 비워둔 항목: {', '.join(empty_keys)}", style="yellow")
+        confirm = input("  비워둔 항목이 있습니다. 그래도 저장할까요? [y/N]: ").strip().lower()
+        if confirm not in ("y", "yes"):
+            say("  저장을 취소했습니다. config.json 을 직접 수정하거나 다시 실행하세요.", style="yellow")
+            return load_config()
+
     # 텍스트 블록 교체 저장 (주석/샘플 영역 보존, bak 없음)
     _save_provider_to_config(name, ptype, provider)
     cfg = load_config()
@@ -320,6 +284,7 @@ def run_wizard(cfg: dict) -> dict:
     print()
     if is_placeholder(provider):
         say(f"  ⚠ 비워둔 항목이 있습니다. [yellow]{CONFIG_PATH}[/yellow] 를 열어 TODO 값을 채워주세요.", style="yellow")
+        say(f"  재설정: ./install.sh 재실행 또는 config.json 직접 수정 후 ./start.sh")
     else:
         say(f"  ✓ 저장 완료 → {CONFIG_PATH}", style="green")
     say(f"  (추가 LLM 등록·수정은 {CONFIG_PATH} 직접 편집 후 CLI에서 /reload)")
@@ -328,55 +293,21 @@ def run_wizard(cfg: dict) -> dict:
 
 
 def _save_provider_to_config(name: str, ptype: str, provider: dict):
-    """config.yaml의 providers 블록만 텍스트 교체.
-    헤더 주석·샘플 주석 영역은 절대 건드리지 않는다."""
-    import re
-
-    if not CONFIG_PATH.exists():
-        CONFIG_PATH.write_text(SAMPLE_CONFIG, encoding="utf-8")
-
-    text = CONFIG_PATH.read_text(encoding="utf-8")
-
-    # active 값 교체
-    text = re.sub(r"(?m)^(\s*active\s*:).*$", f"  active: {name}", text)
-
-    # 새 provider YAML 블록
-    block_lines = [f"    - name: {name}", f"      type: {ptype}"]
-    if ptype == "anthropic":
-        if provider.get("base_url"):
-            block_lines.append(f"      base_url: {provider['base_url']}")
-    else:
-        block_lines.append(f"      base_url: {provider.get('base_url', '')}")
-    block_lines.append(f"      api_key: {provider.get('api_key', '')}")
-    block_lines.append(f"      model: {provider.get('model', '')}")
-    new_entry = "\n".join(block_lines)
-
-    # providers: 섹션 내 기존 항목들 교체
-    pat = re.compile(
-        r"(  providers:\n)"
-        r"((?:    #[^\n]*\n)*)"
-        r"((?:    - name:.*\n(?:      [^\n]+\n)*)*)",
-        re.MULTILINE
+    """config.json의 providers에 추가/교체 저장."""
+    cfg = load_config()
+    if "llm" not in cfg:
+        cfg["llm"] = {}
+    cfg["llm"]["active"] = name
+    existing = [p for p in (cfg["llm"].get("providers") or []) if p.get("name") != name]
+    existing.insert(0, provider)
+    cfg["llm"]["providers"] = existing
+    CONFIG_PATH.write_text(
+        _json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8"
     )
-    m = pat.search(text)
-    if m:
-        header = m.group(1)
-        comment = m.group(2)
-        existing_raw = m.group(3)
-        # 같은 name 항목 제거
-        entry_pat = re.compile(r"(    - name:.*?\n(?:      [^\n]+\n)*)", re.MULTILINE)
-        entries = [e for e in entry_pat.findall(existing_raw) if f"name: {name}" not in e]
-        entries.insert(0, new_entry + "\n")
-        text = text[:m.start()] + header + comment + "".join(entries) + text[m.end():]
-    else:
-        text += f"\n  providers:\n{new_entry}\n"
-
-    CONFIG_PATH.write_text(text, encoding="utf-8")
-
 
 def install_dependencies() -> bool:
     req = BASE_DIR / "setting" / "requirements.txt"
-    cmd = [sys.executable, "-m", "pip", "install", "-r", str(req)]
+    cmd = [sys.executable, "-m", "pip", "install", "--no-input", "-r", str(req)]
     if os.environ.get("PIP_INDEX_URL"):
         cmd += ["--index-url", os.environ["PIP_INDEX_URL"]]
 
@@ -509,10 +440,10 @@ HELP_ITEMS = [
 ERROR_GUIDES = [
     ("tool_use_failed", "LLM이 도구 호출 형식을 잘못 생성했습니다 (모델 호환성 문제).\n"
                          "    다른 LLM(예: GPT-4 계열)을 쓰면 줄어듭니다. /llm 으로 전환해보세요."),
-    ("401", "API 키가 올바르지 않습니다. config.yaml 의 api_key 를 확인하세요."),
-    ("authentication", "API 키가 올바르지 않습니다. config.yaml 의 api_key 를 확인하세요."),
-    ("404", "모델을 찾을 수 없습니다. config.yaml 의 model 값을 확인하세요."),
-    ("model_not_found", "모델을 찾을 수 없습니다. config.yaml 의 model 값을 확인하세요."),
+    ("401", "API 키가 올바르지 않습니다. config.json 의 api_key 를 확인하세요."),
+    ("authentication", "API 키가 올바르지 않습니다. config.json 의 api_key 를 확인하세요."),
+    ("404", "모델을 찾을 수 없습니다. config.json 의 model 값을 확인하세요."),
+    ("model_not_found", "모델을 찾을 수 없습니다. config.json 의 model 값을 확인하세요."),
     ("429", "요청 한도를 초과했습니다. 잠시 후 다시 시도하세요."),
     ("rate_limit", "요청 한도를 초과했습니다. 잠시 후 다시 시도하세요."),
     ("timeout", "LLM 서버에 연결할 수 없습니다. base_url 과 네트워크 상태를 확인하세요."),
@@ -619,7 +550,7 @@ def main():
     # [1/4] Python/가상환경 (여기 도달했으면 통과)
     print("  🐳 [1/4] Python / 가상환경       ✓")
 
-    # [2/4] 설정 (config.yaml) - 의존성 설치 전에 먼저 확인/입력
+    # [2/4] 설정 (config.json) - 의존성 설치 전에 먼저 확인/입력
     cfg = check_config(interactive=(mode != "--check"))
     if cfg is None:
         sys.exit(1)
@@ -657,24 +588,27 @@ def main():
 
 
 def check_config(interactive: bool = True):
-    """[2/4] config.yaml 확인. placeholder면 마법사 진행 또는 안내."""
+    """[2/4] config.json 확인. placeholder면 마법사 진행 또는 안내."""
     cfg = load_config()
     apply_pip_index(cfg)
     provider = get_default_provider(cfg)
 
     if not is_placeholder(provider):
-        print("  🐳 [2/4] 설정(config.yaml)       ✓")
+        print("  🐳 [2/4] 설정(config.json)       ✓")
         return cfg
 
     if not interactive:
-        print("  🐳 [2/4] 설정(config.yaml)       ✗ 아직 설정되지 않았습니다.")
+        print("  🐳 [2/4] 설정(config.json)       ✗ 아직 설정되지 않았습니다.")
         print(f"        {CONFIG_PATH} 의 TODO 항목을 채운 뒤 다시 실행해주세요.")
         return None
 
     cfg = run_wizard(cfg)
     if not is_placeholder(get_default_provider(cfg)):
-        print("  🐳 [2/4] 설정(config.yaml)       ✓")
+        print("  🐳 [2/4] 설정(config.json)       ✓")
         return cfg
+    print("  🐳 [2/4] 설정(config.json)       ✗ 필수 항목이 비어있습니다.")
+    print(f"        {CONFIG_PATH} 를 열어 TODO 항목을 채운 뒤 ./start.sh 로 재실행하세요.")
+    print(f"        또는 ./install.sh 를 다시 실행하세요.")
     return None
 
 
@@ -738,8 +672,22 @@ def check_llm(cfg: dict, interactive: bool = True):
             if sel.isdigit() and 1 <= int(sel) <= len(usable):
                 provider = usable[int(sel) - 1]
                 continue
-        print("\n  LLM 연결이 되어야 진행할 수 있습니다.")
-        print(f"  {CONFIG_PATH} 의 LLM 정보를 확인한 뒤 다시 실행해주세요.")
+        ptype = provider.get("type", "openai")
+        base  = provider.get("base_url", "(없음)")
+        model = provider.get("model", "(없음)")
+        print()
+        print("  ┌─ 연결 정보 확인 ───────────────────────────────")
+        print(f"  │  이름    : {provider.get('name')}")
+        print(f"  │  type    : {ptype}")
+        if ptype != "anthropic" or base != "(없음)":
+            print(f"  │  base_url: {base}")
+        print(f"  │  model   : {model}")
+        print("  └────────────────────────────────────────────────")
+        print()
+        print("  LLM 연결이 되어야 진행할 수 있습니다.")
+        print("  해결 방법:")
+        print(f"    1) {CONFIG_PATH} 를 열어 LLM 정보 수정 후 ./start.sh 재실행")
+        print(f"    2) ./install.sh 재실행 후 마법사에서 다시 입력")
         return None
 
 
@@ -850,7 +798,7 @@ def _cmd_llm(cfg: dict, current: dict):
     """등록 LLM 목록 표시 + 번호 선택으로 전환. 전환 시 (provider) 반환."""
     usable = [p for p in get_providers(cfg) if not is_placeholder(p)]
     if not usable:
-        print("  사용 가능한 LLM이 없습니다. config.yaml 을 확인하세요.")
+        print("  사용 가능한 LLM이 없습니다. config.json 을 확인하세요.")
         return None
     for i, p in enumerate(usable, 1):
         mark = " ← 사용 중" if p["name"] == current["name"] else ""
