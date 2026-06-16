@@ -50,19 +50,13 @@
 
 ---
 
-## wheel 정책 (install 동작)
+## 설치 절차 (wheel 기반)
 
-`install`은 항상 **wheels/ 폴더 기반으로 설치**합니다:
+설치는 **wheel 준비 → install** 2단계입니다.
 
-1. `wheels/` 폴더가 requirements를 충분히 커버하면 → 로컬 wheel로 바로 설치 (네트워크 불필요)
-2. `wheels/` 가 없거나 부족하면 → **자동으로 `download_wheels`를 실행**해 wheel을 받은 뒤 설치
+### 1단계: wheel 받기
 
-따라서 사용자는 `install`만 실행하면 됩니다.
-
-### 관리자 배포 (권장)
-
-관리자가 넥서스 되는 환경에서 미리 wheel을 받아 동봉하면,
-사용자는 네트워크 없이 빠르게 설치할 수 있습니다.
+wheels/ 폴더가 없으면 install이 안내하며 중단됩니다. 먼저 wheel을 받으세요:
 
 ```bash
 # Windows
@@ -72,8 +66,26 @@ setting\download_wheels.bat
 ./setting/download_wheels.sh
 ```
 
-→ `wheels/` 폴더가 생성됩니다. 이 폴더째 배포에 포함하세요.
-→ 용량이 크면 `wheels/` 를 빼고 배포해도 됩니다 (사용자 install 시 자동으로 받습니다).
+→ `wheels/` 폴더에 모든 의존성이 받아집니다.
+
+### 2단계: install
+
+```bash
+# Windows
+install.bat
+
+# Linux/Mac
+./install.sh
+```
+
+→ `wheels/` 를 확인하고 로컬 wheel로 설치합니다 (네트워크 불필요).
+→ 완료되면 `start` 로 실행하라고 안내합니다.
+
+### 관리자 배포 (권장)
+
+관리자가 미리 `download_wheels` 를 실행해 `wheels/` 를 만든 뒤,
+**폴더째 동봉해서 배포**하면 사용자는 `install` 만 실행하면 됩니다.
+(용량이 크면 `wheels/` 를 빼고 배포 → 사용자가 1단계부터 직접 실행)
 
 ---
 

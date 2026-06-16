@@ -428,37 +428,6 @@ def _check_wheels_coverage(wheel_dir, pkgs):
         return False, [_pkg_display_name(p) for p in pkgs]
 
 
-def _run_download_wheels() -> bool:
-    """download_wheels 스크립트를 자동 실행해 wheels/ 를 채운다."""
-    if os.name == "nt":
-        script = BASE_DIR / "setting" / "download_wheels.bat"
-        cmd = [str(script)]
-        shell = True
-    else:
-        script = BASE_DIR / "setting" / "download_wheels.sh"
-        cmd = ["bash", str(script)]
-        shell = False
-
-    if not script.exists():
-        print(f"  🐳 [경고] {script.name} 를 찾을 수 없습니다.")
-        return False
-
-    print(f"  🐳 wheels/ 폴더가 없거나 부족 — wheel을 먼저 받습니다...")
-    try:
-        # download_wheels는 자체 출력이 있으므로 그대로 보여줌
-        proc = subprocess.Popen(cmd, shell=shell, cwd=str(BASE_DIR))
-        while True:
-            try:
-                proc.wait()
-                break
-            except KeyboardInterrupt:
-                continue
-        return proc.returncode == 0
-    except Exception as e:
-        print(f"  🐳 [경고] wheel 다운로드 실패: {e}")
-        return False
-
-
 def install_dependencies(show_header: bool = True) -> bool:
     req = BASE_DIR / "setting" / "requirements.txt"
 
@@ -472,9 +441,11 @@ def install_dependencies(show_header: bool = True) -> bool:
     pkgs = _read_requirements(req)
     wheel_dir = BASE_DIR / "wheels"
 
-    # ── wheel 우선 정책 ────────────────────────────────────────
+    # ── wheel 우선 정책 (자동 다운로드 없음) ──────────────────
     # 1. wheels/ 가 requirements를 충분히 커버하면 → wheel에서 설치
-    # 2. 없거나 부족하면 → download_wheels 자동 실행 후 wheel에서 설치
+    # 2. 없거나 부족하면 → download_wheels 실행 안내 후 중단
+    #    (install이 download_wheels.bat을 중첩 호출하면 콘솔/시그널이
+    #     엉켜 'Operation cancelled by user'가 발생하므로 자동 호출하지 않는다)
     use_wheel = False
     if pkgs:
         covered, missing = _check_wheels_coverage(wheel_dir, pkgs)
@@ -483,12 +454,25 @@ def install_dependencies(show_header: bool = True) -> bool:
             if show_header:
                 print("  🐳 wheels/ 폴더 확인 — 로컬 wheel로 설치합니다.")
         else:
-            # wheel 받기 시도
-            if _run_download_wheels():
-                covered2, _ = _check_wheels_coverage(wheel_dir, pkgs)
-                use_wheel = covered2
-            if not use_wheel and show_header:
-                print("  🐳 wheel 준비 미완료 — 인덱스(넥서스/PyPI)에서 설치합니다.")
+            # wheel이 없거나 부족 → 안내 후 중단
+            print()
+            print("  ┌─────────────────────────────────────────────────────┐")
+            print("  │  wheels/ 폴더가 없거나 부족합니다.                   │")
+            print("  │                                                     │")
+            print("  │  먼저 아래 명령으로 wheel을 받아주세요:              │")
+            if os.name == "nt":
+                print("  │    setting\\download_wheels.bat                      │")
+            else:
+                print("  │    ./setting/download_wheels.sh                     │")
+            print("  │                                                     │")
+            print("  │  완료 후 install 을 다시 실행하세요.                │")
+            print("  └─────────────────────────────────────────────────────┘")
+            print()
+            if missing:
+                preview = ", ".join(missing[:5])
+                more = f" 외 {len(missing)-5}개" if len(missing) > 5 else ""
+                print(f"  부족한 패키지: {preview}{more}")
+            return False
 
     extra_args = []
     if os.environ.get("PIP_INDEX_URL"):
@@ -788,8 +772,7 @@ def main():
         apply_pip_index(cfg)
         print("✓ (생성됨)" if not CONFIG_PATH.exists() else "✓")
 
-        print("  🐳 [3/4] 의존성 설치 중...")
-        if not install_dependencies(show_header=False):
+        if not install_dependencies(show_header=True):
             sys.exit(1)
         generate_run_scripts()
 
