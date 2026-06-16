@@ -12,16 +12,22 @@ set NEXUS_HOST=
 echo [aiu-agent] 준비 중입니다. 잠시만 기다려주세요...
 echo.
 
+REM Python 실행 명령 자동 판별 (python이 PATH에 없으면 py 런처)
+set PYCMD=python
 python --version > nul 2>&1
-if errorlevel 1 (
-    echo Python 3.10 이상을 먼저 설치하세요.
-    pause
-    exit /b 1
-)
+if not errorlevel 1 goto :pyfound
+set PYCMD=py
+py --version > nul 2>&1
+if not errorlevel 1 goto :pyfound
+echo Python 3.10 이상을 먼저 설치해주세요.
+echo   - python 또는 py 명령이 모두 동작하지 않습니다.
+pause
+exit /b 1
+:pyfound
 
 if not exist .venv (
     echo [aiu-agent] 가상환경 생성 중...
-    python -m venv .venv
+    %PYCMD% -m venv .venv
 )
 
 set PIP_OPTS=

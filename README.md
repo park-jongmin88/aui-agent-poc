@@ -13,6 +13,7 @@
 - 설치 확인: `python --version` (Windows) / `python3 --version` (Linux/Mac)
 - 미설치 시 [python.org](https://www.python.org/downloads/) 또는 사내 배포 채널에서 설치
 - Windows 설치 시 **"Add Python to PATH"** 체크 필수
+- `where python` 으로 경로가 안 나오면 PATH 미등록 상태입니다 (이 경우 install.bat이 자동으로 `py` 런처를 사용합니다)
 
 ### 2. pip 인덱스(사내 넥서스) 설정
 - 사내망에서는 pip이 **사내 넥서스**를 바라보도록 설정되어 있어야 합니다.
