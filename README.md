@@ -173,14 +173,14 @@ install.bat
 |---|---|---|---|
 | 1. 준비 | "1번 준비해줘", "sklearn_sample 시작해줘" | init | 필수 |
 | 2. 검증 | "검증해줘", "이상없어?" | validate | 필수 |
-| 3. 로컬 테스트 | "로컬 실행해줘", "MLflow 없이 돌려봐" | local_run | **선택** |
+| 3. 로컬 테스트 | "로컬 실행해줘", "MLflow 없이 돌려봐" | localrun | **선택** |
 | 4. 학습 | "학습 시작해줘", "MLflow에 등록해줘" | train | 필수 |
 | 5. 추론 테스트 | "결과 확인해줘", "추론 테스트해줘" | predict | 필수 |
-| 6. 로컬 서빙 | "로컬 서버 띄워줘", "서버 꺼줘" | local_serve | 선택 (local_run 후) |
+| 6. 로컬 서빙 | "로컬 서버 띄워줘", "서버 꺼줘" | localserve | 선택 (localrun 후) |
 | 7. 배포 | "배포해줘" | deploy | POC: 안내만 |
 
-> **로컬 서빙은 local_run을 거쳐야 합니다.** train은 MLflow에만 등록하므로
-> 로컬 모델 파일(`workspace/results/`)이 없어, 서빙하려면 먼저 `로컬 실행해줘`로 local_run을 실행하세요.
+> **로컬 서빙은 localrun을 거쳐야 합니다.** train은 MLflow에만 등록하므로
+> 로컬 모델 파일(`workspace/results/`)이 없어, 서빙하려면 먼저 `로컬 실행해줘`로 localrun을 실행하세요.
 
 ### 명령어
 
@@ -210,10 +210,10 @@ skills/
   common/               공통 유틸 (게이트, 상태관리, MLflow 설정, Win/Linux 프로세스 제어)
   init/                 폴더 분석 + run.py 자동 생성
   validate/             run.py 9섹션 구조/내용 검증
-  local_run/            MLflow 없이 로컬 학습 테스트 (선택)
+  localrun/             MLflow 없이 로컬 학습 테스트 (선택)
   train/                학습 실행 + MLflow 등록
   predict/              MLflow 모델 추론 테스트
-  local_serve/          로컬 FastAPI 서빙 (선택)
+  localserve/         로컬 FastAPI 서빙 (선택)
   deploy/               배포 (POC: 안내만)
 workspace/
   .current              현재 작업 폴더명

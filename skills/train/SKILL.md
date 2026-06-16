@@ -23,7 +23,7 @@ python skills/train/scripts/run_train.py [폴더명]                # 실제 실
 
 ### 1. 현재 작업 폴더 + 게이트 확인
 
-### 2. local_run 선택지 (validated 상태일 때만)
+### 2. localrun 선택지 (validated 상태일 때만)
 ```
 로컬에서 먼저 테스트할까요, 바로 MLflow에 등록할까요?
   1) 로컬 테스트 먼저 (권장)

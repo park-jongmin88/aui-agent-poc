@@ -7,6 +7,10 @@ deepagents
 langchain-openai
 langchain-anthropic
 
+# CLI UI (로고, 하단 상태바)
+rich
+prompt_toolkit
+
 # ML 작업 (학습/추론)
 mlflow
 scikit-learn

@@ -177,7 +177,7 @@ def check_server_ready(port: int, timeout=8) -> bool:
 
 def start(folder, port):
     # 게이트
-    passed, msg = check_gate(folder, "local_serve")
+    passed, msg = check_gate(folder, "localserve")
     if not passed: fail(msg)
 
     # 중복 실행 확인
