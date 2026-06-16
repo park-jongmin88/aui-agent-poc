@@ -1,15 +1,15 @@
 # ============================================================
 #  aiu-agent 전체 의존성 (install 시 일괄 설치)
+#  deepagents는 맨 마지막 — 서브 의존성 먼저 설치 후 진행
 # ============================================================
-
-# 에이전트 구동
-deepagents
-langchain-openai
-langchain-anthropic
 
 # CLI UI (로고, 하단 상태바)
 rich
 prompt_toolkit
+
+# LangChain (deepagents 서브 의존성 먼저)
+langchain-openai
+langchain-anthropic
 
 # ML 작업 (학습/추론)
 mlflow
@@ -21,3 +21,6 @@ joblib
 # 로컬 서빙
 fastapi
 uvicorn
+
+# 에이전트 구동 (맨 마지막 — 위 의존성 모두 설치 후)
+deepagents
