@@ -396,6 +396,69 @@ def _install_one(pip_exe, spec, extra_args):
         return False, str(e)
 
 
+def _normalize_pkg(name: str) -> str:
+    """패키지 이름 정규화 (비교용): 소문자 + - _ 통일."""
+    return name.lower().replace("_", "-").strip()
+
+
+def _check_wheels_coverage(wheel_dir, pkgs):
+    """wheels/ 폴더가 requirements의 주요 패키지를 커버하는지 느슨하게 체크.
+    버전 무시, 패키지 이름만 비교. (전부있음 여부, 빠진목록) 반환."""
+    try:
+        if not wheel_dir.exists():
+            return False, [_pkg_display_name(p) for p in pkgs]
+        # wheels/ 안의 모든 .whl 파일명에서 패키지명 추출
+        wheel_names = set()
+        for f in wheel_dir.iterdir():
+            if f.suffix == ".whl":
+                # 파일명: {name}-{version}-... → 첫 토큰이 이름
+                base = f.name.split("-")[0]
+                wheel_names.add(_normalize_pkg(base))
+            elif f.suffix in (".gz", ".zip"):  # sdist (tar.gz)
+                base = f.name.rsplit("-", 1)[0] if "-" in f.name else f.name
+                wheel_names.add(_normalize_pkg(base))
+
+        missing = []
+        for spec in pkgs:
+            name = _normalize_pkg(_pkg_display_name(spec))
+            if name not in wheel_names:
+                missing.append(_pkg_display_name(spec))
+        return (len(missing) == 0), missing
+    except Exception:
+        return False, [_pkg_display_name(p) for p in pkgs]
+
+
+def _run_download_wheels() -> bool:
+    """download_wheels 스크립트를 자동 실행해 wheels/ 를 채운다."""
+    if os.name == "nt":
+        script = BASE_DIR / "setting" / "download_wheels.bat"
+        cmd = [str(script)]
+        shell = True
+    else:
+        script = BASE_DIR / "setting" / "download_wheels.sh"
+        cmd = ["bash", str(script)]
+        shell = False
+
+    if not script.exists():
+        print(f"  🐳 [경고] {script.name} 를 찾을 수 없습니다.")
+        return False
+
+    print(f"  🐳 wheels/ 폴더가 없거나 부족 — wheel을 먼저 받습니다...")
+    try:
+        # download_wheels는 자체 출력이 있으므로 그대로 보여줌
+        proc = subprocess.Popen(cmd, shell=shell, cwd=str(BASE_DIR))
+        while True:
+            try:
+                proc.wait()
+                break
+            except KeyboardInterrupt:
+                continue
+        return proc.returncode == 0
+    except Exception as e:
+        print(f"  🐳 [경고] wheel 다운로드 실패: {e}")
+        return False
+
+
 def install_dependencies(show_header: bool = True) -> bool:
     req = BASE_DIR / "setting" / "requirements.txt"
 
@@ -406,22 +469,37 @@ def install_dependencies(show_header: bool = True) -> bool:
 
     pip_exe = str(venv_python) if venv_python.exists() else sys.executable
 
+    pkgs = _read_requirements(req)
+    wheel_dir = BASE_DIR / "wheels"
+
+    # ── wheel 우선 정책 ────────────────────────────────────────
+    # 1. wheels/ 가 requirements를 충분히 커버하면 → wheel에서 설치
+    # 2. 없거나 부족하면 → download_wheels 자동 실행 후 wheel에서 설치
+    use_wheel = False
+    if pkgs:
+        covered, missing = _check_wheels_coverage(wheel_dir, pkgs)
+        if covered:
+            use_wheel = True
+            if show_header:
+                print("  🐳 wheels/ 폴더 확인 — 로컬 wheel로 설치합니다.")
+        else:
+            # wheel 받기 시도
+            if _run_download_wheels():
+                covered2, _ = _check_wheels_coverage(wheel_dir, pkgs)
+                use_wheel = covered2
+            if not use_wheel and show_header:
+                print("  🐳 wheel 준비 미완료 — 인덱스(넥서스/PyPI)에서 설치합니다.")
+
     extra_args = []
     if os.environ.get("PIP_INDEX_URL"):
         extra_args += ["--index-url", os.environ["PIP_INDEX_URL"]]
-
-    # wheels/ 폴더가 있으면 우선 사용 (사내 넥서스에서 미리 받은 wheel)
-    # 넥서스에 없는 패키지는 자동으로 기본 인덱스로 폴백되도록 --find-links만 추가
-    wheel_dir = BASE_DIR / "wheels"
-    if wheel_dir.exists() and any(wheel_dir.iterdir()):
-        extra_args += ["--find-links", str(wheel_dir)]
-        if show_header:
-            print(f"  🐳 wheels/ 폴더 감지 — 로컬 wheel 우선 사용")
+    if use_wheel:
+        # wheel에서만 설치 (네트워크 없이): --no-index + --find-links
+        extra_args += ["--no-index", "--find-links", str(wheel_dir)]
 
     if show_header:
         print("  🐳 [3/4] 의존성 설치 중...")
 
-    pkgs = _read_requirements(req)
     if not pkgs:
         # 목록을 못 읽으면 기존 방식(-r 일괄)으로 폴백
         try:

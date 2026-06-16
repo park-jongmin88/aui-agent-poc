@@ -10,14 +10,22 @@ cd "$(dirname "$0")/.."
 WHEEL_DIR=wheels
 mkdir -p "$WHEEL_DIR"
 
+# Python 실행 명령 자동 판별 (python3 → python 폴백)
+PYCMD=python3
+if ! command -v python3 >/dev/null 2>&1; then
+    if command -v python >/dev/null 2>&1; then
+        PYCMD=python
+    else
+        echo "Python 이 설치되어 있지 않거나 PATH에 없습니다."
+        exit 1
+    fi
+fi
+
 echo ""
-echo "  [wheel 다운로드] 시작"
-echo "  대상: requirements.txt + requirements-ml.txt + requirements-serve.txt"
+echo "  [wheel 다운로드] 시작 — requirements.txt 전체"
 echo ""
 
-python3 -m pip download -r setting/requirements.txt      -d "$WHEEL_DIR"
-python3 -m pip download -r setting/requirements-ml.txt    -d "$WHEEL_DIR"
-python3 -m pip download -r setting/requirements-serve.txt -d "$WHEEL_DIR"
+$PYCMD -m pip download -r setting/requirements.txt -d "$WHEEL_DIR"
 
 echo ""
 echo "  [wheel 다운로드] 완료 - wheels/ 폴더 확인"

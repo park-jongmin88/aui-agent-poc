@@ -35,5 +35,5 @@ python skills/predict/scripts/run_predict.py [폴더명]
 3. 둘 다 실패 시 오류 안내
 
 ## 주의
-- mlflow 패키지 필요 (requirements-ml.txt)
+- mlflow 패키지 필요 (install 시 자동 설치됨)
 - MLflow 서버 접근 필요

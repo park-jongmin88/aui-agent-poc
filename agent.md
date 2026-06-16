@@ -91,7 +91,7 @@ workspace/
 ## ML 패키지 설치
 - 기본 설치 미포함
 - train/local_run/predict 최초 실행 시 설치 여부 확인
-- 확인 시 setting/requirements-ml.txt 설치
+- install 시 requirements.txt 전체(mlflow 포함)가 설치되므로 보통 이미 설치됨
 - ml_installed: true 기록 → 다음부터 생략
 
 ## 현재 작업 폴더

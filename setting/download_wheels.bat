@@ -25,12 +25,10 @@ exit /b 1
 
 echo.
 echo  [wheel 다운로드] 시작
-echo  대상: requirements.txt + requirements-ml.txt + requirements-serve.txt
+echo  대상: requirements.txt (전체 의존성)
 echo.
 
-%PYCMD% -m pip download -r setting\requirements.txt          -d "%WHEEL_DIR%"
-%PYCMD% -m pip download -r setting\requirements-ml.txt        -d "%WHEEL_DIR%"
-%PYCMD% -m pip download -r setting\requirements-serve.txt     -d "%WHEEL_DIR%"
+%PYCMD% -m pip download -r setting\requirements.txt -d "%WHEEL_DIR%"
 
 echo.
 echo  [wheel 다운로드] 완료 - wheels\ 폴더 확인

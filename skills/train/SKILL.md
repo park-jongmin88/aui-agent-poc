@@ -32,12 +32,12 @@ python skills/train/scripts/run_train.py [폴더명]                # 실제 실
 local_tested 상태면 바로 진행
 
 ### 3. ML 패키지 확인
-- `python -c "import mlflow"` 실패 시:
+- 보통 install 시 mlflow 등이 이미 설치되어 있어 이 단계는 건너뜁니다.
+- 만약 `python -c "import mlflow"` 가 실패하면:
   ```
-  ML 패키지가 필요합니다. 설치할까요?
-  (setting/requirements-ml.txt: mlflow, scikit-learn, pandas, numpy)
+  ML 패키지(mlflow 등)가 없습니다.
+  install을 다시 실행하면 requirements.txt 전체가 자동 설치됩니다.
   ```
-- 확인 시 설치 후 `.aiu_state.json`에 `ml_installed: true` 기록
 
 ### 4. 사전 확인
 ```

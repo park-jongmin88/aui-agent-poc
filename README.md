@@ -48,24 +48,21 @@
 3. `config.json` 없으면 자동 생성
 4. `start.bat` / `start.sh` 생성
 
-### ML 작업 전 추가 설치
-
-학습/추론 기능을 사용하려면 ML 패키지를 추가 설치하세요:
-
-```bash
-# Windows
-.venv\Scripts\python -m pip install -r setting\requirements-ml.txt
-
-# Linux/Mac/Codespaces
-.venv/bin/python -m pip install -r setting/requirements-ml.txt
-```
-
 ---
 
-## wheel 미리 받기 (선택 — 설치 속도 향상)
+## wheel 정책 (install 동작)
 
-사내 넥서스나 인터넷이 되는 환경에서 wheel을 미리 받아두면,
-이후 설치가 빨라지고 오프라인 환경에서도 설치할 수 있습니다.
+`install`은 항상 **wheels/ 폴더 기반으로 설치**합니다:
+
+1. `wheels/` 폴더가 requirements를 충분히 커버하면 → 로컬 wheel로 바로 설치 (네트워크 불필요)
+2. `wheels/` 가 없거나 부족하면 → **자동으로 `download_wheels`를 실행**해 wheel을 받은 뒤 설치
+
+따라서 사용자는 `install`만 실행하면 됩니다.
+
+### 관리자 배포 (권장)
+
+관리자가 넥서스 되는 환경에서 미리 wheel을 받아 동봉하면,
+사용자는 네트워크 없이 빠르게 설치할 수 있습니다.
 
 ```bash
 # Windows
@@ -75,9 +72,8 @@ setting\download_wheels.bat
 ./setting/download_wheels.sh
 ```
 
-실행하면 `wheels/` 폴더에 모든 의존성 wheel이 받아집니다.
-이후 `install` 시 `wheels/` 폴더를 자동 감지해 우선 사용합니다.
-(넥서스에 없는 패키지는 자동으로 기본 인덱스에서 받습니다.)
+→ `wheels/` 폴더가 생성됩니다. 이 폴더째 배포에 포함하세요.
+→ 용량이 크면 `wheels/` 를 빼고 배포해도 됩니다 (사용자 install 시 자동으로 받습니다).
 
 ---
 
@@ -217,10 +213,8 @@ workspace/
   templates/            run.py 베이스 템플릿 (수정 금지)
   results/              로컬 학습 결과물
 setting/
-  requirements.txt          에이전트 구동 패키지
-  requirements-ml.txt       ML 작업 패키지 (학습/추론 시 설치)
-  requirements-serve.txt    로컬 서빙 패키지 (local_serve 시 설치)
-  download_wheels.bat/.sh   wheel 미리 받기 (사내 넥서스/오프라인용)
+  requirements.txt          전체 의존성 (install 시 일괄 설치)
+  download_wheels.bat/.sh   wheel 미리 받기 (관리자/배포용)
 ```
 
 ## 샘플 모델 폴더
