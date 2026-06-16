@@ -877,16 +877,22 @@ def check_config(interactive: bool = True):
 def _build_chat_model(provider: dict, timeout: int | None = None):
     ptype = (provider.get("type") or "openai").lower()
 
+    # config에서 오버라이드 가능한 기본 최적화 옵션
+    temperature  = provider.get("temperature",  0)      # 일관된 응답, 불필요한 고민 최소화
+    max_tokens   = provider.get("max_tokens",   4096)   # 응답 길이 제한
+    req_timeout  = timeout or provider.get("timeout", 120)  # 무한 대기 방지
+
     if ptype == "anthropic":
         from langchain_anthropic import ChatAnthropic
         kwargs = dict(
             api_key=provider["api_key"],
             model=provider["model"],
+            temperature=temperature,
+            max_tokens=max_tokens,
+            timeout=req_timeout,
         )
         if provider.get("base_url"):
             kwargs["base_url"] = provider["base_url"]
-        if timeout:
-            kwargs["timeout"] = timeout
         return ChatAnthropic(**kwargs)
 
     if ptype == "openai":
@@ -895,9 +901,10 @@ def _build_chat_model(provider: dict, timeout: int | None = None):
             base_url=provider["base_url"],
             api_key=provider["api_key"],
             model=provider["model"],
+            temperature=temperature,
+            max_tokens=max_tokens,
+            timeout=req_timeout,
         )
-        if timeout:
-            kwargs["timeout"] = timeout
         return ChatOpenAI(**kwargs)
 
     raise ValueError(f"지원하지 않는 LLM type 입니다: '{ptype}' (openai | anthropic)")

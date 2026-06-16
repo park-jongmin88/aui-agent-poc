@@ -10,7 +10,11 @@
         "type": "openai",
         "base_url": "http://your-llm-server:8000/v1",
         "api_key": "your-api-key",
-        "model": "your-model-name"
+        "model": "your-model-name",
+        "temperature": 0,
+        "max_tokens": 4096,
+        "timeout": 120,
+        "_options_comment": "temperature: 0=일관된응답(권장) / 0.7=창의적 | max_tokens: 응답 최대 길이 | timeout: 응답 대기 최대 초 (사내LLM 느리면 늘리세요)"
       },
       {
         "_comment": "groq (OpenAI 호환, 무료 티어 있음)",
