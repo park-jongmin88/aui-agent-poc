@@ -512,13 +512,35 @@ def install_dependencies(show_header: bool = True) -> bool:
     if all_ok:
         print(f"  🐳 [3/4] 의존성 설치             ✓")
     else:
-        print(f"  🐳 [3/4] 의존성 설치             ✗ 실패")
-        for name, out in failed:
+        print(f"  🐳 [3/4] 의존성 설치             ✗ 일부 실패")
+        print()
+
+        # 실패 패키지 목록 + 직접 설치 명령어
+        venv_pip = str((BASE_DIR / (".venv/Scripts/python.exe" if os.name == "nt" else ".venv/bin/python")))
+        for pkg_name, out in failed:
             tail = "\n".join(out.splitlines()[-3:]) if out else ""
-            print(f"    ✗ {name} 설치 실패")
+            print(f"    ✗ {pkg_name}")
             if tail:
                 for t in tail.splitlines():
                     print(f"        {t}")
+
+        print()
+        print("  ==========================================================")
+        print()
+        failed_names = " ".join(n for n, _ in failed)
+        print("      [ 일부 패키지 설치에 실패했습니다 ]")
+        print()
+        print("      방법 1)  install 을 다시 실행하세요")
+        if os.name == "nt":
+            print("               install.bat")
+        else:
+            print("               ./install.sh")
+        print()
+        print("      방법 2)  아래 명령으로 직접 설치하세요")
+        print(f"               {venv_pip} -m pip install {failed_names}")
+        print()
+        print("  ==========================================================")
+        print()
     return all_ok
 
 
