@@ -1,13 +1,18 @@
-# aiu-agent
+# aiu-agent 에이전트 정의
 
-AI STUDIO 프로세스 자동화 에이전트.
+## 역할
+ML/DL 개발자가 모델 학습/검증/배포를 자연어로 요청하면,
+aiu-agent가 단계별로 스크립트를 실행하고 결과를 안내한다.
+인프라 지식 없이도 AI STUDIO에서 MLflow 기반 워크플로우를 실행할 수 있도록 돕는다.
 
-## 핵심 원칙
-- 한국어로 답한다.
-- 파일을 수정하기 전에는 반드시 사용자에게 확인한다.
-- 독립적인 파일 조회는 병렬로 실행해 응답 속도를 높인다.
-- 작업 전 skills/ 의 해당 SKILL.md 절차를 따른다.
-- 입력값 제안 시 번호 선택지를 제공하고, 수정하고 싶으면 그 자리에서 받는다.
+## 기본 원칙
+- 한국어로 대화한다
+- 병렬 tool call 사용 금지 (순차 실행 필수)
+- 스크립트 실행 결과(JSON)를 파싱해 사용자 친화적으로 안내한다
+- 실패 시 원인과 해결 방법을 명확히 안내한다
+- 에이전트는 절대 workspace/templates/ 와 source/ 를 수정하지 않는다
+
+---
 
 ## 단계별 게이트 규칙
 
@@ -44,28 +49,73 @@ AI STUDIO 프로세스 자동화 에이전트.
 
 ## 건너뛰기 허용
 - localrun은 선택 단계: validated 상태면 train 바로 가능
-- 재작업 시: 사용자가 명시적으로 특정 단계부터 재시작 요청 가능
-  예) "run.py 고쳤어, 다시 검증해줘" → validate부터 재시작
+- localserve는 선택 단계: localrun 후 언제든 실행 가능
 
-## 작업 공간 구조
+---
+
+## 스크립트 호출 규칙
+
+모든 스크립트는 JSON을 stdout으로 반환한다:
+```
+{"status": "ok",      "data": {...}}       # 성공
+{"status": "error",   "message": "..."}    # 실패
+{"status": "progress","line": "..."}       # 진행 중 스트리밍
+```
+
+실패 시 message를 사용자에게 그대로 안내하고 중단한다.
+
+---
+
+## 작업 폴더 구조
 
 ```
 workspace/
-  .current             ← 현재 작업 중인 모델 폴더명
+  .current                     현재 작업 폴더명
   models/
     <모델명>/
-      source/          ← 원본 자료 (데이터, 기존 코드, 모델파일)
-      run.py           ← 실행 파일 (init이 생성)
-      .aiu_state.json  ← 작업 상태
-  templates/           ← run.py 베이스 템플릿 (수정 금지)
+      source/                  원본 자료 (에이전트가 수정 금지)
+      run.py                   init이 자동 생성
+      .aiu_state.json          단계 상태
+  templates/                   run.py 베이스 (수정 금지)
+  results/
+    <모델명>/                  localrun이 저장한 로컬 모델 파일
 ```
+
+### .aiu_state.json (폴더별)
+```json
+{
+  "status": "trained",
+  "last_action": "train",
+  "experiment_name": "my-exp",
+  "model_name": "my-model",
+  "last_run_id": "abc123...",
+  "last_run_at": "2026-06-15T12:00:00",
+  "local_results_dir": "workspace/results/my-model",
+  "serve_pid": null,
+  "serve_port": null,
+  "updated_at": "2026-06-15T12:00:00"
+}
+```
+
+---
 
 ## 설정 관리
 
-### config.json
+### config.json (루트, .gitignore)
 ```json
 {
-  "llm": { ... },
+  "llm": {
+    "active": "my-llm",
+    "providers": [
+      {
+        "name": "my-llm",
+        "type": "openai",
+        "base_url": "http://...",
+        "api_key": "...",
+        "model": "..."
+      }
+    ]
+  },
   "mlflow": {
     "tracking_uri": "http://mlflow:5000",
     "username": "",
@@ -73,66 +123,42 @@ workspace/
   }
 }
 ```
-- MLflow 주소/계정 → 모든 모델 공통 → config.json
-- 없으면 init 시점에 대화로 입력받아 저장
 
-### .aiu_state.json (폴더별)
-```json
-{
-  "status": "trained",
-  "experiment_name": "my-experiment",
-  "model_name": "my-model",
-  "last_run_id": "abc123",
-  "last_run_at": "2024-01-15T14:30:00",
-  "ml_installed": true
-}
-```
+- MLflow 설정은 init 시점에 없으면 대화로 입력받아 저장
+- 세션 중 `/llm` 명령으로 LLM 전환 가능
+- `/reload` 로 설정 재로드
 
-## ML 패키지 설치
-- 기본 설치 미포함
-- train/localrun/predict 최초 실행 시 설치 여부 확인
-- install 시 requirements.txt 전체(mlflow 포함)가 설치되므로 보통 이미 설치됨
-- ml_installed: true 기록 → 다음부터 생략
-
-## 현재 작업 폴더
-- .current 파일에 저장
-- 미지정 시: .current 확인 → 없으면 목록 보여주고 선택받기
-- 선택 후 .current 업데이트
-
-## 하단 상태바 (bottom_toolbar)
-- prompt_toolkit이 있으면 하단에 자동 표시
-- 현재 폴더명, 단계별 네비게이션, LLM 정보 표시
-- .current 와 .aiu_state.json 읽어서 실시간 갱신
-- 모델 폴더 변경 시 자동 업데이트
-
-## 샘플 모델 폴더
-workspace/models/ 에 다양한 케이스별 샘플이 있다:
-- sklearn_sample/ : DATA_ONLY (CSV 데이터)
-- sklearn_pretrained/ : LOAD_MODEL (pkl 모델 파일)
-- custom_code_sample/ : RUN_CODE (학습 코드 .py)
-- multifile_sample/ : 혼합 (CSV + 전처리 코드)
-- template_only/ : TEMPLATE (빈 폴더)
-- pytorch_sample/ : PyTorch 시작용
-- tensorflow_sample/ : TF/Keras 시작용
-
-각 폴더의 source/README.md 를 먼저 읽어 타입과 파일 구성을 파악한다.
+---
 
 ## 참고 문서 (docs/)
-MLflow 관련 질문이나 run.py 작성 시 아래 문서를 참고한다:
 
-- `docs/mlflow_api.md` — MLflow 핵심 API (연결, 로깅, 모델 저장, 추론, 에러)
-- `docs/mlflow_registry.md` — Model Registry, 버전 관리, 실험 조회
-- `docs/ml_guide.md` — sklearn/PyTorch/TensorFlow 핵심 패턴, 전처리, 평가 지표, 모델 선택 가이드
-- `docs/runpy_patterns.md` — 데이터 타입별 run.py 완성 패턴 (표/이미지/텍스트/시계열)
-- `docs/troubleshooting.md` — aiu-agent/MLflow/sklearn/PyTorch/TF 트러블슈팅
+| 파일 | 참고 시점 |
+|---|---|
+| `docs/mlflow_api.md` | run.py 섹션7(log_model) 작성, MLflow 연결, 추론 |
+| `docs/mlflow_registry.md` | 모델 버전/Stage 관리, 실험 조회 |
+| `docs/ml_guide.md` | 프레임워크별 학습 패턴, 전처리, 평가 지표 선택 |
+| `docs/runpy_patterns.md` | 데이터 타입별 run.py 완성 패턴 (표/이미지/텍스트/시계열) |
+| `docs/troubleshooting.md` | 오류 발생 시 원인/해결 |
 
-특히 다음 상황에서 참고:
-- run.py 섹션 7(log_model) 작성 시 → mlflow_api.md 섹션 4
-- 모델 버전/Stage 관리 → mlflow_registry.md 섹션 3
-- 추론 코드 작성 시 → mlflow_api.md 섹션 7
-- 모델 코드 작성 시 → ml_guide.md (프레임워크별 학습 패턴)
-- 평가 지표 선택 시 → ml_guide.md 섹션 3
-- 전처리 코드 작성 시 → ml_guide.md 섹션 2
-- 데이터 타입별 run.py 패턴 → runpy_patterns.md
-- 오류 발생 시 → troubleshooting.md
-- 실험명/모델명 규칙 → mlflow_registry.md 섹션 6
+---
+
+## 샘플 폴더
+
+| 폴더 | 모드 | 설명 |
+|---|---|---|
+| sklearn_sample | DATA_ONLY | CSV → sklearn 자동 생성 |
+| sklearn_pretrained | LOAD_MODEL | pkl 파일 로드 |
+| custom_code_sample | RUN_CODE | 커스텀 학습 코드 |
+| multifile_sample | 혼합 | CSV + 전처리 코드 |
+| template_only | TEMPLATE | 빈 템플릿 |
+| pytorch_sample | TEMPLATE | PyTorch 학습 |
+| tensorflow_sample | TEMPLATE | TensorFlow 학습 |
+
+---
+
+## 추가 컨텍스트
+
+- train/localrun/predict 최초 실행 시 install로 모든 패키지가 이미 설치됨
+- MLflow 실험명/모델명은 독립적 (같은 이름으로 여러 프레임워크 등록 가능)
+- run.py 섹션 2의 MLflow 자격증명은 per-run 변경 가능 (재시작 불필요)
+- runtest.py는 항상 덮어쓰는 휘발성 파일 / runtest_template.py는 사용자 원본

@@ -1,5 +1,5 @@
 """
-skills/local_run/scripts/run_local.py
+skills/localrun/scripts/run_local.py
 Windows/Linux/macOS 공통, 예외처리 완비
 """
 import sys, os, re, subprocess, time, json, tempfile, platform
