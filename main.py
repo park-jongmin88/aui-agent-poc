@@ -842,7 +842,8 @@ def main():
         print("\n  체크 완료. (--check 모드 종료)")
         return
 
-    # 스킬 로딩 + 환영화면 + CLI 진입
+    # 스킬 로딩 (agent.md + SKILL.md 전체 읽기 — 시간 걸릴 수 있음)
+    print("  🐳 [5/5] 스킬 로딩 중...", end="", flush=True)
     agent = load_agent(provider)
     show_welcome(provider)
     _show_resume_hint()
@@ -920,15 +921,16 @@ def check_llm(cfg: dict, interactive: bool = True):
 
     while True:
         try:
+            print(f"  🐳 [4/4] LLM 연결 ({provider['name']}) 확인 중...", end="", flush=True)
             _build_chat_model(provider, timeout=15).invoke([HumanMessage(content="hi")])
-            print(f"  🐳 [4/4] LLM 연결 ({provider['name']})        ✓")
+            print(f"\r  🐳 [4/4] LLM 연결 ({provider['name']})        ✓")
             return provider
         except AttributeError:
             # 응답 파싱 오류 (프록시 응답 포맷 불일치 등) — 연결은 된 것으로 간주
-            print(f"  🐳 [4/4] LLM 연결 ({provider['name']})        ✓")
+            print(f"\r  🐳 [4/4] LLM 연결 ({provider['name']})        ✓")
             return provider
         except Exception as e:
-            print(f"  🐳 [4/4] LLM 연결 ({provider['name']})        ✗")
+            print(f"\r  🐳 [4/4] LLM 연결 ({provider['name']})        ✗")
             print(f"        {type(e).__name__}: {str(e)[:120]}")
 
         # 실패 처리: 다른 provider가 있으면 선택, 없으면 차단 종료
@@ -975,7 +977,7 @@ def load_agent(provider: dict):
         system_prompt=system_prompt,
     )
     names = _skill_names()
-    print(f"  스킬 로딩                     ✓  {len(names)}개 ({', '.join(names)})")
+    print(f"\r  🐳 [5/5] 스킬 로딩                  ✓  {len(names)}개 ({', '.join(names)})")
     return agent
 
 
