@@ -1,4 +1,19 @@
-# 에이전트 구동 (필수)
+# ============================================================
+#  aiu-agent 전체 의존성 (install 시 일괄 설치)
+# ============================================================
+
+# 에이전트 구동
 deepagents
 langchain-openai
 langchain-anthropic
+
+# ML 작업 (학습/추론)
+mlflow
+scikit-learn
+pandas
+numpy
+joblib
+
+# 로컬 서빙
+fastapi
+uvicorn

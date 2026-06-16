@@ -1,3 +1,0 @@
-# 로컬 서빙 (local_serve 시 설치)
-fastapi
-uvicorn
