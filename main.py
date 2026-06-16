@@ -1182,8 +1182,6 @@ def chat_loop(cfg: dict, provider: dict, agent):
     try:
         from rich.console import Console
         from rich.markdown import Markdown
-        from rich.live import Live
-        from rich.text import Text
         console = Console()
         USE_RICH = True
     except ImportError:
@@ -1305,16 +1303,24 @@ def chat_loop(cfg: dict, provider: dict, agent):
             thread = threading.Thread(target=_invoke, daemon=True)
             thread.start()
 
-            if USE_RICH:
-                spin_frames = ["🐳 생각 중   ", "🐳 생각 중.  ", "🐳 생각 중.. ", "🐳 생각 중..."]
-                fi = 0
-                with Live(console=console, refresh_per_second=4, transient=True) as live:
-                    while thread.is_alive():
-                        live.update(Text(spin_frames[fi % len(spin_frames)], style="dim cyan"))
-                        fi += 1
-                        time.sleep(0.25)
-            else:
-                thread.join()
+            # rich.Live 대신 \r 덮어쓰기 방식 사용
+            # (Live가 prompt_toolkit bottom_toolbar를 밀어내는 충돌 방지)
+            spin_frames = ["🐳 생각 중   ", "🐳 생각 중.  ", "🐳 생각 중.. ", "🐳 생각 중..."]
+            fi = 0
+            while thread.is_alive():
+                try:
+                    sys.stdout.write(f"\r  {spin_frames[fi % len(spin_frames)]}")
+                    sys.stdout.flush()
+                except Exception:
+                    pass
+                fi += 1
+                time.sleep(0.25)
+            # 스피너 줄 지우기
+            try:
+                sys.stdout.write("\r" + " " * 30 + "\r")
+                sys.stdout.flush()
+            except Exception:
+                pass
 
             thread.join()
             elapsed = time.time() - t0
