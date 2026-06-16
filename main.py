@@ -902,7 +902,7 @@ def _build_chat_model(provider: dict, timeout: int | None = None):
 
     # config에서 오버라이드 가능한 기본 최적화 옵션
     temperature  = provider.get("temperature",  0)      # 일관된 응답, 불필요한 고민 최소화
-    max_tokens   = provider.get("max_tokens",   4096)   # 응답 길이 제한
+    max_tokens   = provider.get("max_tokens",   1024)   # 응답 길이 제한 (짧을수록 빠름)
     req_timeout  = timeout or provider.get("timeout", 120)  # 무한 대기 방지
 
     if ptype == "anthropic":
@@ -1317,65 +1317,92 @@ def chat_loop(cfg: dict, provider: dict, agent):
                 print("  알 수 없는 명령입니다. /help 또는 /? 를 입력하세요.")
             continue
 
-        # 에이전트 호출
+        # 에이전트 호출 (스트리밍)
         history.append({"role": "user", "content": user_input})
+
+        # history 길이 제한 — 길어질수록 매 요청 토큰이 늘어서 느려짐
+        MAX_HISTORY = 20
+        history_send = history[-MAX_HISTORY:] if len(history) > MAX_HISTORY else history
+
         try:
-            import threading
             t0 = time.time()
-            result_box = [None]
-            error_box  = [None]
+            error_box = [None]
+            final_content = []
+            streaming_started = False
 
-            def _invoke():
-                try:
-                    result_box[0] = agent.invoke({"messages": history})
-                except Exception as ex:
-                    error_box[0] = ex
-
-            thread = threading.Thread(target=_invoke, daemon=True)
-            thread.start()
-
-            # rich.Live 대신 \r 덮어쓰기 방식 사용
-            # (Live가 prompt_toolkit bottom_toolbar를 밀어내는 충돌 방지)
-            spin_frames = ["🐳 생각 중   ", "🐳 생각 중.  ", "🐳 생각 중.. ", "🐳 생각 중..."]
-            fi = 0
-            while thread.is_alive():
-                try:
-                    sys.stdout.write(f"\r  {spin_frames[fi % len(spin_frames)]}")
-                    sys.stdout.flush()
-                except Exception:
-                    pass
-                fi += 1
-                time.sleep(0.25)
-            # 스피너 줄 지우기
             try:
-                sys.stdout.write("\r" + " " * 30 + "\r")
-                sys.stdout.flush()
-            except Exception:
-                pass
+                for chunk in agent.stream({"messages": history_send}):
+                    # chunk 구조: {"messages": [...]} 또는 노드별 딕셔너리
+                    msgs = None
+                    if isinstance(chunk, dict):
+                        # langgraph 스타일: 노드명 키 아래 messages
+                        for v in chunk.values():
+                            if isinstance(v, dict) and "messages" in v:
+                                msgs = v["messages"]
+                                break
+                            elif isinstance(v, list):
+                                msgs = v
+                                break
+                        if msgs is None and "messages" in chunk:
+                            msgs = chunk["messages"]
 
-            thread.join()
+                    if msgs:
+                        for msg in (msgs if isinstance(msgs, list) else [msgs]):
+                            content = getattr(msg, "content", None)
+                            if content and isinstance(content, str) and content.strip():
+                                if not streaming_started:
+                                    # 첫 토큰 — 스피너 지우고 구분선 출력
+                                    sys.stdout.write("\r" + " " * 30 + "\r")
+                                    sys.stdout.flush()
+                                    if USE_RICH and console:
+                                        console.print(SEP)
+                                    else:
+                                        print(SEP)
+                                    streaming_started = True
+                                final_content.append(content)
+
+            except Exception as ex:
+                error_box[0] = ex
+
             elapsed = time.time() - t0
 
             if error_box[0]:
                 raise error_box[0]
 
-            messages = result_box[0]["messages"]
-            answer   = _extract_text(messages[-1].content)
-            history  = messages
+            # 최종 응답 조합 (스트리밍된 마지막 content 사용)
+            answer = final_content[-1] if final_content else ""
+
+            if not streaming_started:
+                # 스트리밍 청크에서 못 받은 경우 — 스피너 지우고 구분선
+                sys.stdout.write("\r" + " " * 30 + "\r")
+                sys.stdout.flush()
+                if USE_RICH and console:
+                    console.print(SEP)
+                else:
+                    print(SEP)
 
             print()
-            print_sep()
-            print()
-            if USE_RICH:
+            if USE_RICH and console:
                 console.print("🐳 ", style="dim cyan", end="")
                 console.print(Markdown(answer))
             else:
                 print(f"🐳 {answer}")
-            console.print(f"  [grey50]({elapsed:.1f}s)[/grey50]") if USE_RICH else print(f"  ({elapsed:.1f}s)")
             print()
-            print_sep()
+            if USE_RICH and console:
+                console.print(SEP)
+                console.print(f"  [grey50]({elapsed:.1f}s)[/grey50]")
+            else:
+                print(SEP)
+                print(f"  ({elapsed:.1f}s)")
             print()
+
+            # history 업데이트 (assistant 응답 추가)
+            if answer:
+                history.append({"role": "assistant", "content": answer})
+
         except Exception as e:
+            sys.stdout.write("\r" + " " * 30 + "\r")
+            sys.stdout.flush()
             show_error(e, last_log)
             history.pop()
 
