@@ -23,11 +23,11 @@ STAGE_OPTIONAL = ["local_tested"]
 
 STAGE_REQUIRED = {
     "validate":    "initialized",
-    "local_run":   "validated",
+    "localrun":    "validated",
     "train":       "validated",
     "predict":     "trained",
     "deploy":      "predicted",
-    "local_serve": None,  # local_tested 또는 trained — check_gate에서 별도 처리
+    "localserve":  None,  # local_tested 또는 trained — check_gate에서 별도 처리
 }
 
 
@@ -66,8 +66,8 @@ def progress(message: str):
 def check_gate(folder: Path, skill: str) -> tuple:
     """단계 게이트 확인. (통과여부, 안내메시지) 반환."""
     try:
-        # local_serve: local_tested 만 허용 (results/ 에 로컬 모델이 있어야 함)
-        if skill == "local_serve":
+        # localserve: local_tested 만 허용 (results/ 에 로컬 모델이 있어야 함)
+        if skill == "localserve":
             status = get_state(folder).get("status", "")
             if status == "local_tested":
                 return True, ""
@@ -111,7 +111,7 @@ def check_gate(folder: Path, skill: str) -> tuple:
         }
         skill_map = {
             "validate":   "검증(validate)",
-            "local_run":  "로컬 테스트(local_run)",
+            "localrun":   "로컬 테스트(local_run)",
             "train":      "학습(train)",
             "predict":    "추론(predict)",
             "deploy":     "배포(deploy)",

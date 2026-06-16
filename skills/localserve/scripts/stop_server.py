@@ -1,5 +1,5 @@
 """
-skills/local_serve/scripts/stop_server.py
+skills/localserve/scripts/stop_server.py
 Windows/Linux/macOS 공통, 예외처리 완비
 """
 import sys

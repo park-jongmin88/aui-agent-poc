@@ -40,7 +40,7 @@ def run_predict(folder: Path):
         import mlflow
         import mlflow.pyfunc
     except ImportError:
-        fail("mlflow 패키지가 필요합니다.\nsetting/requirements-ml.txt 를 설치하세요.")
+        fail("mlflow 패키지가 필요합니다.\ninstall을 다시 실행하면 자동 설치됩니다.")
 
     state = get_state(folder)
     model_name = state.get("model_name")

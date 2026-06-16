@@ -352,7 +352,7 @@ def _install_one(pip_exe, spec, extra_args):
 
     # 설치 시작 안내 (스피너 없이 한 줄)
     try:
-        sys.stdout.write(f"    · {name} 설치 중... (시간이 걸릴 수 있습니다)\n")
+        sys.stdout.write(f"    · {name} 설치 중...\n")
         sys.stdout.flush()
     except Exception:
         pass
@@ -396,6 +396,38 @@ def _install_one(pip_exe, spec, extra_args):
         return False, str(e)
 
 
+def _normalize_pkg(name: str) -> str:
+    """패키지 이름 정규화 (비교용): 소문자 + - _ 통일."""
+    return name.lower().replace("_", "-").strip()
+
+
+def _check_wheels_coverage(wheel_dir, pkgs):
+    """wheels/ 폴더가 requirements의 주요 패키지를 커버하는지 느슨하게 체크.
+    버전 무시, 패키지 이름만 비교. (전부있음 여부, 빠진목록) 반환."""
+    try:
+        if not wheel_dir.exists():
+            return False, [_pkg_display_name(p) for p in pkgs]
+        # wheels/ 안의 모든 .whl 파일명에서 패키지명 추출
+        wheel_names = set()
+        for f in wheel_dir.iterdir():
+            if f.suffix == ".whl":
+                # 파일명: {name}-{version}-... → 첫 토큰이 이름
+                base = f.name.split("-")[0]
+                wheel_names.add(_normalize_pkg(base))
+            elif f.suffix in (".gz", ".zip"):  # sdist (tar.gz)
+                base = f.name.rsplit("-", 1)[0] if "-" in f.name else f.name
+                wheel_names.add(_normalize_pkg(base))
+
+        missing = []
+        for spec in pkgs:
+            name = _normalize_pkg(_pkg_display_name(spec))
+            if name not in wheel_names:
+                missing.append(_pkg_display_name(spec))
+        return (len(missing) == 0), missing
+    except Exception:
+        return False, [_pkg_display_name(p) for p in pkgs]
+
+
 def install_dependencies(show_header: bool = True) -> bool:
     req = BASE_DIR / "setting" / "requirements.txt"
 
@@ -406,14 +438,51 @@ def install_dependencies(show_header: bool = True) -> bool:
 
     pip_exe = str(venv_python) if venv_python.exists() else sys.executable
 
+    pkgs = _read_requirements(req)
+    wheel_dir = BASE_DIR / "wheels"
+
+    # ── wheel 우선 정책 (자동 다운로드 없음) ──────────────────
+    # 1. wheels/ 가 requirements를 충분히 커버하면 → wheel에서 설치
+    # 2. 없거나 부족하면 → download_wheels 실행 안내 후 중단
+    #    (install이 download_wheels.bat을 중첩 호출하면 콘솔/시그널이
+    #     엉켜 'Operation cancelled by user'가 발생하므로 자동 호출하지 않는다)
+    use_wheel = False
+    if pkgs:
+        covered, missing = _check_wheels_coverage(wheel_dir, pkgs)
+        if covered:
+            use_wheel = True
+            if show_header:
+                print("  🐳 wheels/ 폴더 확인 — 로컬 wheel로 설치합니다.")
+        else:
+            # wheel이 없거나 부족 → 안내 후 중단
+            dl_cmd = "setting\\download_wheels.bat" if os.name == "nt" else "./setting/download_wheels.sh"
+            print()
+            print("  ==========================================================")
+            print()
+            print("      [ wheels 폴더가 없거나 부족합니다 ]")
+            print()
+            print("      먼저 아래 명령으로 wheel 을 받은 뒤,")
+            print(f"      {dl_cmd}")
+            print("      install 을 다시 실행하세요.")
+            print()
+            print("  ==========================================================")
+            print()
+            if missing:
+                preview = ", ".join(missing[:5])
+                more = f" 외 {len(missing)-5}개" if len(missing) > 5 else ""
+                print(f"  부족한 패키지: {preview}{more}")
+            return False
+
     extra_args = []
     if os.environ.get("PIP_INDEX_URL"):
         extra_args += ["--index-url", os.environ["PIP_INDEX_URL"]]
+    if use_wheel:
+        # wheel에서만 설치 (네트워크 없이): --no-index + --find-links
+        extra_args += ["--no-index", "--find-links", str(wheel_dir)]
 
     if show_header:
         print("  🐳 [3/4] 의존성 설치 중...")
 
-    pkgs = _read_requirements(req)
     if not pkgs:
         # 목록을 못 읽으면 기존 방식(-r 일괄)으로 폴백
         try:
@@ -702,14 +771,23 @@ def main():
         apply_pip_index(cfg)
         print("✓ (생성됨)" if not CONFIG_PATH.exists() else "✓")
 
-        print("  🐳 [3/4] 의존성 설치 중...")
-        if not install_dependencies(show_header=False):
+        if not install_dependencies(show_header=True):
             sys.exit(1)
         generate_run_scripts()
 
+        start_cmd = "start.bat" if os.name == "nt" else "./start.sh"
         print()
-        print("  설치 완료! start.bat (또는 ./start.sh) 으로 실행하세요.")
-        print(f"  LLM 정보를 미리 설정하려면 {CONFIG_PATH} 를 편집하세요.")
+        print("  ==========================================================")
+        print()
+        print("      [ 설치가 완료되었습니다 ]")
+        print()
+        print(f"      다음 명령으로 실행하세요   ->   {start_cmd}")
+        print()
+        print("  ==========================================================")
+        print()
+        print("  - LLM 정보를 미리 설정하려면 config.json 을 편집하세요.")
+        print(f"    경로: {CONFIG_PATH}")
+        print()
         return
 
     # --check 또는 일반 실행

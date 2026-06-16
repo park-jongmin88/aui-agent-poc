@@ -1,5 +1,5 @@
 """
-skills/local_run/scripts/run_local.py
+skills/localrun/scripts/run_local.py
 Windows/Linux/macOS 공통, 예외처리 완비
 """
 import sys, os, re, subprocess, time, json, tempfile, platform
@@ -131,7 +131,7 @@ def _save_local_model(model, _ignored=None):
 
 
 def run_local(folder):
-    passed, msg = check_gate(folder, "local_run")
+    passed, msg = check_gate(folder, "localrun")
     if not passed: fail(msg)
 
     results_dir = RESULTS_DIR / folder.name
@@ -194,7 +194,7 @@ def run_local(folder):
 
         set_state(folder,
             status="local_tested",
-            last_action="local_run",
+            last_action="localrun",
             local_results_dir=safe_path_str(results_dir),
         )
 
