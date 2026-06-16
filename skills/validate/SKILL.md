@@ -4,6 +4,12 @@ description: "현재 작업 폴더의 run.py가 9-섹션 표준 구조를 따르
 ---
 # validate - run.py 검증
 
+## 검증 대상 (pyfunc 표준)
+- run.py 의 9개 섹션 구조
+- mlflow.pyfunc.log_model + ModelWrapper 사용 여부
+- model_wrapper.py 존재 여부
+- TODO 미입력 항목, NotImplementedError 잔존 여부
+
 ## 경로 기준 (중요)
 - **모든 경로는 스크립트가 자동으로 계산한다. 에이전트가 직접 경로를 추론하거나 판단하지 않는다.**
 - 현재 작업 디렉토리(cwd)나 OS 경로와 무관하게 동작한다.

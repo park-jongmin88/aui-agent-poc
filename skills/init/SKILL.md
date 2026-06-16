@@ -49,7 +49,12 @@ python skills/init/scripts/analyze_folder.py
   3) 이대로 진행
   ```
 
-### 4. 폴더 분석
+### 4. 모드 (데이터/모델 준비 방식)
+- 폴더 내 파일 기반 자동 판별: LOAD_MODEL / RUN_CODE / DATA_ONLY / TEMPLATE
+- 등록 방식은 항상 pyfunc + ModelWrapper (사내 표준)
+- init이 run.py 와 함께 model_wrapper.py 도 생성한다 (이미 있으면 유지)
+
+### 5. 폴더 분석
 ```
 python skills/init/scripts/analyze_folder.py <폴더명>
 ```

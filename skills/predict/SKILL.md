@@ -4,6 +4,12 @@ description: "MLflow에 등록된 모델을 로컬에서 로드해 추론 테스
 ---
 # predict - 추론 테스트
 
+## 추론 방식 (pyfunc)
+- mlflow.pyfunc.load_model 로 등록된 모델 로드
+- input_example.json (KServe 형식 또는 일반 형식) 으로 실제 추론 실행
+- input_example.json 탐색: 모델폴더 / source / 현재경로 순
+- 추론 결과 미리보기 출력 (최대 5개)
+
 ## 경로 기준 (중요)
 - **모든 경로는 스크립트가 자동으로 계산한다. 에이전트가 직접 경로를 추론하거나 판단하지 않는다.**
 - 현재 작업 디렉토리(cwd)나 OS 경로와 무관하게 동작한다.

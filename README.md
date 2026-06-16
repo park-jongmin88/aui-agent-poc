@@ -148,7 +148,9 @@ workspace/
   models/                    작업 폴더 모음
     <모델명>/
       source/                원본 자료 (수정금지)
-      run.py                 init이 자동 생성
+      run.py                 init이 자동 생성 (pyfunc 등록)
+      model_wrapper.py       pyfunc ModelWrapper (init 생성, 수정 가능)
+      input_example.json     run.py 실행 시 자동 생성 (KServe 형식)
       .aiu_state.json        단계 상태
   templates/                 run.py 베이스 (수정금지)
   results/                   localrun 결과물 (로컬 모델 파일)

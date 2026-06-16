@@ -35,6 +35,12 @@ python skills/init/scripts/analyze_folder.py
 
 ---
 
+## 모델 등록 방식 (표준)
+- 모든 모델은 **pyfunc + ModelWrapper** 로 MLflow에 등록한다.
+- init이 run.py 와 함께 model_wrapper.py 를 생성한다 (이미 있으면 유지).
+- run.py 의 log_model 은 code_paths=["model_wrapper.py"] 로 wrapper를 동봉한다.
+- run.py 실행 시 input_example.json (KServe 형식)이 자동 생성되어 추론 테스트에 재사용된다.
+
 ## 단계별 게이트 규칙
 
 각 단계는 이전 단계 통과 후에만 진행 가능하다.
@@ -95,7 +101,9 @@ workspace/
   models/
     <모델명>/
       source/                  원본 자료 (에이전트가 수정 금지)
-      run.py                   init이 자동 생성
+      run.py                   init이 자동 생성 (pyfunc 등록)
+      model_wrapper.py         init이 자동 생성 (pyfunc ModelWrapper, 사용자 수정 가능)
+      input_example.json       run.py 실행 시 자동 생성 (KServe 형식)
       .aiu_state.json          단계 상태
   templates/                   run.py 베이스 (수정 금지)
   results/
