@@ -12,7 +12,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from skills.common import (
     ok, fail, progress, get_current_folder, get_state, set_state,
-    check_gate, get_mlflow_config, MODELS_DIR, WORKSPACE_DIR
+    check_gate, check_files_consistency, get_mlflow_config, MODELS_DIR, WORKSPACE_DIR
 )
 
 
@@ -88,6 +88,13 @@ def run_inference(model, input_data, model_uri: str):
 
 def run_predict(folder: Path):
     # 게이트
+    # 파일 점검 (삭제/수정 감지)
+    fc = check_files_consistency(folder)
+    if not fc["ok"]:
+        fail(fc["message"])
+    if fc["warnings"]:
+        for w in fc["warnings"]:
+            progress(f"[안내] {w}")
     passed, msg = check_gate(folder, "predict")
     if not passed: fail(msg)
 

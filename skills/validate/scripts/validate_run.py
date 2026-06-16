@@ -24,7 +24,7 @@ REQUIRED_SECTIONS = [
     (5, "트레이닝|train"),
     (6, "인풋|input"),
     (7, "로깅|log"),
-    (8, "config"),
+    (8, "config|Dataset|데이터셋|log_input"),
     (9, "런|run|__main__"),
 ]
 
@@ -118,7 +118,11 @@ def validate(folder_name: str = None):
     passed = len(issues) == 0
 
     if passed:
-        set_state(folder, status="validated", last_action="validate")
+        # run.py 해시 기록 (이후 수정 감지용)
+        from skills.common import _file_hash
+        run_py = folder / "run.py"
+        set_state(folder, status="validated", last_action="validate",
+                  run_py_hash=_file_hash(run_py))
         message = (
             f"✓ 검증 통과 — workspace/models/{folder.name}/run.py\n"
             f"  섹션: 9/9 완료\n"

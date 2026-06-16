@@ -8,7 +8,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from skills.common import (
     ok, fail, progress, get_current_folder, set_state,
-    check_gate, safe_path_str, safe_unlink,
+    check_gate, check_files_consistency, safe_path_str, safe_unlink,
     MODELS_DIR, WORKSPACE_DIR, ROOT
 )
 
@@ -121,9 +121,8 @@ def _save_local_model(model, _ignored=None):
     text = "\n".join(new_lines)
 
     try:
-        fd, tmp_path = tempfile.mkstemp(suffix="_local_run.py", prefix="aiu_")
-        os.close(fd)
-        tmp = Path(tmp_path)
+        # 임시 파일을 모델 폴더 안에 생성 → 같은 폴더의 model_wrapper.py 등 import 가능
+        tmp = folder / "_runtest_local.py"
         tmp.write_text(mock_header + save_func + text, encoding="utf-8")
         return tmp
     except Exception as e:
@@ -131,6 +130,13 @@ def _save_local_model(model, _ignored=None):
 
 
 def run_local(folder):
+    # 파일 점검 (삭제/수정 감지)
+    fc = check_files_consistency(folder)
+    if not fc["ok"]:
+        fail(fc["message"])
+    if fc["warnings"]:
+        for w in fc["warnings"]:
+            progress(f"[안내] {w}")
     passed, msg = check_gate(folder, "localrun")
     if not passed: fail(msg)
 
@@ -153,7 +159,7 @@ def run_local(folder):
     try:
         proc = subprocess.Popen(
             [sys.executable, str(tmp_py)],
-            cwd=str(ROOT),
+            cwd=str(folder),
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             encoding="utf-8",

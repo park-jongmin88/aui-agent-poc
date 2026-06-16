@@ -14,7 +14,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from skills.common import (
     ok, fail, progress, get_current_folder, set_state,
-    check_gate, safe_path_str, MODELS_DIR, ROOT
+    check_gate, check_files_consistency, safe_path_str, MODELS_DIR, ROOT
 )
 
 
@@ -143,6 +143,13 @@ if __name__ == "__main__":
     folder = get_folder(args[0] if args else None)
 
     # 게이트 확인
+    # 파일 점검 (삭제/수정 감지)
+    fc = check_files_consistency(folder)
+    if not fc["ok"]:
+        fail(fc["message"])
+    if fc["warnings"]:
+        for w in fc["warnings"]:
+            progress(f"[안내] {w}")
     passed, msg = check_gate(folder, "train")
     if not passed: fail(msg)
 

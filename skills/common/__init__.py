@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[2]
 WORKSPACE_DIR = ROOT / "workspace"
 MODELS_DIR    = WORKSPACE_DIR / "models"
 TEMPLATES_DIR = WORKSPACE_DIR / "templates"
+RESULTS_DIR   = WORKSPACE_DIR / "results"
 CURRENT_FILE  = WORKSPACE_DIR / ".current"
 CONFIG_PATH   = ROOT / "config.json"
 
@@ -141,6 +142,113 @@ def _is_status_reached(current: str, required: str) -> bool:
         cur = rank.get(current, -1)
         req = rank.get(required, 999)
         return cur >= req
+    except Exception:
+        return False
+
+
+# ── 파일 점검 / 단계 되돌리기 ────────────────────────────────
+
+# 상태 → 그 상태가 되려면 있어야 하는 파일
+STATE_RANK = {
+    "initialized": 0, "validated": 1, "local_tested": 1.5,
+    "trained": 2, "predicted": 3, "deployed": 4,
+}
+
+
+def _file_hash(path: Path) -> str:
+    """파일 내용 해시 (수정 감지용)."""
+    import hashlib
+    try:
+        return hashlib.md5(path.read_bytes()).hexdigest()
+    except Exception:
+        return ""
+
+
+def check_files_consistency(folder: Path) -> dict:
+    """상태와 실제 파일이 일치하는지 점검.
+    반환: {
+        "ok": bool,
+        "forced_status": 되돌려야 할 상태 또는 None,
+        "warnings": [안내 메시지...],
+        "message": 종합 안내
+    }
+    """
+    try:
+        state   = get_state(folder)
+        status  = state.get("status", "")
+        rank    = STATE_RANK.get(status, 0)
+
+        run_py      = folder / "run.py"
+        results_dir = RESULTS_DIR / folder.name
+        warnings    = []
+        forced      = None  # 강제로 되돌릴 상태
+
+        # ── 1. 삭제 감지 (강제 되돌림) ──
+        # run.py 없음 → initialized 이전으로 (init 필요)
+        if rank >= 1 and not run_py.exists():
+            return {
+                "ok": False,
+                "forced_status": None,  # init부터 다시
+                "warnings": ["run.py가 없습니다. 준비(init)부터 다시 해야 합니다."],
+                "message": "run.py가 삭제되었습니다.\n'준비해줘'로 init부터 다시 시작하세요.",
+                "need_init": True,
+            }
+
+        # local_tested 인데 results/ 모델 파일 없음 → validated로 되돌림
+        if status == "local_tested":
+            has_model = results_dir.exists() and any(
+                f.suffix in (".pkl", ".joblib", ".pt", ".h5") for f in results_dir.iterdir()
+            ) if results_dir.exists() else False
+            if not has_model:
+                forced = "validated"
+                warnings.append("로컬 테스트 결과물(results/)이 없습니다. 로컬 테스트를 다시 해야 합니다.")
+
+        # ── 2. run.py 수정 감지 (안내만) ──
+        if rank >= 1 and run_py.exists():
+            saved_hash = state.get("run_py_hash", "")
+            cur_hash   = _file_hash(run_py)
+            if saved_hash and cur_hash and saved_hash != cur_hash:
+                warnings.append(
+                    "run.py가 검증 이후 수정되었습니다. 다시 검증(validate)을 권장합니다."
+                )
+
+        if forced:
+            set_state(folder, status=forced)
+            return {
+                "ok": False,
+                "forced_status": forced,
+                "warnings": warnings,
+                "message": "\n".join(warnings) + f"\n→ 상태를 '{forced}'로 되돌렸습니다.",
+            }
+
+        if warnings:
+            return {"ok": True, "forced_status": None, "warnings": warnings,
+                    "message": "\n".join(warnings)}
+
+        return {"ok": True, "forced_status": None, "warnings": [], "message": ""}
+    except Exception as e:
+        return {"ok": True, "forced_status": None, "warnings": [],
+                "message": f"(파일 점검 생략: {e})"}
+
+
+def rewind_to(folder: Path, target_status: str):
+    """명시적 재작업: 상태를 target_status로 되돌린다 (A 방식).
+    이후 단계 기록(run_id 등)은 정리한다."""
+    try:
+        target_rank = STATE_RANK.get(target_status, 0)
+        clear_keys = []
+        # trained 미만으로 되돌리면 학습 기록 삭제
+        if target_rank < 2:
+            clear_keys += ["last_run_id", "last_run_at"]
+        # local_tested 미만이면 로컬 결과 기록 삭제
+        if target_rank < 1.5:
+            clear_keys += ["local_results_dir"]
+
+        kwargs = {"status": target_status}
+        for k in clear_keys:
+            kwargs[k] = None  # None = 삭제
+        set_state(folder, **kwargs)
+        return True
     except Exception:
         return False
 
