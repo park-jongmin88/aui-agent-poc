@@ -551,9 +551,11 @@ def generate_run_scripts():
 
 def show_welcome(provider: dict):
     """체크 통과 후 화면을 정리하고 환영 화면을 표시한다."""
-    # ANSI escape로 화면 클리어 (console.clear()보다 일부 터미널에서 안정적)
     sys.stdout.write("\033[2J\033[H")
     sys.stdout.flush()
+
+    name_str  = provider['name']
+    model_str = provider['model']
 
     try:
         from rich.console import Console
@@ -565,28 +567,52 @@ def show_welcome(provider: dict):
             border_style="cyan", width=46,
         ))
         print()
-        console.print(f"  LLM: [cyan]{provider['name']}[/cyan] ({provider['model']})")
+        console.print(f"  MODEL: [cyan]{name_str}[/cyan]  {model_str}")
         print()
-        console.print("  자연어로 요청하세요. 작업 순서 예시:")
-        console.print('    [grey50]1) "sklearn_sample 준비해줘"       → 폴더 분석 후 run.py 생성[/grey50]')
-        console.print('    [grey50]2) "검증해줘"                       → run.py 구조 검증[/grey50]')
-        console.print('    [grey50]3) "학습 시작해줘"                  → 학습 실행 + MLflow 등록[/grey50]')
-        console.print('    [grey50]4) "결과 확인해줘"                  → 추론 테스트[/grey50]')
+        console.print("  [bold]── 작업 순서 ───────────────────────────────[/bold]")
         print()
-        console.print("  명령어 목록은 [cyan]/help[/cyan] 또는 [cyan]/?[/cyan] 입력")
+        steps = [
+            ("0", "모델 선택",   '"/list" 또는 "폴더 목록 보여줘"', ""),
+            ("1", "준비",        '"sklearn_sample 준비해줘"',         ""),
+            ("2", "검증",        '"검증해줘"',                         ""),
+            ("3", "로컬 테스트", '"로컬에서 먼저 돌려봐"',             "(선택)"),
+            ("4", "학습",        '"학습 시작해줘"',                    ""),
+            ("5", "추론",        '"결과 확인해줘"',                    ""),
+            ("6", "로컬 서빙",   '"로컬 서버 띄워줘"',                 "(선택)"),
+            ("7", "배포",        '"배포해줘"',                         ""),
+        ]
+        for no, label, example, opt in steps:
+            opt_str = f"  [grey50]{opt}[/grey50]" if opt else ""
+            console.print(f"  [cyan]{no}[/cyan]  {label:<10}  [grey50]{example}[/grey50]{opt_str}")
+        print()
+        console.print("  [bold]────────────────────────────────────────────[/bold]")
+        print()
+        console.print("  전체 명령어 목록은 [cyan]/help[/cyan] 또는 [cyan]/?[/cyan]")
     except ImportError:
         print("  🐳  aiu-agent")
         print("  AI STUDIO 자동화 어시스턴트")
         print()
-        print(f"  LLM: {provider['name']} ({provider['model']})")
+        print(f"  MODEL: {name_str}  {model_str}")
         print()
-        print("  자연어로 요청하세요. 작업 순서 예시:")
-        print('    1) "sklearn_sample 준비해줘"       → 폴더 분석 후 run.py 생성')
-        print('    2) "검증해줘"                       → run.py 구조 검증')
-        print('    3) "학습 시작해줘"                  → 학습 실행 + MLflow 등록')
-        print('    4) "결과 확인해줘"                  → 추론 테스트')
+        print("  -- 작업 순서 -------------------------------------------")
         print()
-        print("  명령어 목록은 /help 또는 /? 입력")
+        steps = [
+            ("0", "모델 선택",   '"/list" 또는 "폴더 목록 보여줘"', ""),
+            ("1", "준비",        '"sklearn_sample 준비해줘"',         ""),
+            ("2", "검증",        '"검증해줘"',                         ""),
+            ("3", "로컬 테스트", '"로컬에서 먼저 돌려봐"',             "(선택)"),
+            ("4", "학습",        '"학습 시작해줘"',                    ""),
+            ("5", "추론",        '"결과 확인해줘"',                    ""),
+            ("6", "로컬 서빙",   '"로컬 서버 띄워줘"',                 "(선택)"),
+            ("7", "배포",        '"배포해줘"',                         ""),
+        ]
+        for no, label, example, opt in steps:
+            opt_str = f"  {opt}" if opt else ""
+            print(f"  {no}  {label:<10}  {example}{opt_str}")
+        print()
+        print("  -------------------------------------------------------")
+        print()
+        print("  전체 명령어 목록은 /help 또는 /?")
     print()
 
 
