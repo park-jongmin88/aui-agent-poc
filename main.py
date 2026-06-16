@@ -352,7 +352,7 @@ def _install_one(pip_exe, spec, extra_args):
 
     # 설치 시작 안내 (스피너 없이 한 줄)
     try:
-        sys.stdout.write(f"    · {name} 설치 중... (시간이 걸릴 수 있습니다)\n")
+        sys.stdout.write(f"    · {name} 설치 중...\n")
         sys.stdout.flush()
     except Exception:
         pass
@@ -455,18 +455,17 @@ def install_dependencies(show_header: bool = True) -> bool:
                 print("  🐳 wheels/ 폴더 확인 — 로컬 wheel로 설치합니다.")
         else:
             # wheel이 없거나 부족 → 안내 후 중단
+            dl_cmd = "setting\\download_wheels.bat" if os.name == "nt" else "./setting/download_wheels.sh"
             print()
-            print("  ┌─────────────────────────────────────────────────────┐")
-            print("  │  wheels/ 폴더가 없거나 부족합니다.                   │")
-            print("  │                                                     │")
-            print("  │  먼저 아래 명령으로 wheel을 받아주세요:              │")
-            if os.name == "nt":
-                print("  │    setting\\download_wheels.bat                      │")
-            else:
-                print("  │    ./setting/download_wheels.sh                     │")
-            print("  │                                                     │")
-            print("  │  완료 후 install 을 다시 실행하세요.                │")
-            print("  └─────────────────────────────────────────────────────┘")
+            print("  ==========================================================")
+            print()
+            print("      [ wheels 폴더가 없거나 부족합니다 ]")
+            print()
+            print("      먼저 아래 명령으로 wheel 을 받은 뒤,")
+            print(f"      {dl_cmd}")
+            print("      install 을 다시 실행하세요.")
+            print()
+            print("  ==========================================================")
             print()
             if missing:
                 preview = ", ".join(missing[:5])
@@ -776,9 +775,19 @@ def main():
             sys.exit(1)
         generate_run_scripts()
 
+        start_cmd = "start.bat" if os.name == "nt" else "./start.sh"
         print()
-        print("  설치 완료! start.bat (또는 ./start.sh) 으로 실행하세요.")
-        print(f"  LLM 정보를 미리 설정하려면 {CONFIG_PATH} 를 편집하세요.")
+        print("  ==========================================================")
+        print()
+        print("      [ 설치가 완료되었습니다 ]")
+        print()
+        print(f"      다음 명령으로 실행하세요   ->   {start_cmd}")
+        print()
+        print("  ==========================================================")
+        print()
+        print("  - LLM 정보를 미리 설정하려면 config.json 을 편집하세요.")
+        print(f"    경로: {CONFIG_PATH}")
+        print()
         return
 
     # --check 또는 일반 실행
