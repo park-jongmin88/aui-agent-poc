@@ -942,35 +942,18 @@ def check_llm(cfg: dict, interactive: bool = True):
     provider = get_default_provider(cfg)
 
     while True:
-        # 콜드 스타트 대응: timeout 여유 + 자동 재시도
-        connected = False
-        last_err = None
-        for attempt in range(1, 4):  # 최대 3회 시도
-            try:
-                if attempt == 1:
-                    print(f"  🐳 [4/4] LLM 연결 ({provider['name']}) 확인 중...", end="", flush=True)
-                else:
-                    print(f"\r  🐳 [4/4] LLM 연결 ({provider['name']}) 재시도 중... ({attempt}/3)", end="", flush=True)
-                _build_chat_model(provider, timeout=30).invoke([HumanMessage(content="hi")])
-                print(f"\r  🐳 [4/4] LLM 연결 ({provider['name']})        ✓                    ")
-                return provider
-            except AttributeError:
-                # 응답 파싱 오류 (프록시 응답 포맷 불일치 등) — 연결은 된 것으로 간주
-                print(f"\r  🐳 [4/4] LLM 연결 ({provider['name']})        ✓                    ")
-                return provider
-            except Exception as e:
-                last_err = e
-                # timeout/연결 계열은 콜드 스타트일 수 있으니 재시도
-                ename = type(e).__name__
-                retryable = ("Timeout" in ename or "Connection" in ename
-                             or "APIConnection" in ename)
-                if retryable and attempt < 3:
-                    continue
-                break
-
-        # 최종 실패 처리
-        print(f"\r  🐳 [4/4] LLM 연결 ({provider['name']})        ✗                    ")
-        print(f"        {type(last_err).__name__}: {str(last_err)[:120]}")
+        try:
+            print(f"  🐳 [4/4] LLM 연결 ({provider['name']}) 확인 중...", end="", flush=True)
+            _build_chat_model(provider, timeout=15).invoke([HumanMessage(content="hi")])
+            print(f"\r  🐳 [4/4] LLM 연결 ({provider['name']})        ✓")
+            return provider
+        except AttributeError:
+            # 응답 파싱 오류 (프록시 응답 포맷 불일치 등) — 연결은 된 것으로 간주
+            print(f"\r  🐳 [4/4] LLM 연결 ({provider['name']})        ✓")
+            return provider
+        except Exception as e:
+            print(f"\r  🐳 [4/4] LLM 연결 ({provider['name']})        ✗")
+            print(f"        {type(e).__name__}: {str(e)[:120]}")
 
         # 실패 처리: 다른 provider가 있으면 선택, 없으면 차단 종료
         usable = [p for p in providers if not is_placeholder(p)]
