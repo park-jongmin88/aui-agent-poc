@@ -178,19 +178,22 @@ def run_wizard(cfg: dict) -> dict:
     ]
     values = {k: "" for k, _ in fields}
 
-    def fetch_models(base_url: str, api_key: str) -> list:
-        try:
-            import urllib.request, json as _json
-            url = base_url.rstrip("/") + "/models"
-            req = urllib.request.Request(url, headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json"
-            })
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                data = _json.loads(resp.read())
-            return sorted([m["id"] for m in data.get("data", [])])
-        except Exception:
-            return []
+def fetch_models(base_url: str, api_key: str) -> list:
+    """OpenAI 호환 API의 /models 엔드포인트로 모델 목록 조회."""
+    try:
+        import urllib.request, json as _json
+        url = base_url.rstrip("/") + "/models"
+        req = urllib.request.Request(url, headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        })
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = _json.loads(resp.read())
+        return sorted([m["id"] for m in data.get("data", [])])
+    except Exception:
+        return []
+
+
 
     def ask(key, label):
         suffix = " [my-llm]" if key == "name" else ""
@@ -642,7 +645,8 @@ def show_welcome(provider: dict):
 HELP_ITEMS = [
     ("작업",  "/list",    "작업 목록"),
     ("작업",  "/log",     "마지막 로그"),
-    ("LLM",   "/llm",     "LLM 목록 + 전환"),
+    ("LLM",   "/llm /model", "LLM 전환 + 모델 변경(m)"),
+    ("LLM",   "/ping",    "현재 LLM 연결 테스트"),
     ("LLM",   "/reload",  "설정 재로드"),
     ("LLM",   "/config",  "현재 설정"),
     ("세션",  "/clear",   "대화 초기화"),
@@ -1109,7 +1113,8 @@ def _cmd_list():
 
 
 def _cmd_llm(cfg: dict, current: dict):
-    """등록 LLM 목록 표시 + 번호 선택으로 전환. 전환 시 (provider) 반환."""
+    """등록 LLM 목록 표시 + 번호 선택으로 전환. 전환 시 (provider) 반환.
+    'm' 입력 시 현재 provider의 모델 목록 조회 + 변경."""
     usable = [p for p in get_providers(cfg) if not is_placeholder(p)]
     if not usable:
         print("  사용 가능한 LLM이 없습니다. config.json 을 확인하세요.")
@@ -1117,11 +1122,57 @@ def _cmd_llm(cfg: dict, current: dict):
     for i, p in enumerate(usable, 1):
         mark = " ← 사용 중" if p["name"] == current["name"] else ""
         print(f"  {i}. {p['name']}  ({p['model']} @ {p['base_url']}){mark}")
-    sel = input("  전환할 번호 (Enter=유지): ").strip()
+    print()
+    sel = input("  전환할 번호 / 모델 변경(m) / 유지(Enter): ").strip().lower()
+
+    # 모델 변경
+    if sel == "m":
+        return _change_model(current)
+
     if sel.isdigit() and 1 <= int(sel) <= len(usable):
         chosen = usable[int(sel) - 1]
         if chosen["name"] != current["name"]:
             return chosen
+    return None
+
+
+def _change_model(provider: dict):
+    """현재 provider의 /models 조회 후 모델 선택. 변경 시 (provider) 반환."""
+    ptype = provider.get("type", "openai")
+    if ptype != "openai":
+        print(f"  모델 목록 조회는 openai 타입만 지원합니다 (현재: {ptype}).")
+        return None
+    base = provider.get("base_url", "").strip()
+    akey = provider.get("api_key", "").strip()
+    if not base:
+        print("  base_url 이 없어 모델 목록을 조회할 수 없습니다.")
+        return None
+
+    print("  모델 목록 조회 중...")
+    models = fetch_models(base, akey)
+    if not models:
+        print("  모델 목록을 가져오지 못했습니다. (서버 미지원 또는 연결 실패)")
+        return None
+
+    for i, m in enumerate(models, 1):
+        mark = " ← 현재" if m == provider.get("model") else ""
+        print(f"    {i}) {m}{mark}")
+    print()
+    sel = input("  번호 선택 (또는 직접 입력, Enter=유지): ").strip()
+
+    new_model = None
+    if sel.isdigit() and 1 <= int(sel) <= len(models):
+        new_model = models[int(sel) - 1]
+    elif sel:
+        new_model = sel
+
+    if new_model and new_model != provider.get("model"):
+        # 현재 provider 복사 후 모델만 변경 (이번 세션 적용)
+        changed = dict(provider)
+        changed["model"] = new_model
+        print(f"  → 모델 변경: {new_model}")
+        print("  (이번 세션에 적용됩니다. 영구 적용은 config.json 수정)")
+        return changed
     return None
 
 
@@ -1281,7 +1332,7 @@ def chat_loop(cfg: dict, provider: dict, agent):
                 _cmd_list()
             elif cmd == "/log":
                 _cmd_log(last_log)
-            elif cmd == "/llm":
+            elif cmd in ("/llm", "/model"):
                 chosen = _cmd_llm(cfg, provider)
                 if chosen:
                     try:
@@ -1313,6 +1364,18 @@ def chat_loop(cfg: dict, provider: dict, agent):
             elif cmd == "/clear":
                 history = []
                 print("  대화 히스토리를 초기화했습니다.")
+            elif cmd == "/ping":
+                try:
+                    from langchain_core.messages import HumanMessage
+                    import time as _t
+                    print(f"  {provider['name']} 연결 확인 중...", end="", flush=True)
+                    t0 = _t.time()
+                    resp = _build_chat_model(provider, timeout=15).invoke([HumanMessage(content="ping")])
+                    elapsed = _t.time() - t0
+                    print(f"\r  ✓ {provider['name']} 응답 OK ({elapsed:.1f}s)            ")
+                except Exception as e:
+                    print(f"\r  ✗ {provider['name']} 응답 실패                    ")
+                    print(f"    {type(e).__name__}: {str(e)[:100]}")
             else:
                 print("  알 수 없는 명령입니다. /help 또는 /? 를 입력하세요.")
             continue
