@@ -56,5 +56,19 @@
         "model": "llama3.2"
       }
     ]
+  },
+  "mlflow": {
+    "_comment": "MLflow 서버 정보 (처음 1회 설정). init 시 없으면 대화로 입력받습니다.",
+    "tracking_uri": "http://your-mlflow-server:5000",
+    "username": "",
+    "password": ""
+  },
+  "aistudio": {
+    "_comment": "AI Studio 포탈 배포 설정 (처음 1회). deploy 시 사용합니다.",
+    "project_id": "",
+    "_project_id_comment": "MLflow 설정 시 사용자가 아는 프로젝트 ID",
+    "api_url": "https://your-aistudio-portal/api",
+    "system_key": "",
+    "_system_key_comment": "고정 시스템 키 (선택, 안 쓰면 빈값)"
   }
 }

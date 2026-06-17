@@ -35,6 +35,21 @@ python skills/init/scripts/analyze_folder.py
 
 ---
 
+## 추론 / 배포 규칙
+
+### predict — 두 가지 추론 방식
+추론 요청 시 상황에 맞게 선택지를 제시한다:
+- **① 로컬 추론** (배포 전): MLflow 모델을 로컬 로드 → run_predict.py
+- **② Endpoint 추론** (배포 후): 배포된 URL로 요청 → inference_test.py
+- "엔드포인트 추론", "배포된 모델 테스트" → ②, 그 외 → ①
+
+### deploy — AI Studio Endpoint 배포
+- 게이트: status=predicted 필요
+- config.json 의 aistudio 섹션(api_url, project_id, system_key) + 상태(model_name)에서 정보 수집
+- Endpoint 생성 → RUNNING 폴링 → endpoint_url 을 상태에 저장
+- 저장된 endpoint_url 은 predict ②(Endpoint 추론)에서 자동 사용
+- 실제 API 스펙은 deploy_client.py 의 TODO로 처리 (POC 골격)
+
 ## 단계 진행 / 재작업 / 파일 점검 규칙
 
 ### "다음" / "계속" / "이어서" 요청
@@ -88,7 +103,8 @@ python skills/init/scripts/analyze_folder.py
 [predict] ── trained 없으면 차단
     ↓ status=predicted
     ↓
-[deploy] ── (POC: 안내만)
+[deploy] ── predicted 필요, AI Studio Endpoint 생성
+           config(aistudio) + 상태에서 정보 수집 → 배포 → endpoint_url 저장
 ```
 
 상태 순서: initialized < validated < local_tested < trained < predicted < deployed
@@ -174,6 +190,11 @@ workspace/
     "tracking_uri": "http://mlflow:5000",
     "username": "",
     "password": ""
+  },
+  "aistudio": {
+    "project_id": "...",
+    "api_url": "https://aistudio-portal/api",
+    "system_key": ""
   }
 }
 ```

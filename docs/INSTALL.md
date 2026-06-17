@@ -77,6 +77,20 @@ start.bat
 
 → 처음 실행 시 LLM 정보를 대화로 입력받아 `config.json` 을 생성합니다.
 
+### 추가 설정 (선택)
+
+배포(deploy) 기능을 쓰려면 `config.json` 에 다음을 추가합니다 (`config.sample.json` 참고):
+
+```json
+"aistudio": {
+  "project_id": "내 프로젝트 ID",
+  "api_url": "https://aistudio-portal/api",
+  "system_key": ""
+}
+```
+
+MLflow 정보(tracking_uri, 계정)도 `config.json` 의 `mlflow` 섹션에서 설정합니다.
+
 ---
 
 ## 관리자 배포 (권장)

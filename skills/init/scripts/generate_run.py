@@ -28,39 +28,71 @@ from skills.common import (
 
 # ── ModelWrapper 템플릿 (모델 폴더에 같이 생성) ──────────────
 MODEL_WRAPPER_TEMPLATE = '''"""
-model_wrapper.py — pyfunc ModelWrapper
+model_wrapper.py — pyfunc ModelWrapper (AI Studio 서빙용)
 
 MLflow pyfunc 으로 모델을 등록/서빙하기 위한 래퍼.
 run.py 의 log_model 에서 code_paths 로 이 파일을 동봉한다.
 
-필요하면 predict 의 전처리/후처리를 커스텀하세요.
+predict 반환 형식 (aiu_dict):
+  aiu_output     : 모델 추론 결과
+  aiu_monitoring : AI Studio 대시보드 모니터링 값
+                   (int/float 또는 int/float 리스트만 허용,
+                    문자열/딕셔너리/불리언 섞인 리스트는 불가)
 """
+import json
 import joblib
+import numpy as np
 import mlflow.pyfunc
 
 
 class ModelWrapper(mlflow.pyfunc.PythonModel):
-    """학습된 모델을 감싸 추론 인터페이스를 표준화한다."""
+    """학습된 모델을 감싸 AI Studio 서빙 인터페이스를 표준화한다."""
+
+    def __init__(self):
+        self.model = None
+        self.config = None
 
     def load_context(self, context):
-        """artifacts 에 등록된 모델 파일을 로드한다."""
-        self.model = joblib.load(context.artifacts["model"])
+        """서빙 환경에서 모델/설정을 로드한다."""
+        model_path = context.artifacts["model"].replace("\\\\", "/")
+        self.model = joblib.load(model_path)
 
-    def predict(self, context, model_input):
+        config_path = context.artifacts["config"].replace("\\\\", "/")
+        with open(config_path, "r") as f:
+            self.config = json.load(f)
+
+    def predict(self, context, payload):
         """추론 실행.
 
-        model_input: pandas DataFrame 또는 numpy array
-        반환: 예측 결과
+        payload (AI Studio 서빙 환경이 주입):
+          trace_id : 추적 ID
+          pis_name : 서비스명
+          logger   : 로거 (콜러블)
+          input    : [{"data": ...}] 추론 데이터
         """
-        # TODO: 입력 전처리가 필요하면 여기에 추가
-        # 예) model_input = model_input.values
+        try:
+            trace_id   = payload["trace_id"]
+            extra_json = {"trace_id": trace_id}
+            pis_name   = payload["pis_name"]
+            logger     = payload["logger"]()
+            input_data = payload["input"][0]
 
-        prediction = self.model.predict(model_input)
+            # TODO: inference 과정을 데이터/모델에 맞게 수정
+            model_input = input_data["data"]
+            predictions = self.model.predict(model_input)
+            predictions_rounded = np.round(predictions, 2)
 
-        # TODO: 출력 후처리가 필요하면 여기에 추가
-        # 예) prediction = prediction.tolist()
+            # AI Studio 모니터링 반환
+            aiu_dict = dict()
+            aiu_dict["aiu_output"]     = predictions_rounded.tolist()
+            # TODO: 모니터링 값은 int/float 또는 그 리스트만 가능
+            aiu_dict["aiu_monitoring"] = predictions_rounded.tolist()
 
-        return prediction
+            return aiu_dict
+
+        except Exception as e:
+            logger.error(str(e), extra=extra_json)
+            raise
 '''
 
 MODEL_EXTENSIONS = {

@@ -300,6 +300,16 @@ def is_mlflow_configured() -> bool:
         return False
 
 
+def get_aistudio_config() -> dict:
+    """config.json의 aistudio 섹션 반환 (배포용)."""
+    try:
+        return get_config().get("aistudio", {
+            "project_id": "", "api_url": "", "system_key": ""
+        })
+    except Exception:
+        return {"project_id": "", "api_url": "", "system_key": ""}
+
+
 def is_ml_installed() -> bool:
     """mlflow 패키지 설치 여부 확인."""
     try:

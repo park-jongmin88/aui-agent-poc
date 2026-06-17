@@ -40,11 +40,12 @@ aiu-agent 의 개념, 작업 흐름, 용어를 정리한 매뉴얼입니다.
        ↓              → MLflow 없이 학습, results/ 에 저장
 4. 학습(train)        "학습 시작해줘"
        ↓              → run.py 실행 → MLflow에 pyfunc 등록
-5. 추론(predict)      "결과 확인해줘"
-       ↓              → 등록 모델 로드 → input_example.json 으로 추론
+5. 추론(predict)      "결과 확인해줘" / "엔드포인트 추론 테스트"
+       ↓              → ① 로컬 추론 (MLflow 로드) ② Endpoint 추론 (배포 후 URL)
 6. 로컬서빙(localserve) "서버 띄워줘"  (선택)
        ↓              → FastAPI 서버 → POST /predict
-7. 배포(deploy)       "배포해줘"  (POC: 안내만)
+7. 배포(deploy)       "배포해줘"
+                      → AI Studio Endpoint 생성 → RUNNING 폴링 → URL 반환
 ```
 
 **게이트 규칙:** 각 단계는 앞 단계를 통과해야 진행됩니다. 순서를 건너뛰면 차단하고 안내합니다.
@@ -112,7 +113,37 @@ initialized(0) → validated(1) → [local_tested(1.5)] → trained(2) → predi
 
 ---
 
-## 8. 재작업 / 파일 점검
+## 8. 추론과 배포
+
+### 추론 (predict) — 두 가지 방식
+| 방식 | 설명 | 시점 |
+|---|---|---|
+| ① 로컬 추론 | MLflow 모델을 로컬 로드해 테스트 | 배포 전 (등록 확인) |
+| ② Endpoint 추론 | 배포된 URL로 HTTP 요청 | 배포 후 (서빙 확인) |
+
+두 방식 모두 `input_example.json` (KServe 형식)을 입력으로 사용합니다.
+
+### 배포 (deploy)
+```
+predict 완료 → deploy → AI Studio Endpoint 생성
+  1. config(aistudio) + 상태에서 정보 수집
+  2. requirements.txt → 의존성 로드
+  3. Endpoint 생성 API 호출
+  4. RUNNING 상태까지 폴링
+  5. Endpoint URL 반환 → 상태에 저장
+                          ↓
+         predict ②(Endpoint 추론)에서 이 URL 사용
+```
+
+### ModelWrapper (model_wrapper.py)
+모든 모델은 pyfunc ModelWrapper로 등록됩니다. predict 반환은 `aiu_dict` 형식:
+- `aiu_output` — 모델 추론 결과
+- `aiu_monitoring` — AI Studio 대시보드 모니터링 값
+  (int/float 또는 그 리스트만 허용)
+
+---
+
+## 9. 재작업 / 파일 점검
 
 ### 이전 단계로 되돌리기
 "다시 학습", "재학습", "다시 검증" 등을 요청하면 해당 단계로 상태를 되돌리고 재실행합니다.
@@ -125,7 +156,7 @@ initialized(0) → validated(1) → [local_tested(1.5)] → trained(2) → predi
 
 ---
 
-## 9. 설정 (config.json)
+## 10. 설정 (config.json)
 
 ```
 llm:
@@ -135,6 +166,10 @@ llm:
       temperature(기본 0), max_tokens(기본 1024), timeout(기본 120)
 mlflow:
   tracking_uri, username, password
+aistudio:                       # 배포용 (처음 1회 설정)
+  project_id                    # MLflow 설정 시 아는 프로젝트 ID
+  api_url                       # AI Studio 포탈 API 주소
+  system_key                    # 고정 키 (선택, 안 쓰면 빈값)
 ```
 
 - LLM 옵션은 속도 최적화 기본값이 적용됩니다 (temperature=0, max_tokens=1024)
@@ -142,7 +177,7 @@ mlflow:
 
 ---
 
-## 10. 명령어
+## 11. 명령어
 
 | 명령 | 설명 |
 |---|---|
@@ -157,7 +192,7 @@ mlflow:
 
 ---
 
-## 11. 한눈에 보는 전체 그림
+## 12. 한눈에 보는 전체 그림
 
 ```
 [관리자] download_wheels → wheels/ 동봉 배포
@@ -168,9 +203,10 @@ mlflow:
         "검증해줘" → validate
         "돌려봐"   → localrun (로컬 학습)
         "학습해줘" → train → MLflow에 pyfunc 등록
-        "확인해줘" → predict (input_example.json 추론)
+        "확인해줘" → predict ① 로컬 추론 (MLflow 로드)
         "띄워줘"   → localserve (FastAPI)
-        "배포해줘" → deploy
+        "배포해줘" → deploy → Endpoint 생성
+        "엔드포인트 추론" → predict ② Endpoint URL 요청
                                 ↓
             모든 모델 = pyfunc + ModelWrapper로 MLflow 등록
 ```
