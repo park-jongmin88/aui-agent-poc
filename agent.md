@@ -200,7 +200,8 @@ workspace/
 ```
 
 - MLflow 설정은 init 시점에 없으면 대화로 입력받아 저장
-- 세션 중 `/llm` 명령으로 LLM 전환 가능
+- 세션 중 `/llm` (또는 `/model`) 명령으로 LLM 전환 + 모델 변경 가능
+- `/ping` 으로 현재 LLM 연결 상태 확인 가능
 - `/reload` 로 설정 재로드
 
 ---
