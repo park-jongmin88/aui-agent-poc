@@ -7,6 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from skills.common import (
+    safe_main,
     ok, fail, progress, get_current_folder, set_state,
     check_gate, check_files_consistency, safe_path_str, safe_unlink,
     MODELS_DIR, WORKSPACE_DIR, ROOT
@@ -228,6 +229,10 @@ def run_local(folder):
             except Exception: pass
 
 
-if __name__ == "__main__":
+def _main():
     folder_name = sys.argv[1] if len(sys.argv) > 1 else None
     run_local(get_folder(folder_name))
+
+
+if __name__ == "__main__":
+    safe_main(_main)

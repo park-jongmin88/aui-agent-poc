@@ -16,6 +16,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from skills.common import (
+    safe_main,
     ok, fail, progress, get_current_folder, get_state, MODELS_DIR
 )
 
@@ -119,10 +120,14 @@ def run_inference_test(folder: Path, url: str = None):
     })
 
 
-if __name__ == "__main__":
+def _main():
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("folder", nargs="?", default=None)
     parser.add_argument("--url", default=None)
     args = parser.parse_args()
     run_inference_test(get_folder(args.folder), args.url)
+
+
+if __name__ == "__main__":
+    safe_main(_main)

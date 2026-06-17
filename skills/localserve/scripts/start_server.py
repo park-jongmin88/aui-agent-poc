@@ -7,6 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from skills.common import (
+    safe_main,
     ok, fail, progress, get_current_folder, get_state, set_state,
     check_gate, check_files_consistency, safe_path_str, safe_unlink, is_process_alive,
     MODELS_DIR, WORKSPACE_DIR, ROOT
@@ -274,10 +275,14 @@ def start(folder, port):
     })
 
 
-if __name__ == "__main__":
+def _main():
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("folder", nargs="?", default=None)
     parser.add_argument("--port", type=int, default=8000)
     args = parser.parse_args()
     start(get_folder(args.folder), args.port)
+
+
+if __name__ == "__main__":
+    safe_main(_main)

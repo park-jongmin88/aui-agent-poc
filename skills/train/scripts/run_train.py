@@ -13,6 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from skills.common import (
+    safe_main,
     ok, fail, progress, get_current_folder, set_state,
     check_gate, check_files_consistency, safe_path_str, MODELS_DIR, ROOT
 )
@@ -137,7 +138,7 @@ def run_training(folder: Path, info: dict):
             except Exception: pass
 
 
-if __name__ == "__main__":
+def _main():
     check_only = "--check-only" in sys.argv
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     folder = get_folder(args[0] if args else None)
@@ -160,3 +161,7 @@ if __name__ == "__main__":
             "message": "사전 확인 완료 — 학습을 시작할 수 있습니다."})
     else:
         run_training(folder, info)
+
+
+if __name__ == "__main__":
+    safe_main(_main)

@@ -12,6 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from skills.common import (
+    safe_main,
     ok, fail, get_current_folder, get_state, set_state,
     is_mlflow_configured, check_gate
 )
@@ -152,6 +153,10 @@ def validate(folder_name: str = None):
     })
 
 
-if __name__ == "__main__":
+def _main():
     folder_name = sys.argv[1] if len(sys.argv) > 1 else None
     validate(folder_name)
+
+
+if __name__ == "__main__":
+    safe_main(_main)

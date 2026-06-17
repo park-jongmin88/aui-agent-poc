@@ -21,6 +21,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from skills.common import (
+    safe_main,
     ok, fail, MODELS_DIR, TEMPLATES_DIR, CONFIG_PATH,
     get_mlflow_config, get_state, set_state, set_current_folder, list_model_folders
 )
@@ -652,7 +653,11 @@ def generate(folder_name: str, experiment_name: str, model_name: str):
     })
 
 
-if __name__ == "__main__":
+def _main():
     if len(sys.argv) < 4:
         fail("사용법: generate_run.py <폴더명> <실험명> <모델명>")
     generate(sys.argv[1], sys.argv[2], sys.argv[3])
+
+
+if __name__ == "__main__":
+    safe_main(_main)

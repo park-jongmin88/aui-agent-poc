@@ -9,7 +9,7 @@ import json
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
-from skills.common import ok, fail, MODELS_DIR, list_model_folders
+from skills.common import ok, fail, safe_main, MODELS_DIR, list_model_folders
 
 MODEL_EXTENSIONS = {
     "sklearn": [".pkl", ".joblib"],
@@ -104,6 +104,10 @@ def analyze(folder_name_or_no: str):
     })
 
 
-if __name__ == "__main__":
+def _main():
     arg = sys.argv[1] if len(sys.argv) > 1 else ""
     analyze(arg)
+
+
+if __name__ == "__main__":
+    safe_main(_main)

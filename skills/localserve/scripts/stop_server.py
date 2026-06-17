@@ -7,6 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from skills.common import (
+    safe_main,
     ok, fail, get_current_folder, get_state, set_state,
     kill_process, safe_unlink, MODELS_DIR
 )
@@ -65,6 +66,10 @@ def stop(folder):
     })
 
 
-if __name__ == "__main__":
+def _main():
     folder_name = sys.argv[1] if len(sys.argv) > 1 else None
     stop(get_folder(folder_name))
+
+
+if __name__ == "__main__":
+    safe_main(_main)

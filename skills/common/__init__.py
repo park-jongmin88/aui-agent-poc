@@ -62,6 +62,27 @@ def progress(message: str):
         pass
 
 
+def safe_main(entry_func, *args, **kwargs):
+    """스크립트 진입점을 감싸 어떤 예외도 JSON(error)으로 변환한다.
+
+    ok()/fail() 은 SystemExit 를 발생시키므로 그대로 통과시키고,
+    그 외 예상치 못한 예외(트레이스백)는 fail()로 변환해
+    raw 트레이스백이 터미널에 노출되지 않도록 한다.
+    """
+    try:
+        entry_func(*args, **kwargs)
+    except SystemExit:
+        # ok()/fail() 의 정상 종료 — 그대로 통과
+        raise
+    except KeyboardInterrupt:
+        fail("작업이 중단되었습니다.")
+    except Exception as e:
+        # 예상치 못한 모든 예외 → JSON error 로 변환
+        import traceback
+        detail = "".join(traceback.format_exception_only(type(e), e)).strip()
+        fail(f"예기치 못한 오류: {detail}")
+
+
 # ── 게이트 ──────────────────────────────────────────────────
 
 def check_gate(folder: Path, skill: str) -> tuple:
