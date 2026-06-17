@@ -1388,61 +1388,58 @@ def chat_loop(cfg: dict, provider: dict, agent):
         history_send = history[-MAX_HISTORY:] if len(history) > MAX_HISTORY else history
 
         try:
+            import threading
             t0 = time.time()
-            error_box = [None]
-            final_content = []
-            streaming_started = False
+            result_box = [None]
+            error_box  = [None]
 
+            def _invoke():
+                try:
+                    result_box[0] = agent.invoke({"messages": history_send})
+                except Exception as ex:
+                    error_box[0] = ex
+
+            thread = threading.Thread(target=_invoke, daemon=True)
+            thread.start()
+
+            # 생각 중 스피너 (\r 덮어쓰기 — prompt_toolkit 툴바 충돌 방지)
+            spin_frames = ["🐳 생각 중   ", "🐳 생각 중.  ", "🐳 생각 중.. ", "🐳 생각 중..."]
+            fi = 0
+            while thread.is_alive():
+                try:
+                    sys.stdout.write(f"\r  {spin_frames[fi % len(spin_frames)]}")
+                    sys.stdout.flush()
+                except Exception:
+                    pass
+                fi += 1
+                time.sleep(0.25)
             try:
-                for chunk in agent.stream({"messages": history_send}):
-                    # chunk 구조: {"messages": [...]} 또는 노드별 딕셔너리
-                    msgs = None
-                    if isinstance(chunk, dict):
-                        # langgraph 스타일: 노드명 키 아래 messages
-                        for v in chunk.values():
-                            if isinstance(v, dict) and "messages" in v:
-                                msgs = v["messages"]
-                                break
-                            elif isinstance(v, list):
-                                msgs = v
-                                break
-                        if msgs is None and "messages" in chunk:
-                            msgs = chunk["messages"]
+                sys.stdout.write("\r" + " " * 30 + "\r")
+                sys.stdout.flush()
+            except Exception:
+                pass
 
-                    if msgs:
-                        for msg in (msgs if isinstance(msgs, list) else [msgs]):
-                            content = getattr(msg, "content", None)
-                            if content and isinstance(content, str) and content.strip():
-                                if not streaming_started:
-                                    # 첫 토큰 — 스피너 지우고 구분선 출력
-                                    sys.stdout.write("\r" + " " * 30 + "\r")
-                                    sys.stdout.flush()
-                                    if USE_RICH and console:
-                                        console.print(SEP)
-                                    else:
-                                        print(SEP)
-                                    streaming_started = True
-                                final_content.append(content)
-
-            except Exception as ex:
-                error_box[0] = ex
-
+            thread.join()
             elapsed = time.time() - t0
 
             if error_box[0]:
                 raise error_box[0]
 
-            # 최종 응답 조합 (스트리밍된 마지막 content 사용)
-            answer = final_content[-1] if final_content else ""
+            # 응답 추출 (invoke 결과의 마지막 메시지)
+            answer = ""
+            try:
+                result = result_box[0]
+                if result and "messages" in result:
+                    messages = result["messages"]
+                    if messages:
+                        answer = _extract_text(messages[-1].content)
+            except Exception:
+                answer = ""
 
-            if not streaming_started:
-                # 스트리밍 청크에서 못 받은 경우 — 스피너 지우고 구분선
-                sys.stdout.write("\r" + " " * 30 + "\r")
-                sys.stdout.flush()
-                if USE_RICH and console:
-                    console.print(SEP)
-                else:
-                    print(SEP)
+            if USE_RICH and console:
+                console.print(SEP)
+            else:
+                print(SEP)
 
             print()
             if USE_RICH and console:
