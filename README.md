@@ -51,6 +51,7 @@ config.json               LLM + MLflow 설정 (.gitignore)
 
 setting/                  requirements.txt, download_wheels
 skills/                   init, validate, localrun, train, predict, localserve, deploy
+                          (스킬 목록: skills/README.md)
 docs/                     문서 모음
 workspace/                작업 폴더 (models/, results/, templates/)
 ```
