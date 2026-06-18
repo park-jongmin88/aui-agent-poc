@@ -1260,6 +1260,66 @@ def _get_toolbar_text(provider: dict) -> str:
     return f"━━━ 📁 {folder_name}  │  {nav}  │  {llm_name}: {short_model} ━━━"
 
 
+# -------------------------------------------------------------
+#  입력 단축 매핑 (LLM 우회 — 명시적 키워드 우선)
+# -------------------------------------------------------------
+AFFIRM_WORDS = ["응", "ㅇㅇ", "ㅇ", "어", "네", "넵", "예", "yes", "y", "ok", "okay",
+                "그래", "좋아", "보여줘", "해줘", "당연", "그치", "맞아", "진행", "고고", "ㄱㄱ"]
+DENY_WORDS   = ["아니", "ㄴㄴ", "ㄴ", "노", "no", "n", "안", "됐어", "취소", "말고", "그만"]
+
+# 단축 명령 매핑: (키워드 리스트, 명령 함수 키, 확인 문구)
+SHORTCUT_LIST_KW = ["작업목록", "작업 목록", "폴더목록", "폴더 목록", "모델목록", "모델 목록",
+                    "목록 보여", "목록보여", "리스트", "뭐 있어", "뭐있어", "뭐가 있"]
+# 스킬 직결 매핑: 키워드 → (스킬 설명, 자연어 명령으로 전달할 문구)
+SKILL_KEYWORDS = [
+    (["검증", "validate", "이상없", "점검"],        "검증(validate)"),
+    (["학습", "훈련", "train", "트레인"],            "학습(train)"),
+    (["추론", "예측", "predict", "인퍼런스"],        "추론(predict)"),
+    (["배포", "deploy", "디플로이", "엔드포인트 생성"], "배포(deploy)"),
+    (["로컬 실행", "로컬실행", "로컬 테스트", "localrun"], "로컬 테스트(localrun)"),
+    (["서빙", "서버 띄", "서버띄", "localserve", "서버 켜", "서버 꺼"], "로컬 서빙(localserve)"),
+]
+# 작업(스킬) 키워드 — 다중 의미 판정용
+ALL_SKILL_WORDS = ["검증", "학습", "훈련", "추론", "예측", "배포", "서빙", "로컬"]
+
+
+def _is_affirmative(text: str) -> bool:
+    t = text.strip().lower()
+    return any(t == w or t.startswith(w) for w in AFFIRM_WORDS)
+
+
+def _is_negative(text: str) -> bool:
+    t = text.strip().lower()
+    return any(t == w or t.startswith(w) for w in DENY_WORDS)
+
+
+def _match_shortcut(user_input: str):
+    """입력을 단축 매핑/스킬 직결로 분류.
+    반환: ("list", None) | ("skill", 설명) | ("ambiguous", [후보]) | None
+    """
+    s = user_input.strip()
+    s_low = s.lower()
+
+    list_hit  = any(kw in s for kw in SHORTCUT_LIST_KW)
+    skill_hit = None
+    for kws, label in SKILL_KEYWORDS:
+        if any(kw in s_low for kw in kws):
+            skill_hit = label
+            break
+
+    # 다중 의미: 목록 키워드 + 작업 키워드가 같이 → 선택지
+    has_list_word  = ("목록" in s) or ("리스트" in s)
+    has_skill_word = any(w in s for w in ALL_SKILL_WORDS)
+    if has_list_word and has_skill_word:
+        return ("ambiguous", None)
+
+    if list_hit:
+        return ("list", None)
+    if skill_hit:
+        return ("skill", skill_hit)
+    return None
+
+
 def chat_loop(cfg: dict, provider: dict, agent):
     try:
         from rich.console import Console
@@ -1380,7 +1440,49 @@ def chat_loop(cfg: dict, provider: dict, agent):
                 print("  알 수 없는 명령입니다. /help 또는 /? 를 입력하세요.")
             continue
 
-        # 에이전트 호출 (스트리밍)
+        # ── 단축 매핑 (LLM 우회 — 명시적 키워드 우선) ──
+        matched = _match_shortcut(user_input)
+        if matched:
+            kind, label = matched
+
+            if kind == "ambiguous":
+                # 다중 의미 — 선택지 제시
+                print("  요청이 여러 의미로 해석됩니다:")
+                print("    1) 작업 폴더 목록 보기")
+                print("    2) 계속 대화 (AI에게 전달)")
+                sel = input("  선택 (1/2, Enter=2): ").strip()
+                if sel == "1":
+                    _cmd_list()
+                    continue
+                # 그 외 → LLM으로 진행 (아래로 빠짐)
+
+            elif kind == "list":
+                # 확인 후 실행
+                print("  작업 폴더 목록을 보여드릴까요?")
+                ans = input("  ❯ ").strip()
+                if _is_affirmative(ans):
+                    _cmd_list()
+                    continue
+                elif _is_negative(ans):
+                    print("  취소했습니다.")
+                    continue
+                else:
+                    # 애매한 답 → 그 답을 새 입력으로 LLM에 전달
+                    user_input = ans if ans else user_input
+
+            elif kind == "skill":
+                # 스킬 직결 — 확인 후 자연어로 LLM에 전달 (스킬 실행은 에이전트가)
+                print(f"  {label}을(를) 진행할까요?")
+                ans = input("  ❯ ").strip()
+                if _is_affirmative(ans):
+                    pass  # 원래 user_input 그대로 LLM에 전달 → 스킬 실행
+                elif _is_negative(ans):
+                    print("  취소했습니다.")
+                    continue
+                else:
+                    user_input = ans if ans else user_input
+
+        # 에이전트 호출
         history.append({"role": "user", "content": user_input})
 
         # history 길이 제한 — 길어질수록 매 요청 토큰이 늘어서 느려짐
