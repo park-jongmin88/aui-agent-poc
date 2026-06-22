@@ -51,7 +51,6 @@ import json
 import uuid
 import mlflow
 import mlflow.pyfunc
-from mlflow.models import infer_signature
 
 
 # =============================================================================
@@ -219,68 +218,64 @@ class ModelWrapper(mlflow.pyfunc.PythonModel):
 
     def predict(self, context, model_input, params=None):
         """
-        MLflow 서빙 인터페이스.
+        MLflow 서빙 인터페이스 (샘플 방식).
 
-        입력 필드:
-          question   : 질문 텍스트
-          session_id : 대화 세션 ID (없으면 자동 생성)
-          user_id    : 사용자 ID (선택)
-          history    : 이전 대화 JSON 문자열
-                       예) "[{\"role\":\"user\",\"content\":\"안녕\"}]"
-
-        입력 형식 (KServe):
-          { "input": ["<JSON 문자열>"] }
-          JSON 문자열 안에 question / session_id / user_id / history 포함.
+        입력: DataFrame / list / dict / string 모두 대응.
+              - DataFrame: "question" 컬럼 사용
+                (선택 컬럼: session_id, user_id, history)
+              - list: 각 항목을 질문으로
+              - 그 외: 문자열로 변환해 질문으로
 
         출력:
           ["답변 문자열", ...]   ← 답변만 문자열 리스트로 반환
-          (Trace / Session 은 _run() 안에서 기록되므로 영향 없음)
+          (Trace / Session 은 _run() 안에서 기록됨)
         """
-        # ── 입력 정규화: {"input": [...]} / DataFrame / dict / list 모두 대응
-        if hasattr(model_input, "to_dict"):
-            # DataFrame → records
-            recs = model_input.to_dict("records")
-            raw_items = [r.get("input", r) for r in recs]
+        import pandas as pd
+
+        # ── DataFrame 으로 정규화
+        if isinstance(model_input, pd.DataFrame):
+            df = model_input
         elif isinstance(model_input, dict):
-            raw_items = model_input.get("input", [model_input])
+            df = pd.DataFrame(model_input)
+        elif isinstance(model_input, list):
+            # 문자열 리스트면 question 컬럼으로
+            if model_input and isinstance(model_input[0], dict):
+                df = pd.DataFrame(model_input)
+            else:
+                df = pd.DataFrame({"question": [str(x) for x in model_input]})
         else:
-            raw_items = list(model_input)
+            df = pd.DataFrame({"question": [str(model_input)]})
+
+        # question 컬럼이 없으면 첫 컬럼을 질문으로 간주
+        if "question" not in df.columns and len(df.columns) > 0:
+            df = df.rename(columns={df.columns[0]: "question"})
 
         params    = params or {}
         p_session = params.get("session_id")
         p_user    = params.get("user_id")
 
+        questions = df["question"].fillna("").astype(str).tolist()
+        sessions  = df["session_id"].tolist() if "session_id" in df.columns else [None] * len(questions)
+        users     = df["user_id"].tolist()    if "user_id"    in df.columns else [None] * len(questions)
+        historys  = df["history"].tolist()    if "history"    in df.columns else [None] * len(questions)
+
         results = []
-        for item in raw_items:
-            # item 이 JSON 문자열이면 파싱, dict 면 그대로, 그 외엔 question 으로 취급
-            if isinstance(item, str):
-                try:
-                    payload = json.loads(item)
-                    if not isinstance(payload, dict):
-                        payload = {"question": item}
-                except (json.JSONDecodeError, TypeError):
-                    payload = {"question": item}
-            elif isinstance(item, dict):
-                payload = item
-            else:
-                payload = {"question": str(item)}
+        for q, sid, uid, raw_hist in zip(questions, sessions, users, historys):
+            sid = sid or p_session or "sess-" + uuid.uuid4().hex[:8]
+            uid = uid or p_user
 
-            q   = payload.get("question", "")
-            sid = payload.get("session_id", p_session) or "sess-" + uuid.uuid4().hex[:8]
-            uid = payload.get("user_id", p_user)
-
-            # history: list 또는 JSON 문자열 모두 대응
-            raw_history = payload.get("history", [])
-            if isinstance(raw_history, str):
+            # history: JSON 문자열이면 파싱, list 면 그대로
+            if isinstance(raw_hist, str):
                 try:
-                    history = json.loads(raw_history)
+                    history = json.loads(raw_hist)
                 except (json.JSONDecodeError, TypeError):
                     history = []
+            elif isinstance(raw_hist, list):
+                history = raw_hist
             else:
-                history = raw_history or []
+                history = []
 
             out = self._run(q, history=history, session_id=sid, user_id=uid)
-            # 답변 문자열만 반환
             results.append(out["answer"])
 
         return results
@@ -330,18 +325,19 @@ def register_agent():
             "stage":    "register",
         })
 
-        # 서명 — KServe { "input": ["<JSON 문자열>"] } 형식
-        example_inner = json.dumps({
-            "question":   "안녕하세요",
-            "session_id": "sess-example",
-            "user_id":    "user-001",
-            "history":    [],
-        }, ensure_ascii=False)
-        example = {"input": [example_inner]}
-        signature = infer_signature(
-            example,
-            ["답변 문자열 예시"],
-        )
+        # ── 등록 입력 예시
+        # input_example — 샘플 방식: question 컬럼 DataFrame
+        # signature 는 주지 않는다.
+        #   → infer_signature 로 스키마를 강제하면 포탈이 자동으로 붙이는
+        #     필드(logger, aiu_ver, trace_id 등)와 충돌해 enforce schema 에러 발생.
+        #   → input_example 만 주면 포탈이 무엇을 보내든 통과.
+        import pandas as pd
+        input_example = pd.DataFrame({
+            "question":   ["안녕하세요"],
+            "session_id": ["sess-example"],
+            "user_id":    ["user-001"],
+            "history":    ["[]"],
+        })
 
         # Artifact 등록 — 에셋 추가 시 여기에 추가
         artifacts = {
@@ -354,8 +350,7 @@ def register_agent():
         log_kwargs = dict(
             python_model     = ModelWrapper(),
             artifacts        = artifacts,
-            signature        = signature,
-            input_example    = example,
+            input_example    = input_example,
             pip_requirements = ["mlflow==3.10.0", "openai==2.43.0", "kserve==0.15.0"],
         )
 
