@@ -39,29 +39,29 @@ API_URL = TODO   # 예: http://localhost:5001/invocations
 # =============================================================================
 def call_api(question: str, history: list, session_id: str, user_id: str = "client-user") -> str:
     """
-    MLflow 서빙 엔드포인트에 POST 요청을 보내고 답변을 반환한다.
+    KServe 서빙 엔드포인트에 POST 요청을 보내고 답변을 반환한다.
 
-    history 는 list → JSON 문자열로 직렬화해서 전달.
-    (MLflow pyfunc signature 는 string 타입만 지원)
+    스웨거 입력 형식:  { "input": ["<문자열>"] }
+    → 문자열 하나만 보낼 수 있으므로,
+      question / session_id / user_id / history 를 JSON 으로 직렬화해
+      문자열 하나에 담아서 전달한다.
 
     입력 스키마:
-      { "inputs": [{
-          "question":   "질문",
-          "session_id": "sess-xxx",
-          "user_id":    "user-001",
-          "history":    "[{\"role\":\"user\",\"content\":\"...\"}]"
-      }]}
+      { "input": ["{\"question\":\"...\",\"session_id\":\"...\",\"history\":[...]}"] }
 
-    출력 스키마:
-      { "predictions": [{ "question": "...", "answer": "...", "session_id": "..." }] }
+    출력:
+      서버 응답 원본 (가공 없이 그대로 반환)
     """
+    # question + 메타 정보를 JSON 문자열 하나로 직렬화
+    inner = json.dumps({
+        "question":   question,
+        "session_id": session_id,
+        "user_id":    user_id,
+        "history":    history,
+    }, ensure_ascii=False)
+
     payload = json.dumps({
-        "inputs": [{
-            "question":   question,
-            "session_id": session_id,
-            "user_id":    user_id,
-            "history":    json.dumps(history, ensure_ascii=False),  # list → JSON 문자열
-        }]
+        "input": [inner]
     }).encode("utf-8")
 
     req = urllib.request.Request(API_URL, data=payload, method="POST")

@@ -228,36 +228,59 @@ class ModelWrapper(mlflow.pyfunc.PythonModel):
           history    : 이전 대화 JSON 문자열
                        예) "[{\"role\":\"user\",\"content\":\"안녕\"}]"
 
+        입력 형식 (KServe):
+          { "input": ["<JSON 문자열>"] }
+          JSON 문자열 안에 question / session_id / user_id / history 포함.
+
         출력:
-          ["답변 문자열", ...]   ← 답변만 문자열 리스트로 반환 (서빙 직렬화 안전)
+          ["답변 문자열", ...]   ← 답변만 문자열 리스트로 반환
           (Trace / Session 은 _run() 안에서 기록되므로 영향 없음)
         """
+        # ── 입력 정규화: {"input": [...]} / DataFrame / dict / list 모두 대응
         if hasattr(model_input, "to_dict"):
-            rows = model_input.to_dict("records")
+            # DataFrame → records
+            recs = model_input.to_dict("records")
+            raw_items = [r.get("input", r) for r in recs]
         elif isinstance(model_input, dict):
-            rows = [model_input]
+            raw_items = model_input.get("input", [model_input])
         else:
-            rows = list(model_input)
+            raw_items = list(model_input)
 
         params    = params or {}
         p_session = params.get("session_id")
         p_user    = params.get("user_id")
 
         results = []
-        for row in rows:
-            q   = row.get("question", "")
-            sid = row.get("session_id", p_session) or "sess-" + uuid.uuid4().hex[:8]
-            uid = row.get("user_id", p_user)
+        for item in raw_items:
+            # item 이 JSON 문자열이면 파싱, dict 면 그대로, 그 외엔 question 으로 취급
+            if isinstance(item, str):
+                try:
+                    payload = json.loads(item)
+                    if not isinstance(payload, dict):
+                        payload = {"question": item}
+                except (json.JSONDecodeError, TypeError):
+                    payload = {"question": item}
+            elif isinstance(item, dict):
+                payload = item
+            else:
+                payload = {"question": str(item)}
 
-            # history: JSON 문자열 → list 역직렬화
-            raw_history = row.get("history", "[]")
-            try:
-                history = json.loads(raw_history) if isinstance(raw_history, str) else (raw_history or [])
-            except (json.JSONDecodeError, TypeError):
-                history = []
+            q   = payload.get("question", "")
+            sid = payload.get("session_id", p_session) or "sess-" + uuid.uuid4().hex[:8]
+            uid = payload.get("user_id", p_user)
+
+            # history: list 또는 JSON 문자열 모두 대응
+            raw_history = payload.get("history", [])
+            if isinstance(raw_history, str):
+                try:
+                    history = json.loads(raw_history)
+                except (json.JSONDecodeError, TypeError):
+                    history = []
+            else:
+                history = raw_history or []
 
             out = self._run(q, history=history, session_id=sid, user_id=uid)
-            # 답변 문자열만 반환 (dict/DataFrame 직렬화 충돌 방지)
+            # 답변 문자열만 반환
             results.append(out["answer"])
 
         return results
@@ -307,13 +330,14 @@ def register_agent():
             "stage":    "register",
         })
 
-        # 서명 — history 를 JSON 문자열 컬럼으로 포함
-        example = [{
+        # 서명 — KServe { "input": ["<JSON 문자열>"] } 형식
+        example_inner = json.dumps({
             "question":   "안녕하세요",
             "session_id": "sess-example",
             "user_id":    "user-001",
-            "history":    "[]",
-        }]
+            "history":    [],
+        }, ensure_ascii=False)
+        example = {"input": [example_inner]}
         signature = infer_signature(
             example,
             ["답변 문자열 예시"],
