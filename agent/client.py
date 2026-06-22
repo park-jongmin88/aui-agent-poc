@@ -69,18 +69,9 @@ def call_api(question: str, history: list, session_id: str, user_id: str = "clie
 
     try:
         with urllib.request.urlopen(req) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-            # MLflow 서빙 응답: {"predictions": ["답변 문자열", ...]}
-            predictions = data.get("predictions") if isinstance(data, dict) else data
-            if isinstance(predictions, list) and predictions:
-                first = predictions[0]
-                # 문자열이면 그대로, dict 면 answer 추출
-                if isinstance(first, str):
-                    return first
-                if isinstance(first, dict):
-                    return first.get("answer", str(first))
-                return str(first)
-            return str(predictions)
+            raw = resp.read().decode("utf-8")
+            # 응답을 가공하지 않고 온 모양 그대로 반환
+            return raw
 
     except urllib.error.HTTPError as e:
         body = e.read().decode("utf-8", "ignore")
@@ -130,9 +121,9 @@ def chat_loop():
             print(f"[오류] {e}\n")
             continue
 
-        print(f"답변> {answer}\n")
+        print(f"[응답 원본]\n{answer}\n")
 
-        # 다음 턴을 위해 history 누적
+        # 다음 턴을 위해 history 누적 (raw 응답 그대로)
         history.append({"role": "user",      "content": question})
         history.append({"role": "assistant",  "content": answer})
         turn += 1

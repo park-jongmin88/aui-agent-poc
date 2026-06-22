@@ -229,7 +229,7 @@ class ModelWrapper(mlflow.pyfunc.PythonModel):
                        예) "[{\"role\":\"user\",\"content\":\"안녕\"}]"
 
         출력:
-          ["답변 문자열", ...]   ← LLM 답변을 그대로 문자열 리스트로 반환
+          [{ "question": "...", "answer": "...", "session_id": "..." }]
         """
         if hasattr(model_input, "to_dict"):
             rows = model_input.to_dict("records")
@@ -256,8 +256,7 @@ class ModelWrapper(mlflow.pyfunc.PythonModel):
                 history = []
 
             out = self._run(q, history=history, session_id=sid, user_id=uid)
-            # 답변 문자열만 반환 (백엔드가 응답을 그대로 표시)
-            results.append(out["answer"])
+            results.append(out)
 
         return results
 
@@ -315,7 +314,7 @@ def register_agent():
         }]
         signature = infer_signature(
             example,
-            ["답변 문자열 예시"],
+            [{"question": "...", "answer": "...", "session_id": "..."}],
         )
 
         # Artifact 등록 — 에셋 추가 시 여기에 추가
