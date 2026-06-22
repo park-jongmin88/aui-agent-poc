@@ -125,6 +125,9 @@ INPUT (질문)
 - **predict 반환은 답변 문자열 리스트.** dict/DataFrame 직렬화 충돌 방지.
 - **pip 버전 고정.** `mlflow==3.10.0`, `openai==2.43.0`, `kserve==0.15.0`
   (포탈 백엔드가 `extractVersion` 으로 버전을 파싱하므로 버전 없으면 등록 실패)
+- **에러 처리 규격화.** 모든 에셋 단계는 예외 시 `_agent_error(stage, exc, q, sid)`
+  헬퍼로 `[AGENT ERROR]` 포맷을 반환한다. (stage=RAG/TOOL/PROMPT/LLM …)
+  서버는 죽지 않고, client 가 원인·단계·traceback 을 한 화면에서 확인. (README 참고)
 
 ---
 

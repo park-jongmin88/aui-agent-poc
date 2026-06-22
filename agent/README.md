@@ -190,6 +190,65 @@ python agent/client.py
 
 ---
 
+## 에이전트 에러 처리 (공식 규격)
+
+서빙 환경에서 client 는 보통 HTTP 500 본문 일부만 받기 때문에,
+서버(predict) 안에서 무슨 오류가 났는지 파악하기 어렵다.
+이를 해결하기 위해 **서버 오류를 응답 본문에 담아 client 까지 그대로 전달**하는
+규격을 정한다. 앞으로 추가되는 모든 에셋(RAG / Tool / Prompt / Judge)도
+이 규격을 따른다.
+
+### 규격 1 — 서버는 죽지 않고 오류를 응답에 담는다
+
+`predict()` 의 질문 처리 루프를 `try/except` 로 감싼다.
+예외가 나면 서버가 500 으로 죽는 대신, **정상 200 응답**으로
+아래 형식의 문자열을 답변 자리에 담아 반환한다.
+
+```
+[AGENT ERROR]
+type   : <예외 타입>
+message: <예외 메시지>
+question: <질문>
+session : <session_id>
+---- traceback ----
+<traceback 전체>
+```
+
+핵심: `[AGENT ERROR]` 프리픽스로 시작한다. (client 가 이 프리픽스로 오류를 판별)
+
+### 규격 2 — client 는 세 가지를 구분한다
+
+| 상황 | 표시 | history 누적 |
+|------|------|--------------|
+| 정상 답변 | `답변> ...` | O |
+| 서버 내부 오류 (200 + `[AGENT ERROR]`) | `[서버 내부 오류] ...` | X |
+| HTTP 오류 (500/400 등) | `[HTTP 오류]` + 본문 펼침 | X |
+
+- HTTP 오류 본문이 JSON 이면 들여쓰기해서 보기 좋게 출력한다.
+- 오류 응답은 history 에 쌓지 않는다. (다음 턴 오염 방지)
+
+### 규격 3 — 에셋 추가 시 동일 패턴 적용
+
+새 에셋(RAG / Tool / Prompt)을 `_run()` 에 추가할 때도
+각 단계에서 같은 방식으로 오류를 담는다. 단계명을 함께 표기하면
+어느 단계에서 실패했는지 바로 알 수 있다.
+
+```python
+# 예시 — RAG 단계
+try:
+    context = rag_search(question, self.rag_conn)
+except Exception as e:
+    return _agent_error("RAG", e, question, session_id)   # [AGENT ERROR] stage=RAG ...
+```
+
+> 권장: 공통 헬퍼 `_agent_error(stage, exc, question, session_id)` 를 두고
+> 모든 에셋이 같은 포맷을 재사용한다. (에러 처리 규격화)
+
+이렇게 하면 어떤 에셋에서 문제가 생겨도 client 화면에서
+`[AGENT ERROR]` 한 형식으로 원인·단계·traceback 을 한 번에 확인할 수 있다.
+
+---
+
 ## 의존성
 
 | 패키지 | 버전 |

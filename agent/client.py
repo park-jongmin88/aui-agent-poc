@@ -65,15 +65,53 @@ def call_api(question: str, history: list, session_id: str, user_id: str = "clie
     try:
         with urllib.request.urlopen(req) as resp:
             raw = resp.read().decode("utf-8")
-            # 응답을 가공하지 않고 온 모양 그대로 반환
-            return raw
+            return _extract_answer(raw)
 
     except urllib.error.HTTPError as e:
+        # 서버가 5xx/4xx 를 던진 경우: 본문(스택/에러 메시지)을 그대로 펼쳐서 보여준다.
         body = e.read().decode("utf-8", "ignore")
-        raise RuntimeError(f"API 오류 {e.code}: {body}")
+        pretty = _try_pretty(body)
+        raise RuntimeError(
+            f"API 오류 {e.code} {e.reason}\n"
+            f"---- 응답 본문 ----\n{pretty}"
+        )
 
     except urllib.error.URLError as e:
         raise RuntimeError(f"연결 실패: {e.reason}\n  → API_URL 을 확인하세요: {API_URL}")
+
+
+def _try_pretty(text: str) -> str:
+    """JSON 이면 들여쓰기해서 보기 좋게, 아니면 원문 그대로."""
+    try:
+        return json.dumps(json.loads(text), ensure_ascii=False, indent=2)
+    except (json.JSONDecodeError, TypeError):
+        return text
+
+
+def _extract_answer(raw: str) -> str:
+    """
+    서버 정상 응답(200)에서 답변 문자열을 꺼낸다.
+    응답 형태가 달라도 최대한 대응:
+      {"predictions": ["답변"]}  /  ["답변"]  /  "답변"  /  {"answer": "..."}
+    """
+    try:
+        data = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        return raw  # JSON 이 아니면 원문 그대로
+
+    if isinstance(data, dict):
+        preds = data.get("predictions", data)
+    else:
+        preds = data
+
+    if isinstance(preds, list) and preds:
+        first = preds[0]
+        if isinstance(first, dict):
+            return first.get("answer", json.dumps(first, ensure_ascii=False))
+        return str(first)
+    if isinstance(preds, dict):
+        return preds.get("answer", json.dumps(preds, ensure_ascii=False))
+    return str(preds)
 
 
 # =============================================================================
@@ -113,12 +151,18 @@ def chat_loop():
         try:
             answer = call_api(question, history, session_id)
         except RuntimeError as e:
-            print(f"[오류] {e}\n")
+            # 서버가 HTTP 에러(500 등)를 던진 경우
+            print(f"[HTTP 오류]\n{e}\n")
             continue
 
-        print(f"[응답 원본]\n{answer}\n")
+        # 200 정상 응답이지만 본문에 서버 내부 오류가 담겨온 경우
+        if isinstance(answer, str) and answer.startswith("[AGENT ERROR]"):
+            print(f"[서버 내부 오류]\n{answer}\n")
+            continue   # 오류는 history 에 쌓지 않는다
 
-        # 다음 턴을 위해 history 누적 (raw 응답 그대로)
+        print(f"답변> {answer}\n")
+
+        # 다음 턴을 위해 history 누적 (정상 답변만)
         history.append({"role": "user",      "content": question})
         history.append({"role": "assistant",  "content": answer})
         turn += 1

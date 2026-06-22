@@ -114,6 +114,34 @@ def _clean_text(s: str) -> str:
     return s.encode("utf-8", "surrogatepass").decode("utf-8", "ignore")
 
 
+def _agent_error(stage: str, exc: Exception, question: str, session_id: str) -> str:
+    """
+    에이전트 에러 처리 공식 규격.
+
+    서빙 환경에서 client 가 HTTP 500 본문만 보면 원인 파악이 어려우므로,
+    예외 발생 시 traceback 전체를 '[AGENT ERROR]' 프리픽스 문자열로 만들어
+    답변 자리에 담아 반환한다. (서버는 죽지 않음)
+
+    앞으로 추가되는 모든 에셋(RAG / Tool / Prompt / Judge)도 이 헬퍼를 재사용한다.
+    stage 에 단계명을 넣으면 어느 단계에서 실패했는지 바로 식별된다.
+        예) _agent_error("RAG",  e, q, sid)
+            _agent_error("TOOL", e, q, sid)
+            _agent_error("LLM",  e, q, sid)
+    """
+    import traceback
+    tb = traceback.format_exc()
+    return (
+        "[AGENT ERROR]\n"
+        f"stage  : {stage}\n"
+        f"type   : {type(exc).__name__}\n"
+        f"message: {exc}\n"
+        f"question: {question}\n"
+        f"session : {session_id}\n"
+        "---- traceback ----\n"
+        f"{tb}"
+    )
+
+
 # =============================================================================
 # [2]  LLM 호출
 # =============================================================================
@@ -289,8 +317,13 @@ class ModelWrapper(mlflow.pyfunc.PythonModel):
             else:
                 history = []
 
-            out = self._run(q, history=history, session_id=sid, user_id=uid)
-            results.append(out["answer"])
+            # ── 서버 내부 오류를 그대로 응답에 담는다. (에러 처리 공식 규격)
+            #    예외가 나도 서버는 죽지 않고, 원인을 응답 본문에 실어 보낸다.
+            try:
+                out = self._run(q, history=history, session_id=sid, user_id=uid)
+                results.append(out["answer"])
+            except Exception as e:
+                results.append(_agent_error("PREDICT", e, q, sid))
 
         # ── Trace 를 UI 에 빨리 반영 (서빙 환경에서 유실 방지)
         flush = getattr(mlflow, "flush_trace_async_logging", None)
