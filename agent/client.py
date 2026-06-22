@@ -84,7 +84,7 @@ def call_api(question: str, history: list, session_id: str, user_id: str = "clie
     """
     # 요청 본문 구성 (history 는 JSON 문자열로 직렬화)
     payload = json.dumps({
-        "inputs": [{
+        "dataframe_records": [{
             "question":   question,
             "session_id": session_id,
             "user_id":    user_id,
@@ -106,13 +106,16 @@ def call_api(question: str, history: list, session_id: str, user_id: str = "clie
         body = e.read().decode("utf-8", "ignore")
         pretty = _try_pretty(body)
         raise RuntimeError(
-            f"API 오류 {e.code} {e.reason}\n"
-            f"---- 응답 본문 ----\n{pretty}"
+            f"API 오류 {e.code} {e.reason}
+"
+            f"---- 응답 본문 ----
+{pretty}"
         )
 
     except urllib.error.URLError as e:
         # ── 연결 자체 실패 (주소 오타 / 서버 미기동 등)
-        raise RuntimeError(f"연결 실패: {e.reason}\n  → API_URL 을 확인하세요: {API_URL}")
+        raise RuntimeError(f"연결 실패: {e.reason}
+  → API_URL 을 확인하세요: {API_URL}")
 
 
 def _try_pretty(text: str) -> str:
@@ -218,16 +221,21 @@ def chat_loop():
             answer = call_api(question, history, session_id)
         except RuntimeError as e:
             # HTTP 오류(500 등) — 서버가 에러 응답을 던진 경우
-            print(f"[HTTP 오류]\n{e}\n")
+            print(f"[HTTP 오류]
+{e}
+")
             continue
 
         # ── 서버 내부 오류 (200 이지만 본문이 [AGENT ERROR] 로 시작) ────
         if isinstance(answer, str) and answer.startswith("[AGENT ERROR]"):
-            print(f"[서버 내부 오류]\n{answer}\n")
+            print(f"[서버 내부 오류]
+{answer}
+")
             continue   # 오류는 history 에 쌓지 않는다
 
         # ── 정상 답변 출력 ─────────────────────────────────────────────
-        print(f"답변> {answer}\n")
+        print(f"답변> {answer}
+")
 
         # 다음 턴을 위해 history 누적 (정상 답변만)
         history.append({"role": "user",      "content": question})
