@@ -70,9 +70,16 @@ def call_api(question: str, history: list, session_id: str, user_id: str = "clie
     try:
         with urllib.request.urlopen(req) as resp:
             data = json.loads(resp.read().decode("utf-8"))
-            predictions = data.get("predictions") or data
+            # MLflow 서빙 응답: {"predictions": ["답변 문자열", ...]}
+            predictions = data.get("predictions") if isinstance(data, dict) else data
             if isinstance(predictions, list) and predictions:
-                return predictions[0].get("answer", "")
+                first = predictions[0]
+                # 문자열이면 그대로, dict 면 answer 추출
+                if isinstance(first, str):
+                    return first
+                if isinstance(first, dict):
+                    return first.get("answer", str(first))
+                return str(first)
             return str(predictions)
 
     except urllib.error.HTTPError as e:
