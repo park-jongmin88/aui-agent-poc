@@ -330,7 +330,7 @@ def register_agent():
             artifacts        = artifacts,
             signature        = signature,
             input_example    = example,
-            pip_requirements = ["mlflow==3.10.0", "openai"],
+            pip_requirements = ["mlflow==3.10.0", "openai==2.43.0"],
         )
 
         try:
