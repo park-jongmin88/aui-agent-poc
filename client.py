@@ -89,12 +89,18 @@ def _try_pretty(text: str) -> str:
         return text
 
 
+def _safe_str(v) -> str:
+    """surrogate(이모지 등에서 발생)가 섞여 있어도 출력/인코딩에서 죽지 않게 정화한다."""
+    s = v if isinstance(v, str) else str(v)
+    return s.encode("utf-8", "replace").decode("utf-8", "replace")
+
+
 def _extract_output(raw: str):
     """서버 응답에서 aiu_output 을 꺼낸다. output 중첩/predictions 등에 대응."""
     try:
         data = json.loads(raw)
     except (json.JSONDecodeError, TypeError):
-        return raw
+        return _safe_str(raw)
 
     if isinstance(data, dict) and "predictions" in data:
         data = data["predictions"]
@@ -102,13 +108,13 @@ def _extract_output(raw: str):
         data = data["output"]
 
     if isinstance(data, dict):
-        return data.get("aiu_output", data)
+        return _safe_str(data.get("aiu_output", data))
     if isinstance(data, list) and data:
         first = data[0]
         if isinstance(first, dict):
-            return first.get("aiu_output", first)
-        return first
-    return data
+            return _safe_str(first.get("aiu_output", first))
+        return _safe_str(first)
+    return _safe_str(data)
 
 
 # =============================================================================
