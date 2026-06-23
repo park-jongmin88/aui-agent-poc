@@ -10,6 +10,7 @@
 - [x] **프롬프트 선택** — MLflow Prompts 에서 로드, client 는 id 만 선택 (A 원칙)
 - [x] **Trace / Session** — 3.10 표준 metadata 키로 기록
 - [x] **system 단일화** — system 메시지 1개로 합쳐 400 BadRequest 해결
+- [x] **rag 목업** — mocks/ json 으로 검색 동작 (Milvus 연결은 TODO 분리)
 
 ---
 
@@ -17,7 +18,7 @@
 
 - [ ] **1. LLM 모델 선택** — base_url(공급자 API)에서 모델 목록 받아 고르기 *(다음 1순위)*
 - [ ] **2. judge 사후 평가** — 대화 세션 끝에 한 번, 쌓인 Trace 채점
-- [ ] **3. rag 에셋** — 벡터DB 검색 결과를 보따리에 추가
+- [ ] **3. rag 실제 연결** — Milvus 연결 (목업 완료, 실제 검색 TODO만 남음)
 - [ ] **4. tool 에셋** — 외부 API/함수 호출 결과를 보따리에 추가
 - [ ] **5. 프롬프트 태그 필터** — 에이전트/유저별로 프롬프트 거르기 *(선택)*
 - [ ] **6. 빌더 연동** — 모델/프롬프트/judge 를 포탈 DB 로 외부화 *(장기·보류)*
@@ -96,16 +97,34 @@ results = mlflow.genai.evaluate(data=traces, scorers=[judge])
 
 ---
 
-## 3. rag 에셋
+## 3. rag 에셋  (목업 완료 / 실제 연결 TODO)
 
-**목표:** 질문 관련 문서를 벡터DB 에서 검색해 `ctx["context"]` 에 넣는다. LLM 이 그 자료를 참고해 답변.
+**목표:** 질문 관련 문서를 검색해 `ctx["context"]` 에 넣는다. LLM 이 그 자료를 참고해 답변.
 
-**구현 포인트**
-- `ENABLED_ASSETS` 에 `"rag"` 추가 (prompt 다음, llm 앞)
-- `ASSET_CONN["rag"]` = `{vector_db, host, port, collection, top_k}`
-- `build()`: 벡터DB 클라이언트 준비
-- `run()`: `ctx["query"]` 로 검색 → `ctx["context"]` 채움
-- llm 에셋이 context 를 system 에 합쳐 전달 (이미 구현돼 있음)
+**현재 상태 — 목업 동작 중**
+- `ENABLED_ASSETS = ["prompt", "rag", "llm"]` 로 켜져 있음
+- `ASSET_CONN["rag"] = {"mode": "mock", "top_k": 3}`
+- 목업 데이터: `agent/mocks/rag_documents.json` (딥러닝/ML/GenAI 20건)
+- 검색 방식: 키워드 매칭 (`_search_mock`) → 실제 벡터검색의 입출력만 흉내
+- 등록 시 json 을 Artifact("rag_mock")로 패키징, `load_context` 가 경로 주입
+
+**목업 / 실제 분리 (rag.py)**
+```
+build()  -> mode "mock"   -> _build_mock      (json 로드)
+            mode "milvus" -> _build_milvus    ← TODO
+run()    -> mode "mock"   -> _search_mock     (키워드 매칭)
+            mode "milvus" -> _search_milvus   ← TODO
+```
+- build/run 은 분기만. 목업/실제 로직은 서로 다른 함수라 섞이지 않음.
+
+**실제 연결 시 (Milvus) 할 일 — TODO**
+- `_build_milvus()` : pymilvus 연결 + collection.load() + 임베딩 함수 준비
+- `_search_milvus()`: query 임베딩 → 벡터 검색 → 본문 join
+- `ASSET_CONN["rag"]` 를 `{"mode":"milvus", host, port, collection, top_k}` 로 교체
+- → 이 두 함수와 conn 한 줄만 바꾸면 전환 완료 (나머지 코드 불변)
+
+**다른 에셋도 동일 패턴**
+- tool 등도 `mode` 분기로 목업/실제를 나눈다. 목업 데이터는 `mocks/<에셋>_*.json`.
 
 ---
 

@@ -22,7 +22,7 @@ LangChain 기반 LLM 에이전트를 **MLflow pyfunc 모델**로 등록하고,
 |:--|:--:|:--|:--|
 | `prompt` | ✅ 구현 | `system_message` | **MLflow Prompts** 에서 로드 (client 가 id 선택) |
 | `llm` | ✅ 구현 | `answer` | LangChain `ChatOpenAI` + autolog |
-| `rag` | ⬜ 템플릿 | `context` | 벡터 DB 검색 (Milvus 등) |
+| `rag` | 🟡 목업 | `context` | 벡터DB 검색. 현재 mocks/ json 목업, Milvus 연결 TODO |
 | `tool` | ⬜ 템플릿 | `tools_result` | 외부 API / 함수 호출 |
 | `judge` | ⬜ 템플릿 | `score` | 응답 품질 평가 (보통 맨 뒤) |
 
@@ -65,9 +65,11 @@ agent/
     ├── __init__.py     에셋 공통 규약 + ctx 생성/로더
     ├── prompt.py       [구현] MLflow Prompts 로드
     ├── llm.py          [구현] LangChain 체인으로 답변 생성
-    ├── rag.py          [템플릿]
+    ├── rag.py          [목업] mocks/ json 검색 (Milvus 연결 TODO)
     ├── tool.py         [템플릿]
     └── judge.py        [템플릿]
+agent/mocks/            목업 데이터 (실제 연결 전 POC용)
+    └── rag_documents.json   딥러닝/ML/GenAI 문서 20건
 ```
 
 ## 2-2. 한 번의 호출 흐름

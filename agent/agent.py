@@ -34,8 +34,8 @@ from assets import new_ctx, load_asset
 # =============================================================================
 # [0] 켤 에셋 (선언형) - 리스트 순서가 곧 실행 순서
 # =============================================================================
-# 현재는 prompt -> llm 만 사용. rag/tool/judge 는 구현 후 여기 추가하면 켜진다.
-ENABLED_ASSETS = ["prompt", "llm"]
+# 현재는 prompt -> rag -> llm 사용. tool/judge 는 구현 후 여기 추가하면 켜진다.
+ENABLED_ASSETS = ["prompt", "rag", "llm"]
 
 
 # =============================================================================
@@ -64,7 +64,10 @@ ASSET_CONN = {
         # 프롬프트 별칭 (prompts:/<이름>@<alias>)
         "alias": "production",
     },
-    # "rag":  {"vector_db": "", "host": "", "port": 0, "collection": "", "top_k": 5},
+    # rag: 목업(mock) 사용 중. Milvus 연결 시 아래 주석 블록으로 교체.
+    "rag": {"mode": "mock", "top_k": 3},
+    # "rag": {"mode": "milvus", "host": "...", "port": 19530,
+    #         "collection": "...", "top_k": 3},
     # "tool": {"endpoint_url": "", "api_key": ""},
     # "judge":{"base_url": "", "model": "", "criteria": ""},
 }
@@ -94,8 +97,8 @@ def _agent_error(stage: str, exc: Exception, query: str, session_id: str) -> str
     )
 
 
-def _build_asset_conn(name: str, api_key: str) -> dict:
-    """에셋별 build() 에 넘길 conn 을 만든다. llm 은 LLM_CONN+api_key 로 구성."""
+def _build_asset_conn(name: str, api_key: str, artifacts: dict = None) -> dict:
+    """에셋별 build() 에 넘길 conn 을 만든다. llm 은 api_key, rag(mock)은 mock_path 주입."""
     if name == "llm":
         return {
             "base_url":    LLM_BASE_URL,
@@ -103,7 +106,11 @@ def _build_asset_conn(name: str, api_key: str) -> dict:
             "temperature": 0,
             "api_key":     api_key,
         }
-    return ASSET_CONN.get(name, {})
+    conn = dict(ASSET_CONN.get(name, {}))
+    # rag 가 목업 모드면 Artifact 로 패키징된 json 경로를 주입
+    if name == "rag" and conn.get("mode", "mock") == "mock" and artifacts:
+        conn["mock_path"] = artifacts.get("rag_mock", "")
+    return conn
 
 
 # =============================================================================
@@ -124,13 +131,15 @@ class ModelWrapper(mlflow.pyfunc.PythonModel):
         self.assets = {name: load_asset(name) for name in ENABLED_ASSETS}
         self.resources = {}     # 에셋별 build() 결과 캐시
         self._api_key = None
+        # Artifact 경로 보관 (rag 목업 json 등). 키 없으면 빈 dict.
+        self._artifacts = dict(getattr(context, "artifacts", {}) or {})
 
     def _ensure_resources(self, api_key: str):
         """api_key 가 바뀌면 에셋 resource 를 (재)생성한다. llm 만 api_key 영향."""
         if api_key == self._api_key and self.resources:
             return
         self.resources = {
-            name: self.assets[name].build(_build_asset_conn(name, api_key))
+            name: self.assets[name].build(_build_asset_conn(name, api_key, self._artifacts))
             for name in ENABLED_ASSETS
         }
         self._api_key = api_key
@@ -248,10 +257,18 @@ def register_agent():
             }]
         }
 
+        # Artifact 구성: conn.json + (rag 목업이면) rag_documents.json
+        artifacts = {"conn": conn_file}
+        rag_conn = ASSET_CONN.get("rag", {})
+        if "rag" in ENABLED_ASSETS and rag_conn.get("mode", "mock") == "mock":
+            mock_json = os.path.join("mocks", "rag_documents.json")
+            if os.path.exists(mock_json):
+                artifacts["rag_mock"] = mock_json
+
         # 코드 디렉토리(assets 포함)를 함께 패키징해야 서빙에서 import 가능
         log_kwargs = dict(
             python_model     = ModelWrapper(),
-            artifacts        = {"conn": conn_file},
+            artifacts        = artifacts,
             input_example    = input_example,
             code_paths       = ["assets"],
             pip_requirements = [
