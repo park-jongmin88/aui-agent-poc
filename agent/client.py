@@ -120,7 +120,7 @@ def choose_prompt() -> str:
         print("등록된 프롬프트가 없습니다. 기본 프롬프트로 진행합니다.\n")
         return ""
 
-    print("\n사용할 프롬프트를 고르세요:")
+    print("\n사용할 프롬프트를 고르세요: (MLflow > GenAI > Prompts 에 등록하실 수 있습니다.)")
     for i, name in enumerate(prompts, 1):
         print(f"  [{i}] {name}")
     print("  [0] 기본 프롬프트 사용")
