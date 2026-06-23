@@ -39,10 +39,18 @@ def _merge_system(ctx: dict) -> str:
     return sys
 
 
+def _safe_text(s) -> str:
+    """LLM 응답에 깨진 surrogate(이모지 등에서 발생)가 있어도 JSON 직렬화가 죽지 않게 정리."""
+    if not isinstance(s, str):
+        return s
+    return s.encode("utf-8", "replace").decode("utf-8", "replace")
+
+
 def run(ctx: dict, resource) -> dict:
     """체인을 invoke 해서 답변을 ctx["answer"] 에 저장한다."""
-    ctx["answer"] = resource.invoke({
+    answer = resource.invoke({
         "system_message": _merge_system(ctx),
         "query":          ctx["query"],
     })
+    ctx["answer"] = _safe_text(answer)
     return ctx

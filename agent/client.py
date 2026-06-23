@@ -23,6 +23,8 @@
 
 import json
 import uuid
+import time
+import threading
 import urllib.request
 import urllib.error
 
@@ -34,6 +36,8 @@ import urllib.error
 API_URL = TODO
 # LLM 인증 키 (비어있으면 서버가 에러 반환)
 LLM_API_KEY = TODO
+# 응답 대기 최대 시간(초). 긴 답변 대비 넉넉히.
+REQUEST_TIMEOUT = 180
 
 
 # =============================================================================
@@ -42,17 +46,20 @@ LLM_API_KEY = TODO
 
 def _post(payload_obj: dict):
     """공통 POST. 응답에서 aiu_output 을 꺼내 반환한다."""
-    payload = json.dumps({"input": [payload_obj]}).encode("utf-8")
+    payload = json.dumps({"input": [payload_obj]}, ensure_ascii=False).encode("utf-8")
     req = urllib.request.Request(API_URL, data=payload, method="POST")
     req.add_header("Content-Type", "application/json")
     try:
-        with urllib.request.urlopen(req) as resp:
-            return _extract_output(resp.read().decode("utf-8"))
+        with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as resp:
+            # 이모지 등 surrogate 가 섞여도 죽지 않도록 안전 디코딩
+            return _extract_output(resp.read().decode("utf-8", "replace"))
     except urllib.error.HTTPError as e:
-        body = e.read().decode("utf-8", "ignore")
+        body = e.read().decode("utf-8", "replace")
         raise RuntimeError(f"API 오류 {e.code} {e.reason}\n---- 응답 본문 ----\n{_try_pretty(body)}")
     except urllib.error.URLError as e:
-        raise RuntimeError(f"연결 실패: {e.reason}\n  -> API_URL 을 확인하세요: {API_URL}")
+        # 타임아웃도 URLError 로 들어온다
+        reason = getattr(e, "reason", e)
+        raise RuntimeError(f"연결 실패/타임아웃: {reason}\n  -> API_URL/타임아웃 확인: {API_URL} ({REQUEST_TIMEOUT}s)")
 
 
 def fetch_prompts() -> list:
@@ -138,6 +145,31 @@ def choose_prompt() -> str:
 # [3] 대화 루프
 # =============================================================================
 
+def _ask_with_spinner(query: str, prompt_id: str, session_id: str):
+    """답변을 기다리는 동안 '🐋 답변 생성 중... (Ns)' 를 실시간 표시한다."""
+    result = {}
+    def worker():
+        try:
+            result["answer"] = ask(query, prompt_id, session_id)
+        except Exception as e:      # noqa: BLE001 - 스레드 예외를 메인으로 전달
+            result["error"] = e
+
+    t = threading.Thread(target=worker, daemon=True)
+    start = time.time()
+    t.start()
+    # 0.2초 간격으로 경과 시간 갱신
+    while t.is_alive():
+        sec = int(time.time() - start)
+        print(f"\r🐋 답변 생성 중... ({sec}s)", end="", flush=True)
+        t.join(timeout=0.2)
+    # 스피너 줄 지우기
+    print("\r" + " " * 40 + "\r", end="", flush=True)
+
+    if "error" in result:
+        raise result["error"]
+    return result.get("answer", "")
+
+
 def chat_loop():
     """프롬프트 선택 -> 질문/답변 반복. 멀티턴은 session_id 로 묶인다."""
     prompt_id = choose_prompt()
@@ -163,9 +195,17 @@ def chat_loop():
             break
 
         try:
-            answer = ask(query, prompt_id, session_id)
+            answer = _ask_with_spinner(query, prompt_id, session_id)
         except RuntimeError as e:
             print(f"[HTTP 오류]\n{e}\n")
+            continue
+        except Exception as e:      # noqa: BLE001
+            print(f"[알 수 없는 오류] {type(e).__name__}: {e}\n")
+            continue
+
+        # 빈 응답이면 조용히 넘기지 말고 표시
+        if answer is None or (isinstance(answer, str) and answer.strip() == ""):
+            print("[경고] 응답이 비어 있습니다. (서버 로그/세션을 확인하세요)\n")
             continue
 
         if isinstance(answer, str) and answer.startswith("[AGENT ERROR]"):
