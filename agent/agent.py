@@ -34,8 +34,8 @@ from assets import new_ctx, load_asset
 # =============================================================================
 # [0] 켤 에셋 (선언형) - 리스트 순서가 곧 실행 순서
 # =============================================================================
-# 현재는 prompt -> rag -> llm 사용. tool/judge 는 구현 후 여기 추가하면 켜진다.
-ENABLED_ASSETS = ["prompt", "rag", "llm"]
+# 현재는 prompt -> rag -> tool -> llm 사용. judge 는 구현 후 추가하면 켜진다.
+ENABLED_ASSETS = ["prompt", "rag", "tool", "llm"]
 
 
 # =============================================================================
@@ -68,7 +68,9 @@ ASSET_CONN = {
     "rag": {"mode": "mock", "top_k": 3},
     # "rag": {"mode": "milvus", "host": "...", "port": 19530,
     #         "collection": "...", "top_k": 3},
-    # "tool": {"endpoint_url": "", "api_key": ""},
+    # tool: 목업(mock) 사용 중. 실제 API 연동 시 mode="real" 로 교체.
+    "tool": {"mode": "mock"},
+    # "tool": {"mode": "real", "endpoint_url": "...", "api_key": "..."},
     # "judge":{"base_url": "", "model": "", "criteria": ""},
 }
 
@@ -110,6 +112,9 @@ def _build_asset_conn(name: str, api_key: str, artifacts: dict = None) -> dict:
     # rag 가 목업 모드면 Artifact 로 패키징된 json 경로를 주입
     if name == "rag" and conn.get("mode", "mock") == "mock" and artifacts:
         conn["mock_path"] = artifacts.get("rag_mock", "")
+    # tool 이 목업 모드면 도구 정의 json 경로를 주입
+    if name == "tool" and conn.get("mode", "mock") == "mock" and artifacts:
+        conn["mock_path"] = artifacts.get("tool_mock", "")
     return conn
 
 
@@ -257,13 +262,18 @@ def register_agent():
             }]
         }
 
-        # Artifact 구성: conn.json + (rag 목업이면) rag_documents.json
+        # Artifact 구성: conn.json + (rag/tool 목업이면) 각 json
         artifacts = {"conn": conn_file}
         rag_conn = ASSET_CONN.get("rag", {})
         if "rag" in ENABLED_ASSETS and rag_conn.get("mode", "mock") == "mock":
             mock_json = os.path.join("mocks", "rag_documents.json")
             if os.path.exists(mock_json):
                 artifacts["rag_mock"] = mock_json
+        tool_conn = ASSET_CONN.get("tool", {})
+        if "tool" in ENABLED_ASSETS and tool_conn.get("mode", "mock") == "mock":
+            tool_json = os.path.join("mocks", "tool_apis.json")
+            if os.path.exists(tool_json):
+                artifacts["tool_mock"] = tool_json
 
         # 코드 디렉토리(assets 포함)를 함께 패키징해야 서빙에서 import 가능
         log_kwargs = dict(

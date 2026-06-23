@@ -11,6 +11,7 @@
 - [x] **Trace / Session** — 3.10 표준 metadata 키로 기록
 - [x] **system 단일화** — system 메시지 1개로 합쳐 400 BadRequest 해결
 - [x] **rag 목업** — mocks/ json 으로 검색 동작 (Milvus 연결은 TODO 분리)
+- [x] **tool 목업** — 가상 API 8종, 키워드 매칭으로 다중 호출 (실제 연동 TODO 분리)
 
 ---
 
@@ -19,7 +20,7 @@
 - [ ] **1. LLM 모델 선택** — base_url(공급자 API)에서 모델 목록 받아 고르기 *(다음 1순위)*
 - [ ] **2. judge 사후 평가** — 대화 세션 끝에 한 번, 쌓인 Trace 채점
 - [ ] **3. rag 실제 연결** — Milvus 연결 (목업 완료, 실제 검색 TODO만 남음)
-- [ ] **4. tool 에셋** — 외부 API/함수 호출 결과를 보따리에 추가
+- [ ] **4. tool 실제 연동** — 실제 API + LLM function calling (목업 완료)
 - [ ] **5. 프롬프트 태그 필터** — 에이전트/유저별로 프롬프트 거르기 *(선택)*
 - [ ] **6. 빌더 연동** — 모델/프롬프트/judge 를 포탈 DB 로 외부화 *(장기·보류)*
 
@@ -128,15 +129,31 @@ run()    -> mode "mock"   -> _search_mock     (키워드 매칭)
 
 ---
 
-## 4. tool 에셋
+## 4. tool 에셋  (목업 완료 / 실제 연동 TODO)
 
-**목표:** 외부 도구(계산/검색/사내 API)를 호출해 `ctx["tools_result"]` 에 넣는다.
+**목표:** 질문에 맞는 도구(API)를 호출해 `ctx["tools_result"]` 에 넣는다.
 
-**구현 포인트**
-- `ENABLED_ASSETS` 에 `"tool"` 추가
-- `ASSET_CONN["tool"]` = `{endpoint_url, api_key}`
-- LangChain `bind_tools` 또는 Agent 구조 검토
-- `run()`: 필요한 도구 호출 → `ctx["tools_result"]` 채움
+**현재 상태 — 목업 동작 중**
+- `ENABLED_ASSETS = ["prompt", "rag", "tool", "llm"]` 로 켜져 있음
+- `ASSET_CONN["tool"] = {"mode": "mock"}`
+- 목업 데이터: `agent/mocks/tool_apis.json` (가상 API 8종)
+  - weather / datetime / calculator / gpu_status / model_registry / mlflow_experiment / dataset / training_job
+- 선택 방식: `trigger_keywords` 매칭 → **매칭된 도구 전부 호출**
+- 등록 시 json 을 Artifact("tool_mock")로 패키징
+
+**목업 / 실제 분리 (tool.py)**
+```
+build()  -> mode "mock" -> _build_mock    (json 로드)
+            mode "real" -> _build_real    ← TODO
+run()    -> mode "mock" -> _run_mock      (키워드 매칭 + 다중 호출)
+            mode "real" -> _run_real      ← TODO
+```
+
+**실제 연동 시 할 일 — TODO**
+- `_build_real()` : 실제 API 클라이언트 + function schema 구성
+- `_run_real()`   : **LLM function calling** 으로 도구 선택 → 실제 호출 → 결과 join
+  - 목업은 키워드 매칭이지만, 실제는 LLM 이 도구를 고르도록 전환
+- `ASSET_CONN["tool"]` 를 `{"mode":"real", endpoint_url, api_key}` 로 교체
 
 ---
 

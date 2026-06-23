@@ -1,0 +1,76 @@
+{
+  "tools": [
+    {
+      "name": "weather_api",
+      "description": "도시의 현재 날씨와 기온을 조회한다.",
+      "trigger_keywords": ["날씨", "기온", "weather", "온도", "비", "맑음"],
+      "mock_response": {
+        "서울": "맑음, 23°C, 습도 45%",
+        "부산": "흐림, 21°C, 습도 60%",
+        "제주": "비, 19°C, 습도 80%",
+        "default": "맑음, 20°C, 습도 50%"
+      }
+    },
+    {
+      "name": "datetime_api",
+      "description": "현재 날짜와 시간을 조회한다.",
+      "trigger_keywords": ["날짜", "시간", "오늘", "지금", "date", "time", "몇시"],
+      "mock_response": "2026-06-23 화요일 09:00 KST"
+    },
+    {
+      "name": "calculator_api",
+      "description": "수식을 계산한다.",
+      "trigger_keywords": ["계산", "더하기", "곱하기", "calculate", "합계", "평균"],
+      "mock_response": "계산 결과: (목업) 42"
+    },
+    {
+      "name": "gpu_status_api",
+      "description": "GPU 사용량과 메모리 상태를 조회한다.",
+      "trigger_keywords": ["gpu", "메모리", "vram", "사용량", "그래픽"],
+      "mock_response": {
+        "gpu0": "NVIDIA A100, 사용률 72%, VRAM 38/80GB",
+        "gpu1": "NVIDIA A100, 사용률 15%, VRAM 9/80GB",
+        "default": "GPU 0: 사용률 72%, GPU 1: 사용률 15%"
+      }
+    },
+    {
+      "name": "model_registry_api",
+      "description": "MLflow 에 등록된 모델 목록과 버전을 조회한다.",
+      "trigger_keywords": ["모델", "버전", "레지스트리", "registry", "모델목록"],
+      "mock_response": {
+        "genai_agent": "v3 (Production), v2 (Staging), v1 (Archived)",
+        "qwen_llm": "v5 (Production), v4 (Staging)",
+        "default": "genai_agent v3, qwen_llm v5 등 총 2개 모델"
+      }
+    },
+    {
+      "name": "mlflow_experiment_api",
+      "description": "MLflow 실험과 run 정보를 조회한다.",
+      "trigger_keywords": ["실험", "experiment", "run", "런", "메트릭"],
+      "mock_response": {
+        "agent-poc": "run 24개, 최근 run accuracy 0.91",
+        "default": "실험 'agent-poc': 총 24개 run, 최신 상태 FINISHED"
+      }
+    },
+    {
+      "name": "dataset_api",
+      "description": "데이터셋 정보와 통계를 조회한다.",
+      "trigger_keywords": ["데이터셋", "dataset", "샘플수", "데이터", "통계"],
+      "mock_response": {
+        "imagenet": "1,281,167 train / 50,000 val, 1000 classes",
+        "mnist": "60,000 train / 10,000 test, 10 classes",
+        "default": "데이터셋 2종 보유 (imagenet, mnist)"
+      }
+    },
+    {
+      "name": "training_job_api",
+      "description": "학습 job 의 상태와 진행률을 조회한다.",
+      "trigger_keywords": ["학습", "training", "job", "진행률", "에폭", "epoch"],
+      "mock_response": {
+        "job-001": "RUNNING, epoch 32/100, loss 0.18",
+        "job-002": "COMPLETED, epoch 100/100, loss 0.05",
+        "default": "job-001 진행중(32%), job-002 완료"
+      }
+    }
+  ]
+}
