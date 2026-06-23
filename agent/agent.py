@@ -58,6 +58,12 @@ LLM_MODEL = TODO
 
 # 에셋별 연결정보. 켜는 에셋만 채우면 된다. (prompt/llm 은 아래에서 자동 구성)
 ASSET_CONN = {
+    "prompt": {
+        # 프롬프트 로드 실패 시 폴백 시스템 메시지
+        "default_system": "당신은 친절한 Agent 입니다.",
+        # 프롬프트 별칭 (prompts:/<이름>@<alias>)
+        "alias": "production",
+    },
     # "rag":  {"vector_db": "", "host": "", "port": 0, "collection": "", "top_k": 5},
     # "tool": {"endpoint_url": "", "api_key": ""},
     # "judge":{"base_url": "", "model": "", "criteria": ""},
@@ -130,7 +136,7 @@ class ModelWrapper(mlflow.pyfunc.PythonModel):
         self._api_key = api_key
 
     @mlflow.trace(name="agent_pipeline")
-    def _run(self, query, system_message, api_key, session_id, user_id, trace_id):
+    def _run(self, query, system_message, api_key, session_id, user_id, trace_id, prompt_id=""):
         """Trace 에 session/user 기록 후, 켜진 에셋을 순서대로 실행해 답변을 만든다."""
         # Sessions 탭은 metadata 표준키(mlflow.trace.session/user)를 읽는다 (mlflow 3.10)
         try:
@@ -140,7 +146,7 @@ class ModelWrapper(mlflow.pyfunc.PythonModel):
                     "mlflow.trace.user":    user_id or "aiu-user",
                     "app_type":             "genai",
                 },
-                tags={"trace_id": trace_id or ""},
+                tags={"trace_id": trace_id or "", "prompt_id": prompt_id or ""},
             )
         except Exception:
             pass
@@ -148,7 +154,7 @@ class ModelWrapper(mlflow.pyfunc.PythonModel):
         self._ensure_resources(api_key)
 
         # 에셋 파이프라인 실행 (ctx 를 순서대로 통과시킨다)
-        ctx = new_ctx(query, system_message)
+        ctx = new_ctx(query, system_message, prompt_id)
         for name in ENABLED_ASSETS:
             ctx = self.assets[name].run(ctx, self.resources[name])
 
@@ -164,17 +170,27 @@ class ModelWrapper(mlflow.pyfunc.PythonModel):
         trace_id = model_input.get("trace_id", "") if isinstance(model_input, dict) else ""
 
         info = items[0] if items else {}
+        mode           = info.get("mode", "")
         query          = str(info.get("query", "")).strip()
         system_message = info.get("system_message", "")
+        prompt_id      = info.get("prompt_id", "")
         api_key        = info.get("llm_api_key", "")
         session_id     = info.get("session_id") or trace_id or "sess-" + uuid.uuid4().hex[:8]
         user_id        = info.get("user_id")
+
+        # 모드: 프롬프트 목록 조회 (대화 시작 전 client 가 고르도록)
+        if mode == "list_prompts":
+            try:
+                names = self.assets["prompt"].list_prompts() if "prompt" in self.assets else []
+            except Exception as e:
+                return {"aiu_output": _agent_error("LIST_PROMPTS", e, "", session_id)}
+            return {"aiu_output": {"prompts": names}}
 
         if not api_key:
             return {"aiu_output": "[AGENT ERROR] llm_api_key 가 비어있습니다. 키를 입력하세요."}
 
         try:
-            answer = self._run(query, system_message, api_key, session_id, user_id, trace_id)
+            answer = self._run(query, system_message, api_key, session_id, user_id, trace_id, prompt_id)
         except Exception as e:
             answer = _agent_error("PIPELINE", e, query, session_id)
 
