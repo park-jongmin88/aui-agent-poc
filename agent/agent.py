@@ -1,27 +1,24 @@
 """
 ==============================================================================
- AI-Studio | GenAI Agent (agent.py)
+ AI-Studio | GenAI Agent (agent.py) - 모듈화 버전
 ==============================================================================
- LangChain 기반 LLM Agent 를 MLflow pyfunc 모델로 "등록" 한다.
- 등록된 모델은 custom_server.py(서빙 이미지)가 감싸 KServe 로 서빙한다.
+ 에셋(assets/*.py)을 조립해 MLflow pyfunc 모델로 등록한다.
+ agent.py 는 "무엇을 켤지" 선언하고 "순서대로 실행"만 한다. 로직은 각 에셋에 있다.
 
  [작동 순서]
-   1. (등록) python agent.py 실행 -> register_agent() 호출
-   2. LLM_CONN 을 llm_conn.json 으로 저장 -> Artifact 로 함께 등록
-   3. ModelWrapper 를 MLflow pyfunc 모델로 log_model
-   4. (서빙) custom_server.py 가 모델 로드 -> load_context() 1회 실행 (autolog 켜짐)
-   5. (호출) custom_server 가 predict() 호출:
-        입력  { "input":[{query, system_message, llm_api_key, session_id}], trace_id, pis_name ... }
-        출력  { "aiu_output": "답변" }
-   6. predict() -> _run() -> chain.invoke() 실행. LangChain autolog 가 트레이스 자동 기록.
+   1. (등록) python agent.py -> register_agent()
+   2. ENABLED_ASSETS / ASSET_CONN / LLM_CONN 을 conn.json 으로 저장 -> Artifact
+   3. ModelWrapper 를 log_model
+   4. (서빙) custom_server.py 가 로드 -> load_context() 에서 각 에셋 build()
+   5. (호출) predict() -> _run() -> 켜진 에셋들을 순서대로 run()
+   6. LangChain autolog + update_current_trace 로 Trace/Session 기록
 
  [custom_server.py 계약]
-   - 입력 핵심은 model_input["input"][0] 의 dict
-   - 출력은 반드시 {"aiu_output": ...}
+   입력  { "input":[{query, system_message, llm_api_key, session_id}], trace_id, ... }
+   출력  { "aiu_output": "답변" }
 
- [확장]
-   RAG / Tool / Prompt 추가 시 _get_chain() 의 프롬프트와 load_context() 의
-   에셋 로드 부분에 단계를 끼워넣는다. (아래 [확장] 주석 위치 참고)
+ [에셋 추가] README 참고
+   ENABLED_ASSETS 에 이름 추가 + assets/<이름>.py 작성 (+ 필요시 ASSET_CONN 채움)
 ==============================================================================
 """
 
@@ -30,14 +27,21 @@ import json
 import uuid
 import mlflow
 import mlflow.pyfunc
-from langchain_openai import ChatOpenAI
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser
+
+from assets import new_ctx, load_asset
 
 
 # =============================================================================
-# [0] 연결 정보 (TODO 를 실제 값으로 채운다)
+# [0] 켤 에셋 (선언형) - 리스트 순서가 곧 실행 순서
 # =============================================================================
+# 현재는 prompt -> llm 만 사용. rag/tool/judge 는 구현 후 여기 추가하면 켜진다.
+ENABLED_ASSETS = ["prompt", "llm"]
+
+
+# =============================================================================
+# [1] 연결 정보 (TODO 를 실제 값으로 채운다)
+# =============================================================================
+# MLflow 접속 정보
 MLFLOW_CONN = {
     "tracking_uri":     TODO,
     "username":         TODO,
@@ -46,16 +50,22 @@ MLFLOW_CONN = {
     "registered_model": TODO,
 }
 
-# base_url / model 은 서버 고정값. api_key 는 호출 시 client 가 보낸 값을 사용.
-LLM_CONN = {
-    "base_url":    TODO,
-    "model":       TODO,
-    "temperature": 0,
+# LLM 서버 고정값 (api_key 는 호출 시 client 가 보낸 값으로 채워짐)
+# base_url
+LLM_BASE_URL = TODO
+# model 이름
+LLM_MODEL = TODO
+
+# 에셋별 연결정보. 켜는 에셋만 채우면 된다. (prompt/llm 은 아래에서 자동 구성)
+ASSET_CONN = {
+    # "rag":  {"vector_db": "", "host": "", "port": 0, "collection": "", "top_k": 5},
+    # "tool": {"endpoint_url": "", "api_key": ""},
+    # "judge":{"base_url": "", "model": "", "criteria": ""},
 }
 
 
 # =============================================================================
-# [1] 유틸
+# [2] 유틸
 # =============================================================================
 
 def _is_set(value) -> bool:
@@ -64,9 +74,8 @@ def _is_set(value) -> bool:
 
 
 def _agent_error(stage: str, exc: Exception, query: str, session_id: str) -> str:
-    """예외를 '[AGENT ERROR]' 로 시작하는 진단 문자열로 만든다(서버는 죽지 않음)."""
+    """예외를 '[AGENT ERROR]' 진단 문자열로 만든다(서버는 죽지 않음)."""
     import traceback
-    tb = traceback.format_exc()
     return (
         "[AGENT ERROR]\n"
         f"stage  : {stage}\n"
@@ -75,57 +84,55 @@ def _agent_error(stage: str, exc: Exception, query: str, session_id: str) -> str
         f"query  : {query}\n"
         f"session: {session_id}\n"
         "---- traceback ----\n"
-        f"{tb}"
+        f"{traceback.format_exc()}"
     )
 
 
+def _build_asset_conn(name: str, api_key: str) -> dict:
+    """에셋별 build() 에 넘길 conn 을 만든다. llm 은 LLM_CONN+api_key 로 구성."""
+    if name == "llm":
+        return {
+            "base_url":    LLM_BASE_URL,
+            "model":       LLM_MODEL,
+            "temperature": 0,
+            "api_key":     api_key,
+        }
+    return ASSET_CONN.get(name, {})
+
+
 # =============================================================================
-# [2] ModelWrapper - 서빙되는 모델 본체
+# [3] ModelWrapper - 서빙되는 모델 본체
 # =============================================================================
 
 class ModelWrapper(mlflow.pyfunc.PythonModel):
 
     def load_context(self, context):
-        """서빙 시작 시 1회 호출. MLflow tracking 설정 + LangChain autolog + 연결정보 로드."""
+        """서빙 시작 시 1회. autolog 켜고, 켜진 에셋 모듈을 import 해둔다."""
         mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", ""))
         exp = os.getenv("MLFLOW_EXPERIMENT_NAME", "")
         if exp:
             mlflow.set_experiment(exp)
-        mlflow.langchain.autolog()   # LangChain 체인/LLM 호출 트레이스 자동 기록
+        mlflow.langchain.autolog()
 
-        with open(context.artifacts["llm_conn"], "r", encoding="utf-8") as f:
-            self.llm_conn = json.load(f)
-
-        # [확장] 다른 에셋 로드
-        # with open(context.artifacts["rag_conn"], "r") as f:  self.rag_conn = json.load(f)
-        # with open(context.artifacts["tool_conn"], "r") as f: self.tool_conn = json.load(f)
-
+        # 에셋 모듈 로드 (build 는 api_key 가 필요한 llm 때문에 호출 시점에 수행)
+        self.assets = {name: load_asset(name) for name in ENABLED_ASSETS}
+        self.resources = {}     # 에셋별 build() 결과 캐시
         self._api_key = None
-        self.chain = None
 
-    def _get_chain(self, api_key: str):
-        """ChatOpenAI + 프롬프트 + 파서로 LangChain 체인을 만든다. (api_key 바뀔 때만 재생성)"""
-        model = ChatOpenAI(
-            model=self.llm_conn["model"],
-            api_key=api_key,
-            base_url=self.llm_conn["base_url"],
-            temperature=self.llm_conn.get("temperature", 0),
-            max_retries=2,
-        )
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", "{system_message}"),
-            # [확장] ("system", "참고자료:\n{context}"),   # RAG 검색결과 주입
-            ("user", "{query}"),
-        ])
-        return prompt | model | StrOutputParser()
+    def _ensure_resources(self, api_key: str):
+        """api_key 가 바뀌면 에셋 resource 를 (재)생성한다. llm 만 api_key 영향."""
+        if api_key == self._api_key and self.resources:
+            return
+        self.resources = {
+            name: self.assets[name].build(_build_asset_conn(name, api_key))
+            for name in ENABLED_ASSETS
+        }
+        self._api_key = api_key
 
     @mlflow.trace(name="agent_pipeline")
-    def _run(self, query: str, system_message: str, api_key: str,
-             session_id: str, user_id: str, trace_id: str) -> str:
-        """질문 1건 처리. Trace 에 session/user 기록 후 체인 호출. (autolog 가 하위 span 기록)"""
-        # Trace 에 session/user 기록 (같은 session_id 끼리 Sessions 탭에 묶임)
-        # MLflow 3.10 은 session_id= 파라미터 미지원(3.11+). Sessions 탭은
-        # metadata 의 표준 키 'mlflow.trace.session' / 'mlflow.trace.user' 를 읽는다.
+    def _run(self, query, system_message, api_key, session_id, user_id, trace_id):
+        """Trace 에 session/user 기록 후, 켜진 에셋을 순서대로 실행해 답변을 만든다."""
+        # Sessions 탭은 metadata 표준키(mlflow.trace.session/user)를 읽는다 (mlflow 3.10)
         try:
             mlflow.update_current_trace(
                 metadata={
@@ -138,18 +145,17 @@ class ModelWrapper(mlflow.pyfunc.PythonModel):
         except Exception:
             pass
 
-        # api_key 가 바뀌었을 때만 체인 재생성
-        if api_key != self._api_key:
-            self.chain = self._get_chain(api_key)
-            self._api_key = api_key
+        self._ensure_resources(api_key)
 
-        # [확장] RAG/Tool 단계는 여기서 호출해 invoke 입력에 함께 넣는다
-        # context = rag_search(query, self.rag_conn)
-        return self.chain.invoke({"query": query, "system_message": system_message or ""})
+        # 에셋 파이프라인 실행 (ctx 를 순서대로 통과시킨다)
+        ctx = new_ctx(query, system_message)
+        for name in ENABLED_ASSETS:
+            ctx = self.assets[name].run(ctx, self.resources[name])
+
+        return ctx.get("answer", "")
 
     def predict(self, context, model_input, params=None):
-        """custom_server 진입점. input[0] 에서 query 등을 꺼내 _run() 실행 후 {"aiu_output":...} 반환."""
-        # custom_server 계약: model_input["input"] = [{query, system_message, llm_api_key, session_id}]
+        """custom_server 진입점. input[0] 파싱 -> _run -> {"aiu_output":...} 반환."""
         try:
             items = model_input["input"]
         except (TypeError, KeyError):
@@ -164,17 +170,14 @@ class ModelWrapper(mlflow.pyfunc.PythonModel):
         session_id     = info.get("session_id") or trace_id or "sess-" + uuid.uuid4().hex[:8]
         user_id        = info.get("user_id")
 
-        # llm_api_key 미입력 시 호출하지 않고 에러 반환
         if not api_key:
             return {"aiu_output": "[AGENT ERROR] llm_api_key 가 비어있습니다. 키를 입력하세요."}
 
-        # 본 처리 (연결 실패 등 예외는 응답에 담아 반환)
         try:
             answer = self._run(query, system_message, api_key, session_id, user_id, trace_id)
         except Exception as e:
-            answer = _agent_error("LLM", e, query, session_id)
+            answer = _agent_error("PIPELINE", e, query, session_id)
 
-        # Trace 즉시 반영
         flush = getattr(mlflow, "flush_trace_async_logging", None)
         if callable(flush):
             try:
@@ -186,11 +189,11 @@ class ModelWrapper(mlflow.pyfunc.PythonModel):
 
 
 # =============================================================================
-# [3] MLflow 등록
+# [4] MLflow 등록
 # =============================================================================
 
 def register_agent():
-    """ModelWrapper 와 llm_conn.json(Artifact)을 MLflow 에 등록한다."""
+    """ModelWrapper 와 conn.json(Artifact)을 MLflow 에 등록한다."""
     if not _is_set(MLFLOW_CONN["tracking_uri"]):
         raise ValueError("MLFLOW_CONN.tracking_uri 가 입력되지 않았습니다.")
 
@@ -202,20 +205,24 @@ def register_agent():
     mlflow.set_tracking_uri(MLFLOW_CONN["tracking_uri"])
     mlflow.set_experiment(MLFLOW_CONN["experiment_name"])
 
-    # 연결 정보를 Artifact 파일로 저장 (서빙 환경에서 load_context 가 읽음)
-    llm_conn_file = "llm_conn.json"
-    with open(llm_conn_file, "w", encoding="utf-8") as f:
-        json.dump(LLM_CONN, f, ensure_ascii=False, indent=2)
+    # 에셋 구성 정보를 Artifact 로 남긴다 (추적/재현용)
+    conn_file = "conn.json"
+    with open(conn_file, "w", encoding="utf-8") as f:
+        json.dump({
+            "enabled_assets": ENABLED_ASSETS,
+            "llm":  {"base_url": LLM_BASE_URL, "model": LLM_MODEL},
+            "asset_conn": ASSET_CONN,
+        }, f, ensure_ascii=False, indent=2)
 
     print("=" * 60)
     print(" MLflow Agent 등록 시작")
+    print(f"  enabled assets: {ENABLED_ASSETS}")
     print("=" * 60)
 
     with mlflow.start_run(run_name="agent-register") as run:
-        mlflow.log_params({"llm_model": LLM_CONN["model"], "temperature": LLM_CONN["temperature"]})
+        mlflow.log_params({"llm_model": LLM_MODEL, "assets": ",".join(ENABLED_ASSETS)})
         mlflow.set_tags({"app_type": "genai", "stage": "register"})
 
-        # signature 는 주지 않음 (custom_server 가 붙이는 필드와 충돌 방지)
         input_example = {
             "input": [{
                 "query":          "안녕하세요",
@@ -225,13 +232,12 @@ def register_agent():
             }]
         }
 
-        artifacts = {"llm_conn": llm_conn_file}
-
+        # 코드 디렉토리(assets 포함)를 함께 패키징해야 서빙에서 import 가능
         log_kwargs = dict(
             python_model     = ModelWrapper(),
-            artifacts        = artifacts,
+            artifacts        = {"conn": conn_file},
             input_example    = input_example,
-            # pip 버전 고정 필수 (포탈이 'mlflow==' 패턴으로 버전 파싱)
+            code_paths       = ["assets"],
             pip_requirements = [
                 "mlflow==3.10.0",
                 "cloudpickle==3.1.2",
@@ -254,14 +260,8 @@ def register_agent():
             mv = mlflow.register_model(model_info.model_uri, MLFLOW_CONN["registered_model"])
             print(f"  registry  : {MLFLOW_CONN['registered_model']}  v{mv.version}")
 
-    print("\n  등록 완료.")
-    print(f"  MLflow UI : {MLFLOW_CONN['tracking_uri']}\n")
-    print("=" * 60)
+    print("\n  등록 완료.\n" + "=" * 60)
 
-
-# =============================================================================
-# [4] 실행 진입점
-# =============================================================================
 
 def safe_main():
     """register_agent() 를 감싸 오류를 보기 좋게 출력한다."""

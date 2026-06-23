@@ -6,16 +6,14 @@
  같은 session_id 로 보내면 MLflow Sessions 탭에 한 대화로 묶인다.
 
  [작동 순서]
-   1. python client.py 실행 -> safe_main() -> chat_loop()
-   2. 대화 시작 시 session_id 1개 생성 (이 대화 전체를 묶는 키)
-   3. 질문 입력 -> call_api() 로 서버에 POST
-   4. 서버 응답에서 답변 추출 -> 출력
-   5. exit/quit/빈 줄 이면 종료
+   1. python client.py -> safe_main() -> chat_loop()
+   2. 대화 시작 시 session_id 1개 생성 (대화 전체를 묶는 키)
+   3. 질문 입력 -> call_api() 로 POST -> 답변 출력
+   4. exit/quit/빈 줄 이면 종료
 
  [전송 형식 - custom_server.py 계약]
-   { "input":[{ "query":..., "system_message":..., "llm_api_key":..., "session_id":... }] }
- [응답 형식]
-   { "aiu_output": "답변" }  또는  {"predictions":{"aiu_output":...}}
+   { "input":[{ query, system_message, llm_api_key, session_id, user_id }] }
+ [응답 형식]  { ... "output": { "aiu_output": "답변" } }  중 aiu_output 추출
 ==============================================================================
 """
 
@@ -28,9 +26,12 @@ import urllib.error
 # =============================================================================
 # [0] 설정 (TODO 를 실제 값으로 채운다)
 # =============================================================================
-API_URL        = TODO   # 서빙 엔드포인트 (예: http://localhost:5001/invocations)
-LLM_API_KEY    = TODO   # LLM 인증 키 (비어있으면 서버가 에러 반환)
-SYSTEM_MESSAGE = "당신은 친절한 Agent 입니다."   # 시스템 프롬프트
+# 서빙 엔드포인트
+API_URL = TODO
+# LLM 인증 키 (비어있으면 서버가 에러 반환)
+LLM_API_KEY = TODO
+# 시스템 프롬프트
+SYSTEM_MESSAGE = "당신은 친절한 Agent 입니다."
 
 
 # =============================================================================
@@ -71,20 +72,20 @@ def _try_pretty(text: str) -> str:
 
 
 def _extract_answer(raw: str) -> str:
-    """서버 응답에서 aiu_output(답변)만 꺼낸다. 응답 형태가 달라도 대응한다."""
+    """서버 응답에서 aiu_output(답변)만 꺼낸다. output 중첩/predictions 등에 대응."""
     try:
         data = json.loads(raw)
     except (json.JSONDecodeError, TypeError):
         return raw
 
-    # {"predictions": ...} 면 그 안을 본다
     if isinstance(data, dict) and "predictions" in data:
         data = data["predictions"]
+    # custom_server 응답: {..., "output": {"aiu_output": ...}}
+    if isinstance(data, dict) and "output" in data and isinstance(data["output"], dict):
+        data = data["output"]
 
-    # {"aiu_output": "답변"}
     if isinstance(data, dict):
         return str(data.get("aiu_output", json.dumps(data, ensure_ascii=False)))
-    # [{"aiu_output": ...}]
     if isinstance(data, list) and data:
         first = data[0]
         if isinstance(first, dict):
@@ -98,7 +99,7 @@ def _extract_answer(raw: str) -> str:
 # =============================================================================
 
 def chat_loop():
-    """터미널에서 질문을 받아 call_api() 로 보내고 답변을 출력한다(멀티턴은 session_id 로 묶임)."""
+    """질문을 받아 call_api() 로 보내고 답변을 출력한다(멀티턴은 session_id 로 묶임)."""
     session_id = "sess-" + uuid.uuid4().hex[:8]
 
     print("\n🐋 Agent Client")
@@ -142,7 +143,7 @@ def chat_loop():
 # =============================================================================
 
 def safe_main():
-    """API_URL 입력 여부를 확인한 뒤 대화 루프를 시작한다."""
+    """API_URL 입력 여부 확인 후 대화 루프를 시작한다."""
     if not API_URL or str(API_URL) == "TODO":
         print("[오류] API_URL 이 입력되지 않았습니다.")
         return
