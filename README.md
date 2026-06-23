@@ -208,6 +208,14 @@ llm 에셋이 답변 생성
 
 # 7. 등록 / 서빙 / 테스트
 
+> **권장 환경:** Python **3.11.9** (kserve 0.15.0 호환). 가상환경 사용 권장.
+> ```bash
+> py -3.11 -m venv venv          # Windows
+> venv\Scripts\activate
+> pip install -r requirements.txt
+> ```
+> 로컬에서 등록/테스트만 한다면 kserve 는 빼고 설치해도 된다 (서빙 이미지에서만 필요).
+
 ```bash
 # 1) 등록  — agent.py 상단 TODO (MLFLOW_CONN, LLM_BASE_URL, LLM_MODEL) 채운 뒤
 python agent.py
