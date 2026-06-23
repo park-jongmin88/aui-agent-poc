@@ -101,12 +101,12 @@ def chat_loop():
     """터미널에서 질문을 받아 call_api() 로 보내고 답변을 출력한다(멀티턴은 session_id 로 묶임)."""
     session_id = "sess-" + uuid.uuid4().hex[:8]
 
-    print("\n" + "=" * 60)
-    print(" GenAI Agent Client")
+    print("\n🐋 Agent Client")
     print("=" * 60)
-    print(f"  API     : {API_URL}")
-    print(f"  Session : {session_id}")
-    print("  종료    : exit / quit / 빈 줄")
+    print(f"  API             : {API_URL}")
+    print(f"  Session         : {session_id}")
+    print(f"  시스템 프롬프트 : {SYSTEM_MESSAGE}")
+    print(f"  종료            : exit / quit / 빈 줄")
     print("=" * 60 + "\n")
 
     turn = 0
