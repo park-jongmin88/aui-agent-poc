@@ -124,12 +124,16 @@ class ModelWrapper(mlflow.pyfunc.PythonModel):
              session_id: str, user_id: str, trace_id: str) -> str:
         """질문 1건 처리. Trace 에 session/user 기록 후 체인 호출. (autolog 가 하위 span 기록)"""
         # Trace 에 session/user 기록 (같은 session_id 끼리 Sessions 탭에 묶임)
+        # MLflow 3.10 은 session_id= 파라미터 미지원(3.11+). Sessions 탭은
+        # metadata 의 표준 키 'mlflow.trace.session' / 'mlflow.trace.user' 를 읽는다.
         try:
             mlflow.update_current_trace(
-                user=user_id or "aiu-user",
-                session_id=session_id,
-                tags={"session_id": session_id, "trace_id": trace_id or ""},
-                metadata={"app_type": "genai"},
+                metadata={
+                    "mlflow.trace.session": session_id,
+                    "mlflow.trace.user":    user_id or "aiu-user",
+                    "app_type":             "genai",
+                },
+                tags={"trace_id": trace_id or ""},
             )
         except Exception:
             pass
