@@ -43,6 +43,40 @@ def _is_set(value) -> bool:
     return isinstance(value, str) and bool(value) and value != "{TODO}"
 
 
+def _diagnose(e) -> str:
+    """에러 내용을 보고 한국어로 원인을 추정한다 (등록 시점 진단용)."""
+    s = str(e).lower()
+    if "connection" in s or "refused" in s or "max retries" in s or "failed to establish" in s:
+        return "MLflow 서버에 연결할 수 없습니다. tracking_uri 주소·포트가 맞는지, 서버가 켜져 있는지 확인하세요."
+    if "401" in s or "unauthorized" in s:
+        return "인증 실패입니다. MLFLOW_CONN 의 username/password 를 확인하세요."
+    if "403" in s or "forbidden" in s or "permission" in s:
+        return "권한이 없습니다. 해당 experiment/registry 에 접근 권한이 있는지 확인하세요."
+    if "404" in s or "not found" in s or "does not exist" in s:
+        return "대상을 찾을 수 없습니다. experiment_name / registered_model 이름을 확인하세요."
+    if "timeout" in s or "timed out" in s:
+        return "응답 시간 초과입니다. 네트워크 상태나 서버 부하를 확인하세요."
+    if "name or service not known" in s or "nodename nor servname" in s or "getaddrinfo" in s:
+        return "주소를 찾을 수 없습니다(DNS). tracking_uri 의 호스트명이 올바른지 확인하세요."
+    if "ssl" in s or "certificate" in s:
+        return "SSL/인증서 문제입니다. https 주소·인증서 설정을 확인하세요."
+    return "자동 판별하지 못했습니다. 위의 원본 오류 메시지를 확인하세요."
+
+
+def _step(name, fn, hint):
+    """등록 단계 하나를 실행한다. 실패하면 [어느 항목 / 원본오류 / 한국어진단]을 출력하고 다시 올린다."""
+    try:
+        return fn()
+    except Exception as e:
+        print("\n" + "-" * 60)
+        print(f"[등록 실패] {name}")
+        print(f"  원본 오류 : {type(e).__name__}: {e}")
+        print(f"  확인 사항 : {hint}")
+        print(f"  추정 원인 : {_diagnose(e)}")
+        print("-" * 60 + "\n")
+        raise
+
+
 # =============================================================================
 # MLflow 등록
 # =============================================================================
@@ -57,8 +91,16 @@ def register_agent():
     if _is_set(MLFLOW_CONN["password"]):
         os.environ["MLFLOW_TRACKING_PASSWORD"] = MLFLOW_CONN["password"]
 
-    mlflow.set_tracking_uri(MLFLOW_CONN["tracking_uri"])
-    mlflow.set_experiment(MLFLOW_CONN["experiment_name"])
+    _step(
+        "MLflow Tracking 연결 (set_tracking_uri)",
+        lambda: mlflow.set_tracking_uri(MLFLOW_CONN["tracking_uri"]),
+        "config.py 의 MLFLOW_CONN['tracking_uri'] 주소·포트를 확인하세요.",
+    )
+    _step(
+        "Experiment 설정 (set_experiment)",
+        lambda: mlflow.set_experiment(MLFLOW_CONN["experiment_name"]),
+        "config.py 의 MLFLOW_CONN['experiment_name'] 이름과 접근 권한을 확인하세요.",
+    )
 
     # 에셋 구성 정보를 Artifact 로 남긴다 (추적/재현용)
     conn_file = "conn.json"
@@ -117,30 +159,43 @@ def register_agent():
             ],
         )
 
-        try:
-            model_info = mlflow.pyfunc.log_model(name="genai_agent", **log_kwargs)
-        except TypeError:
-            model_info = mlflow.pyfunc.log_model(artifact_path="genai_agent", **log_kwargs)
+        def _do_log_model():
+            try:
+                return mlflow.pyfunc.log_model(name="genai_agent", **log_kwargs)
+            except TypeError:
+                return mlflow.pyfunc.log_model(artifact_path="genai_agent", **log_kwargs)
+
+        model_info = _step(
+            "모델 업로드 (log_model)",
+            _do_log_model,
+            "code_paths/requirements, 그리고 MLflow 아티팩트 저장소(S3 등) 접근 권한을 확인하세요.",
+        )
 
         print(f"  run_id    : {run.info.run_id}")
         print(f"  model_uri : {model_info.model_uri}")
 
         if _is_set(MLFLOW_CONN["registered_model"]):
-            mv = mlflow.register_model(model_info.model_uri, MLFLOW_CONN["registered_model"])
+            mv = _step(
+                "모델 레지스트리 등록 (register_model)",
+                lambda: mlflow.register_model(model_info.model_uri, MLFLOW_CONN["registered_model"]),
+                "config.py 의 MLFLOW_CONN['registered_model'] 이름과 레지스트리 권한을 확인하세요.",
+            )
             print(f"  registry  : {MLFLOW_CONN['registered_model']}  v{mv.version}")
 
     print("\n  등록 완료.\n" + "=" * 60)
 
 
 def safe_main():
-    """register_agent() 를 감싸 오류를 보기 좋게 출력한다."""
+    """register_agent() 를 감싸 오류를 보기 좋게 출력한다.
+    (단계별 상세 진단은 _step 에서 이미 출력되므로, 여기서는 요약만)"""
     try:
         register_agent()
     except ValueError as e:
+        # 설정값 미입력 등 (TODO 안 채움)
         print(f"[오류] {e}")
-    except Exception as e:
-        print(f"[오류] 등록 중 예외 발생: {e}")
-        raise
+    except Exception:
+        # _step 에서 이미 항목별 한국어 진단을 출력했음
+        print("[중단] 위의 '등록 실패' 항목을 확인해 설정을 고친 뒤 다시 실행하세요.")
 
 
 if __name__ == "__main__":
