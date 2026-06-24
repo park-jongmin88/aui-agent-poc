@@ -14,6 +14,7 @@
 - [x] **rag 목업** — mocks/ json 으로 검색 동작 (Milvus 연결은 TODO 분리)
 - [x] **tool 목업** — 가상 API 8종, 키워드 매칭으로 다중 호출 (실제 연동 TODO 분리)
 - [x] **에셋 트레이스** — 각 에셋(prompt/rag/tool/llm) run 에 span 추가. 보따리(ctx) 흐름이 트레이스 트리에 보임
+- [x] **judge 사후 평가** — 세션 종료 시 답변을 LLM 으로 채점(정확성/도움됨/명확성). 평가모델 분리는 TODO
 - [x] **구조 분리** — config.py(설정) + aiu_custom/(ModelWrapper) + assets/ + agent.py(등록). 서빙 진입점 aiu_custom.predict.ModelWrapper 로 표준화
 
 ---
@@ -22,7 +23,7 @@
 ## ⬜ 할 일
 
 - [ ] **1. LLM 모델 선택** — base_url(공급자 API)에서 모델 목록 받아 고르기 *(다음 1순위)*
-- [ ] **2. judge 사후 평가** — 대화 세션 끝에 한 번, 쌓인 Trace 채점
+- [ ] **2. judge 평가모델 분리** — 현재 생성 LLM 재사용(POC). 평가 전용 모델로 외부화 (self-bias 해소)
 - [ ] **3. rag 실제 연결** — Milvus 연결 (목업 완료, 실제 검색 TODO만 남음)
 - [ ] **4. tool 실제 연동** — 실제 API + LLM function calling (목업 완료)
 - [ ] **5. 프롬프트 태그 필터** — 에이전트/유저별로 프롬프트 거르기 *(선택)*
