@@ -65,24 +65,54 @@ LangChain 기반 LLM 에이전트를 **MLflow pyfunc 모델**로 등록하고,
 
 ```
 README.md
-agent/
-├── agent.py            진입점: 에셋 조립 + MLflow 등록 (로직 없음, 얇게 유지)
-├── client.py           서빙 엔드포인트 호출 테스트용 대화 프로그램
-├── requirements.txt    서빙 환경 의존성 (버전 고정)
-└── assets/             에셋 모듈 모음 ← 여기에 추가
-    ├── __init__.py     에셋 공통 규약 + ctx 생성/로더
-    ├── prompt.py       [구현] MLflow Prompts 로드
-    ├── llm.py          [구현] LangChain 체인으로 답변 생성
-    ├── rag.py          [목업] mocks/ json 검색 (Milvus 연결 TODO)
-    ├── tool.py         [목업] mocks/ 가상 API 호출 (실제 연동 TODO)
-    └── judge.py        [템플릿]
-agent/mocks/            목업 데이터 (실제 연결 전 POC용)
-    ├── rag_documents.json   딥러닝/ML/GenAI 문서 20건
-    └── tool_apis.json       가상 API 8종 (날씨/시간/계산/GPU/모델/실험/데이터셋/학습)
+TODO.md
+config.py            설정 (ENABLED_ASSETS, MLFLOW_CONN, LLM_*, ASSET_CONN)
+agent.py             등록 진입점 (register_agent 만)
+client.py            서빙 엔드포인트 호출 테스트용 대화 프로그램
+requirements.txt     서빙 환경 의존성 (버전 고정)
+aiu_custom/          서빙되는 모델 본체
+├── __init__.py
+├── model_wrapper.py   ModelWrapper (load_context / predict / 파이프라인)
+└── predict.py         re-export (서빙 진입점)
+assets/              에셋 모듈 모음 ← 기능 추가는 여기
+├── __init__.py     에셋 공통 규약 + ctx 생성/로더
+├── prompt.py       [구현] MLflow Prompts 로드 (캐싱)
+├── llm.py          [구현] LangChain 체인으로 답변 생성
+├── rag.py          [목업] mocks/ json 검색 (Milvus 연결 TODO)
+├── tool.py         [목업] mocks/ 가상 API 호출 (실제 연동 TODO)
+└── judge.py        [템플릿]
+mocks/               목업 데이터 (실제 연결 전 POC용)
+├── rag_documents.json   딥러닝/ML/GenAI 문서 20건
+└── tool_apis.json       가상 API 8종 (날씨/시간/계산/GPU/모델/실험/데이터셋/학습)
 ```
 
 
-## 2-2. 한 번의 호출 흐름
+## 2-2. aiu_custom/predict.py — 서빙 진입점
+
+`custom_server.py`(서빙 이미지)는 **항상 같은 경로**에서 모델 클래스를 찾는다.
+그 고정 경로가 `aiu_custom.predict.ModelWrapper` 다.
+
+```python
+# aiu_custom/predict.py — 내용은 한 줄 (re-export)
+from .model_wrapper import ModelWrapper
+```
+
+- **왜 분리?** 실제 코드(`model_wrapper.py`)가 길어지거나 바뀌어도,
+  서빙이 찾는 진입점(`predict.py`)은 변하지 않게 하기 위해서다.
+- **빌더 관점** 진입점은 고정, 내용물(config / assets / mocks)만 갈아끼우면 된다.
+  즉 에이전트마다 설정이 달라져도 `ModelWrapper` 코드는 하나로 공유한다.
+
+```
+custom_server.py
+   └─ aiu_custom.predict.ModelWrapper   ← 고정된 진입점
+        └─ model_wrapper.py             ← 실제 로직 (바뀌어도 됨)
+             ├─ config.py               ← 설정 (빌더가 교체)
+             ├─ assets/                 ← 기능 (켜고 끔)
+             └─ mocks/                  ← 데이터
+```
+
+
+## 2-3. 한 번의 호출 흐름
 
 ```
 predict()                          custom_server 진입점 (aiu_custom.predict.ModelWrapper)
@@ -90,7 +120,7 @@ predict()                          custom_server 진입점 (aiu_custom.predict.M
        ├─ update_current_trace()   session / user 기록
        └─ for name in ENABLED_ASSETS:
               ctx = assets[name].run(ctx, resource)
-              #  prompt → llm  순서로 ctx(보따리)를 통과시킨다
+              #  prompt → rag → tool → llm  순서로 ctx(보따리)를 통과시킨다
 ```
 
 <br>
@@ -243,7 +273,7 @@ llm 에셋이 답변 생성
 > 로컬에서 등록/테스트만 한다면 kserve 는 빼고 설치해도 된다 (서빙 이미지에서만 필요).
 
 ```bash
-# 1) 등록  — agent.py 상단 TODO (MLFLOW_CONN, LLM_BASE_URL, LLM_MODEL) 채운 뒤
+# 1) 등록  — config.py 의 TODO (MLFLOW_CONN, LLM_BASE_URL, LLM_MODEL) 채운 뒤
 python agent.py
 
 # 2) 서빙  — 포탈/KServe 파이프라인에서 등록 모델을 서빙 (custom_server.py 가 감쌈)
