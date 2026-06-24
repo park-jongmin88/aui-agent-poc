@@ -12,9 +12,12 @@ LangChain 기반 LLM 에이전트를 **MLflow pyfunc 모델**로 등록하고,
 
 <br>
 
+
 ---
 
+
 # 1. 확장 로드맵
+
 
 ## 1-1. 에셋 현황
 
@@ -25,6 +28,7 @@ LangChain 기반 LLM 에이전트를 **MLflow pyfunc 모델**로 등록하고,
 | `rag` | 🟡 목업 | `context` | 벡터DB 검색. 현재 mocks/ json 목업, Milvus 연결 TODO |
 | `tool` | 🟡 목업 | `tools_result` | 가상 API 8종. 키워드 매칭→목업응답, 실제 연동 TODO |
 | `judge` | ⬜ 템플릿 | `score` | 응답 품질 평가 (보통 맨 뒤) |
+
 
 ## 1-2. 에셋 추가하는 법 — 3단계
 
@@ -42,6 +46,7 @@ LangChain 기반 LLM 에이전트를 **MLflow pyfunc 모델**로 등록하고,
 
 → `agent.py` 의 실행 로직은 **건드리지 않는다.** 파이프라인 루프가 알아서 순서대로 돌린다.
 
+
 ## 1-3. 그 외 예정
 
 - **헬스체크** — KServe 는 커스텀 엔드포인트 추가 불가 → `predict()` 안에서 `mode` 분기로 처리 (현재 `list_prompts` 모드가 같은 방식)
@@ -49,9 +54,12 @@ LangChain 기반 LLM 에이전트를 **MLflow pyfunc 모델**로 등록하고,
 
 <br>
 
+
 ---
 
+
 # 2. 전체 구조
+
 
 ## 2-1. 폴더
 
@@ -73,6 +81,7 @@ agent/mocks/            목업 데이터 (실제 연결 전 POC용)
     └── tool_apis.json       가상 API 8종 (날씨/시간/계산/GPU/모델/실험/데이터셋/학습)
 ```
 
+
 ## 2-2. 한 번의 호출 흐름
 
 ```
@@ -86,7 +95,9 @@ predict()                          custom_server 진입점 (aiu_custom.predict.M
 
 <br>
 
+
 ---
+
 
 # 3. 에셋 규약
 
@@ -104,6 +115,7 @@ def run(ctx: dict, resource) -> dict:
     ...
 ```
 
+
 ## ctx — 파이프라인 맥락 (에셋들이 순서대로 주고받는 보따리)
 
 | 키 | 채우는 에셋 | 설명 |
@@ -118,7 +130,9 @@ def run(ctx: dict, resource) -> dict:
 
 <br>
 
+
 ---
+
 
 # 4. 프롬프트 동작 (중요)
 
@@ -145,11 +159,14 @@ llm 에셋이 답변 생성
 
 <br>
 
+
 ---
+
 
 # 5. custom_server.py 계약
 
 서빙 래퍼가 모델을 호출할 때의 입출력 형식은 **고정** 이다.
+
 
 ## 입력 — `predict(model_input)` 으로 들어오는 dict
 
@@ -168,6 +185,7 @@ llm 에셋이 답변 생성
 }
 ```
 
+
 ## 출력 — 반드시 `aiu_output` 키 포함
 
 ```json
@@ -176,6 +194,7 @@ llm 에셋이 답변 생성
 
 > ⚠️ `aiu_output` 이 없으면 custom_server 가 예외 경로로 빠지며
 > `UnboundLocalError: log_data` 등 연쇄 오류가 난다. (서버측 코드라 수정 불가)
+
 
 ## 입력 필드 (`input[0]`)
 
@@ -190,7 +209,9 @@ llm 에셋이 답변 생성
 
 <br>
 
+
 ---
+
 
 # 6. Trace / Session 기록
 
@@ -207,7 +228,9 @@ llm 에셋이 답변 생성
 
 <br>
 
+
 ---
+
 
 # 7. 등록 / 서빙 / 테스트
 
@@ -233,7 +256,9 @@ python client.py
 
 <br>
 
+
 ---
+
 
 # 8. 설계 원칙
 

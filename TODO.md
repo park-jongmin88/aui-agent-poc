@@ -4,6 +4,7 @@
 
 ---
 
+
 ## ✅ 완료
 
 - [x] **에셋 모듈화** — `agent.py` 는 조립만, 기능은 `assets/` 로 분리
@@ -15,6 +16,7 @@
 - [x] **구조 분리** — config.py(설정) + aiu_custom/(ModelWrapper) + assets/ + agent.py(등록). 서빙 진입점 aiu_custom.predict.ModelWrapper 로 표준화
 
 ---
+
 
 ## ⬜ 할 일
 
@@ -36,10 +38,12 @@ rag / tool ──────→ 보따리에 자료 추가 (독립)
 
 <br>
 
----
+
 ---
 
+
 # 상세
+
 
 ## 1. LLM 모델 선택
 
@@ -67,6 +71,7 @@ client 시작
 - 모델 목록 출처: 공급자 API → **포탈 DB** 로 전환 (구조는 그대로)
 
 ---
+
 
 ## 2. judge — 사후 평가
 
@@ -99,6 +104,7 @@ results = mlflow.genai.evaluate(data=traces, scorers=[judge])
 
 ---
 
+
 ## 3. rag 에셋  (목업 완료 / 실제 연결 TODO)
 
 **목표:** 질문 관련 문서를 검색해 `ctx["context"]` 에 넣는다. LLM 이 그 자료를 참고해 답변.
@@ -130,6 +136,7 @@ run()    -> mode "mock"   -> _search_mock     (키워드 매칭)
 
 ---
 
+
 ## 4. tool 에셋  (목업 완료 / 실제 연동 TODO)
 
 **목표:** 질문에 맞는 도구(API)를 호출해 `ctx["tools_result"]` 에 넣는다.
@@ -158,6 +165,7 @@ run()    -> mode "mock" -> _run_mock      (키워드 매칭 + 다중 호출)
 
 ---
 
+
 ## 5. 프롬프트 태그 필터 (선택)
 
 **목표:** 지금 `search_prompts()` 는 전역 목록을 다 가져온다. 에이전트/유저별로 거른다.
@@ -168,6 +176,7 @@ run()    -> mode "mock" -> _run_mock      (키워드 매칭 + 다중 호출)
 - 빌더에서 "내 프롬프트만" 보여줄 때 필요
 
 ---
+
 
 ## 6. 빌더 연동 (장기·보류)
 
