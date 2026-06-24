@@ -108,13 +108,17 @@ def _extract_output(raw: str):
         data = data["output"]
 
     if isinstance(data, dict):
-        return _safe_str(data.get("aiu_output", data))
+        val = data.get("aiu_output", data)
+        # aiu_output 이 dict(예: 프롬프트 목록 {"prompts": [...]})면 그대로,
+        # 문자열(답변)이면 surrogate 정화
+        return _safe_str(val) if isinstance(val, str) else val
     if isinstance(data, list) and data:
         first = data[0]
         if isinstance(first, dict):
-            return _safe_str(first.get("aiu_output", first))
-        return _safe_str(first)
-    return _safe_str(data)
+            val = first.get("aiu_output", first)
+            return _safe_str(val) if isinstance(val, str) else val
+        return _safe_str(first) if isinstance(first, str) else first
+    return _safe_str(data) if isinstance(data, str) else data
 
 
 # =============================================================================

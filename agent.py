@@ -139,15 +139,10 @@ class ModelWrapper(mlflow.pyfunc.PythonModel):
         # Artifact 경로 보관 (rag 목업 json 등). 키 없으면 빈 dict.
         self._artifacts = dict(getattr(context, "artifacts", {}) or {})
 
-        # 워밍업: MLflow 첫 연결(콜드 스타트)을 서빙 시작 시점으로 옮긴다.
-        # 첫 사용자 질문에서 load_prompt 첫 왕복이 느려 504 가 나는 것을 예방.
-        self._warmup()
-
-    def _warmup(self):
-        """MLflow 연결/프롬프트 레지스트리를 미리 한 번 건드려 연결을 데운다."""
+        # 워밍업: MLflow 첫 연결(콜드 스타트)을 서빙 시작 시점으로 옮겨 첫 질문 504 예방.
         try:
             if "prompt" in self.assets and hasattr(self.assets["prompt"], "list_prompts"):
-                self.assets["prompt"].list_prompts()   # 가벼운 조회로 연결 워밍업
+                self.assets["prompt"].list_prompts()
         except Exception:
             pass
 
