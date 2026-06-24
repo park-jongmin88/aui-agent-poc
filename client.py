@@ -281,8 +281,18 @@ def _show_judge(turns: list, session_id: str):
         return
     print("\r" + " " * 20 + "\r", end="")
 
-    if not isinstance(result, dict) or "avg" not in result:
-        print("  [평가 결과 없음]\n")
+    # 서버가 에러 문자열([AGENT ERROR])이나 예상 못한 형태를 줄 수 있으니 그대로 노출
+    if isinstance(result, str):
+        print(f"  [평가 응답(문자열)]\n{result}\n")
+        return
+    if not isinstance(result, dict):
+        print(f"  [평가 응답(예상밖 타입: {type(result).__name__})] {result}\n")
+        return
+    if "avg" not in result:
+        print(f"  [평가 결과에 avg 없음] 받은 키: {list(result.keys())}\n  내용: {result}\n")
+        return
+    if not result.get("avg"):
+        print(f"  [평가 점수가 비어있음] count={result.get('count', 0)} (turns 가 비었거나 평가 0건)\n")
         return
 
     avg = result.get("avg", {})
