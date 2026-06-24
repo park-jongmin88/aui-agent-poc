@@ -39,8 +39,12 @@ MLFLOW_PASSWORD      = TODO
 EXPERIMENT_NAME = TODO
 
 # judge 가 사용할 평가 모델 (AI Gateway 엔드포인트)
-#   형식: "gateway:/<엔드포인트명>"  (사내 모델이 AI Gateway 에 등록돼 있어야 함)
-JUDGE_MODEL = TODO
+#   형식: "gateway:/<엔드포인트명>"
+#   - <엔드포인트명> 은 MLflow AI Gateway 엔드포인트 목록의 name 컬럼 값 (chat 타입)
+#   - 반드시 "gateway:/" 접두사를 붙인다. (접두사 없이 이름만 넣으면 Malformed URI 오류)
+#   - 예) 엔드포인트 name 이 hcp_latest 이면 →  "gateway:/hcp_latest"
+#   주의: gateway 방식은 litellm 이 필요하다. (pip install litellm)
+JUDGE_MODEL = TODO   # 예: "gateway:/hcp_latest"
 
 # judge 이름 (Judges 탭에 표시되는 이름)
 JUDGE_NAME = "answer_quality"
@@ -49,21 +53,25 @@ JUDGE_NAME = "answer_quality"
 # =============================================================================
 # [2] 평가 기준 (자연어 instructions, 5등급)
 # =============================================================================
-# 주의: 템플릿 변수는 {{ inputs }}, {{ outputs }} 형식(중괄호 2개)만 허용.
-#       커스텀 변수는 지원 안 됨.
+# 우리 trace 는 agent_pipeline span 안에 질문/답변이 들어있어, root span 에서
+# inputs/outputs 자동 추출이 안 될 수 있다. 그래서 {{ trace }} 변수를 쓴다.
+#   - {{ trace }} : judge 가 trace 전체를 탐색해 질문/답변을 알아서 찾아 평가한다.
+#   - 주의: {{ trace }} 는 {{ inputs }}/{{ outputs }} 와 함께 쓸 수 없다. (단독 사용)
+#   - 템플릿 변수는 중괄호 2개 형식만 허용. 커스텀 변수는 지원 안 됨.
 JUDGE_INSTRUCTIONS = (
-    "사용자 질문 {{ inputs }} 에 대한 에이전트 답변 {{ outputs }} 의 품질을 평가하라.\n\n"
+    "주어진 {{ trace }} 는 사용자 질문에 에이전트가 답한 한 번의 대화 기록이다.\n"
+    "trace 에서 사용자 질문과 에이전트의 최종 답변을 찾아, 답변의 품질을 평가하라.\n\n"
     "다음 세 가지를 종합적으로 고려한다.\n"
     "- 정확성: 질문에 맞고 사실에 부합하는가\n"
     "- 도움됨: 사용자에게 실제로 유용한가\n"
     "- 명확성: 이해하기 쉽고 잘 정리되어 있는가\n\n"
-    "위를 종합하여 아래 5등급 중 하나로 평가하라.\n"
+    "위를 종합하여 아래 5등급 중 하나의 정수로 평가하라.\n"
     "- 5: 매우 우수 (정확하고 매우 유용하며 명확함)\n"
     "- 4: 우수 (대체로 정확하고 유용함)\n"
     "- 3: 보통 (무난하나 일부 부족함)\n"
     "- 2: 미흡 (부정확하거나 불충분함)\n"
     "- 1: 매우 미흡 (잘못되었거나 도움이 되지 않음)\n\n"
-    "평가 점수와 함께 그 이유를 간단히 제시하라."
+    "평가 점수(정수)와 함께 그 이유를 간단히 제시하라."
 )
 
 
