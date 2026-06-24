@@ -34,7 +34,7 @@ _JUDGE_SYSTEM = (
     "- helpfulness: 실제로 도움이 되는가\n"
     "- clarity: 이해하기 쉬운가\n"
     "반드시 아래 JSON 형식으로만 답한다. 다른 말은 절대 쓰지 않는다.\n"
-    '{"accuracy": 정수, "helpfulness": 정수, "clarity": 정수, "reason": "간단한 이유"}'
+    '{{"accuracy": 정수, "helpfulness": 정수, "clarity": 정수, "reason": "간단한 이유"}}'
 )
 
 
