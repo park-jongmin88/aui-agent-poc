@@ -13,6 +13,7 @@
 - [x] **system 단일화** — system 메시지 1개로 합쳐 400 BadRequest 해결
 - [x] **rag 목업** — mocks/ json 으로 검색 동작 (Milvus 연결은 TODO 분리)
 - [x] **tool 목업** — 가상 API 8종, 키워드 매칭으로 다중 호출 (실제 연동 TODO 분리)
+- [x] **에셋 트레이스** — 각 에셋(prompt/rag/tool/llm) run 에 span 추가. 보따리(ctx) 흐름이 트레이스 트리에 보임
 - [x] **구조 분리** — config.py(설정) + aiu_custom/(ModelWrapper) + assets/ + agent.py(등록). 서빙 진입점 aiu_custom.predict.ModelWrapper 로 표준화
 
 ---
@@ -162,6 +163,17 @@ run()    -> mode "mock" -> _run_mock      (키워드 매칭 + 다중 호출)
 - `_run_real()`   : **LLM function calling** 으로 도구 선택 → 실제 호출 → 결과 join
   - 목업은 키워드 매칭이지만, 실제는 LLM 이 도구를 고르도록 전환
 - `ASSET_CONN["tool"]` 를 `{"mode":"real", endpoint_url, api_key}` 로 교체
+
+**LangChain Tool 전환 (실제 연동 시 함께 검토)**
+- 도구를 LangChain `@tool` / `bind_tools` 로 정의 → LLM 이 function calling 으로 선택·호출
+- 장점: 도구 호출이 autolog 트레이스에 **자동 기록**, LLM 이 유연하게 도구 선택, 실제 연동 구조와 일치
+- 주의(지금 바로 안 가는 이유):
+  - LLM 호출이 1회 더 생김 (도구 선택 + 답변) → 응답 지연/비용 증가
+  - 도구마다 명확한 함수 시그니처(입력/타입/설명) 필요 → 목업 `mock_response` 구조 변환 필요
+  - 모델의 function calling 지원 여부 확인 필요 (Qwen 등)
+  - 목업/실제 분리(`mode`)가 복잡해질 수 있음
+- → **실제 도구 연동 단계에서** LangChain Tool 로 구현. 목업 단계에선 키워드 매칭 유지.
+  (rag 도 마찬가지로 실제 연동 시 LangChain Retriever 로 전환 검토)
 
 ---
 

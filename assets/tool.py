@@ -11,6 +11,8 @@ LLM 은 이 결과를 참고자료로 받아 답변한다.
    build/run 은 mode 에 따라 '분기'만 한다. 목업/실제 로직은 서로 다른 함수에 분리.
 """
 
+import mlflow
+
 NAME = "tool"
 
 
@@ -22,6 +24,7 @@ def build(conn: dict):
     return _build_mock(conn)
 
 
+@mlflow.trace(name="asset.tool", span_type="TOOL")
 def run(ctx: dict, resource) -> dict:
     """질문에 맞는 도구를 호출해 ctx["tools_result"] 를 채운다."""
     if resource["mode"] == "real":

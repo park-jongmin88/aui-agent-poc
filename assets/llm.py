@@ -8,6 +8,7 @@ Qwen 등 일부 모델이 400 BadRequest 를 반환하므로 단일 system 으�
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
+import mlflow
 
 NAME = "llm"
 
@@ -46,6 +47,7 @@ def _safe_text(s) -> str:
     return s.encode("utf-8", "replace").decode("utf-8", "replace")
 
 
+@mlflow.trace(name="asset.llm", span_type="CHAIN")
 def run(ctx: dict, resource) -> dict:
     """체인을 invoke 해서 답변을 ctx["answer"] 에 저장한다."""
     answer = resource.invoke({

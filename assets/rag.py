@@ -9,6 +9,8 @@ LLM 은 이 context 를 참고자료로 받아 답변한다.
    build/run 은 mode 에 따라 '분기'만 한다. 실제 로직은 아래 함수에 분리되어 있다.
 """
 
+import mlflow
+
 NAME = "rag"
 
 
@@ -20,6 +22,7 @@ def build(conn: dict):
     return _build_mock(conn)
 
 
+@mlflow.trace(name="asset.rag", span_type="RETRIEVER")
 def run(ctx: dict, resource) -> dict:
     """query 로 검색해 ctx["context"] 를 채운다. (목업/실제 출력 형태 동일: 문자열)"""
     if resource["mode"] == "milvus":

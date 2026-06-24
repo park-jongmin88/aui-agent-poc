@@ -46,6 +46,7 @@ def _load_system(pid: str, resource) -> str:
     return text
 
 
+@mlflow.trace(name="asset.prompt", span_type="CHAIN")
 def run(ctx: dict, resource) -> dict:
     """client 가 고른 prompt_id 로 system_message 를 채운다. (캐시 사용)"""
     pid = ctx.get("prompt_id")
