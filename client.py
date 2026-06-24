@@ -51,8 +51,10 @@ def _post(payload_obj: dict):
     req.add_header("Content-Type", "application/json")
     try:
         with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as resp:
-            # 이모지 등 surrogate 가 섞여도 죽지 않도록 안전 디코딩
-            return _extract_output(resp.read().decode("utf-8", "replace"))
+            # 1) 바이트 디코딩  2) 살아남은 surrogate 까지 완전 제거 후 처리
+            raw = resp.read().decode("utf-8", "replace")
+            raw = raw.encode("utf-8", "replace").decode("utf-8", "replace")
+            return _extract_output(raw)
     except urllib.error.HTTPError as e:
         body = e.read().decode("utf-8", "replace")
         raise RuntimeError(f"API 오류 {e.code} {e.reason}\n---- 응답 본문 ----\n{_try_pretty(body)}")
@@ -222,6 +224,8 @@ def chat_loop():
             print(f"[서버 내부 오류]\n{answer}\n")
             continue
 
+        # 출력 직전 최종 방어: surrogate 가 남아 있어도 print 가 죽지 않게 정화
+        answer = _safe_str(answer)
         print(f"답변> {answer}\n")
         turn += 1
 
