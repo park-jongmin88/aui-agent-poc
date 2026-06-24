@@ -18,7 +18,7 @@ import mlflow
 import mlflow.pyfunc
 
 from assets import new_ctx, load_asset
-from config import ENABLED_ASSETS, LLM_BASE_URL, LLM_MODEL, ASSET_CONN, JUDGE_CONN
+from config import ENABLED_ASSETS, LLM_BASE_URL, LLM_MODEL, ASSET_CONN
 
 
 def _agent_error(stage: str, exc: Exception, query: str, session_id: str) -> str:
@@ -67,10 +67,6 @@ class ModelWrapper(mlflow.pyfunc.PythonModel):
         self.resources = {}
         self._api_key = None
         self._artifacts = dict(getattr(context, "artifacts", {}) or {})
-
-        # judge 는 파이프라인(ENABLED_ASSETS) 밖. 사후 평가용으로 따로 로드해 둔다.
-        self._judge = load_asset("judge")
-        self._judge_resource = None
 
         # 워밍업: MLflow 첫 연결(콜드 스타트)을 서빙 시작 시점으로 옮겨 첫 질문 504 예방.
         try:
@@ -138,15 +134,6 @@ class ModelWrapper(mlflow.pyfunc.PythonModel):
                 return {"aiu_output": _agent_error("LIST_PROMPTS", e, "", session_id)}
             return {"aiu_output": {"prompts": names}}
 
-        # 모드: 세션 사후 평가 (대화 종료 시 client 가 모은 (질문,답변) 목록을 보냄)
-        if mode == "judge":
-            try:
-                turns = info.get("turns", [])      # [{"query":..,"answer":..}, ...]
-                result = self._run_judge(turns, api_key)
-            except Exception as e:
-                return {"aiu_output": _agent_error("JUDGE", e, "", session_id)}
-            return {"aiu_output": result}
-
         if not api_key:
             return {"aiu_output": "[AGENT ERROR] llm_api_key 가 비어있습니다. 키를 입력하세요."}
 
@@ -163,17 +150,3 @@ class ModelWrapper(mlflow.pyfunc.PythonModel):
                 pass
 
         return {"aiu_output": answer}
-
-    @mlflow.trace(name="judge_session", span_type="CHAIN")
-    def _run_judge(self, turns, api_key):
-        """세션의 (질문,답변) 목록을 평가해 점수를 반환한다. (사후 평가)"""
-        # judge 리소스 빌드 (1회). JUDGE_CONN 이 None 이면 생성 LLM 설정 재사용.
-        if self._judge_resource is None:
-            conn = {
-                "mode":     JUDGE_CONN.get("mode", "llm"),
-                "base_url": JUDGE_CONN.get("base_url") or LLM_BASE_URL,
-                "model":    JUDGE_CONN.get("model") or LLM_MODEL,
-                "api_key":  api_key,
-            }
-            self._judge_resource = self._judge.build(conn)
-        return self._judge.evaluate(turns, self._judge_resource)

@@ -108,16 +108,6 @@ def ask(query: str, prompt_id: str, session_id: str, user_id: str = "client-user
     })
 
 
-def judge_session(turns: list, session_id: str):
-    """대화 종료 시 세션의 (질문,답변) 목록을 보내 사후 평가를 받는다."""
-    return _post({
-        "mode":        "judge",
-        "llm_api_key": LLM_API_KEY,
-        "session_id":  session_id,
-        "turns":       turns,
-    })
-
-
 def _try_pretty(text: str) -> str:
     """HTTP 오류 본문이 JSON 이면 들여쓰기해서 반환한다."""
     try:
@@ -230,7 +220,6 @@ def chat_loop():
     print(f"  종료     : exit / quit / 빈 줄")
     print("=" * 60 + "\n")
 
-    turns = []      # 평가용 (질문,답변) 수집
     while True:
         try:
             query = input("질문> ").strip()
@@ -262,47 +251,10 @@ def chat_loop():
         # 출력 직전 최종 방어: surrogate 가 남아 있어도 print 가 죽지 않게 정화
         answer = _safe_str(answer)
         print(f"답변> {answer}\n")
-        turns.append({"query": query, "answer": answer})
 
-    print(f"  대화 종료 - {len(turns)} turn  (session: {session_id})")
+    print(f"  대화 종료  (session: {session_id})")
     print(f"  MLflow Sessions 탭에서 '{session_id}' 로 확인 가능")
-
-    # 대화가 있었으면 세션 사후 평가 (judge)
-    if turns:
-        _show_judge(turns, session_id)
-    print()
-
-
-def _show_judge(turns: list, session_id: str):
-    """세션 종료 후 judge 평가를 받아 점수를 보기 좋게 출력한다."""
-    print("\n  평가 중...", end="", flush=True)
-    try:
-        result = judge_session(turns, session_id)
-    except Exception as e:      # noqa: BLE001
-        print(f"\r  [평가 실패] {e}\n")
-        return
-    print("\r" + " " * 20 + "\r", end="")
-
-    # 서버가 에러 문자열([AGENT ERROR])이나 예상 못한 형태를 줄 수 있으니 그대로 노출
-    if isinstance(result, str):
-        print(f"  [평가 응답(문자열)]\n{result}\n")
-        return
-    if not isinstance(result, dict):
-        print(f"  [평가 응답(예상밖 타입: {type(result).__name__})] {result}\n")
-        return
-    if "avg" not in result:
-        print(f"  [평가 결과에 avg 없음] 받은 키: {list(result.keys())}\n  내용: {result}\n")
-        return
-    if not result.get("avg"):
-        print(f"  [평가 점수가 비어있음] count={result.get('count', 0)} (turns 가 비었거나 평가 0건)\n")
-        return
-
-    avg = result.get("avg", {})
-    print("\n  ─ 세션 평가 (judge) ─")
-    print(f"    정확성(accuracy)    : {avg.get('accuracy', '-')}")
-    print(f"    도움됨(helpfulness) : {avg.get('helpfulness', '-')}")
-    print(f"    명확성(clarity)     : {avg.get('clarity', '-')}")
-    print(f"    (총 {result.get('count', 0)}턴 평균, 각 1~5점)")
+    print("  세션 평가는 judge_eval.py 스크립트로 별도 실행\n")
 
 
 # =============================================================================
