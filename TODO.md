@@ -12,6 +12,7 @@
 - [x] **system 단일화** — system 메시지 1개로 합쳐 400 BadRequest 해결
 - [x] **rag 목업** — mocks/ json 으로 검색 동작 (Milvus 연결은 TODO 분리)
 - [x] **tool 목업** — 가상 API 8종, 키워드 매칭으로 다중 호출 (실제 연동 TODO 분리)
+- [x] **구조 분리** — config.py(설정) + aiu_custom/(ModelWrapper) + assets/ + agent.py(등록). 서빙 진입점 aiu_custom.predict.ModelWrapper 로 표준화
 
 ---
 

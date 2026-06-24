@@ -76,7 +76,7 @@ agent/mocks/            목업 데이터 (실제 연결 전 POC용)
 ## 2-2. 한 번의 호출 흐름
 
 ```
-predict()                          custom_server 진입점
+predict()                          custom_server 진입점 (aiu_custom.predict.ModelWrapper)
   └─ _run()                        @mlflow.trace (agent_pipeline)
        ├─ update_current_trace()   session / user 기록
        └─ for name in ENABLED_ASSETS:
@@ -237,7 +237,8 @@ python client.py
 
 # 8. 설계 원칙
 
-1. **agent.py 는 얇게** — 조립과 선언만. 기능은 에셋에.
+1. **역할 분리** — 설정은 `config.py`, 서빙 모델은 `aiu_custom/`, 기능은 `assets/`, 등록은 `agent.py`.
+2. **서빙 진입점 표준화** — `aiu_custom.predict.ModelWrapper` 로 일관 노출 (custom_server 가 찾는 경로).
 2. **프롬프트 주인은 서버** — client 는 id 만 고른다 (A 원칙).
 3. **연결정보는 코드에 박지 않는다** — `conn.json` Artifact + `load_context()` 로드.
 4. **signature 는 주지 않는다** — custom_server 가 붙이는 필드와 충돌(enforce schema) 방지. `input_example` 만.
