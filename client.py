@@ -24,9 +24,32 @@
 import json
 import uuid
 import time
+import sys
 import threading
 import urllib.request
 import urllib.error
+
+import builtins as _builtins
+
+# stdout/stderr 를 surrogate 가 와도 죽지 않는 모드로 재구성 (가능한 환경에서)
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(errors="replace")
+    except Exception:
+        pass
+
+
+def _safe_print(*args, **kwargs):
+    """surrogate(이모지 등)가 어디서 섞여 들어와도 출력이 죽지 않게 정화 후 print."""
+    def clean(a):
+        s = a if isinstance(a, str) else str(a)
+        return s.encode("utf-8", "replace").decode("utf-8", "replace")
+    safe_args = [clean(a) for a in args]
+    _builtins.print(*safe_args, **kwargs)
+
+
+# 이 모듈 안의 모든 print 호출을 안전 버전으로 대체
+print = _safe_print
 
 
 # =============================================================================
