@@ -69,7 +69,9 @@ REQUEST_TIMEOUT = 180
 
 def _post(payload_obj: dict):
     """공통 POST. 응답에서 aiu_output 을 꺼내 반환한다."""
-    payload = json.dumps({"input": [payload_obj]}, ensure_ascii=False).encode("utf-8")
+    # 보낼 데이터에 surrogate(키/URL 복붙 시 섞일 수 있음)가 있어도 인코딩이 죽지 않게 정화
+    body_text = json.dumps({"input": [payload_obj]}, ensure_ascii=False)
+    payload = body_text.encode("utf-8", "replace")
     req = urllib.request.Request(API_URL, data=payload, method="POST")
     req.add_header("Content-Type", "application/json")
     try:
