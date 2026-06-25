@@ -96,13 +96,27 @@ prompt_id 미선택             → default
 
 ---
 
-## 6. 주의/미확인 (나중에 확인)
+## 6. 정확한 MLflow API (확인 완료)
 
-- **`mlflow.genai.search_prompt_versions(name)` API 이름은 MLflow 버전에 따라
-  다를 수 있음.** (추측 섞임)
-  - 만약 이 API 가 없거나 다르면 `list_versions` 가 빈 리스트를 반환하고,
-    `_load_system` 은 버전 없이 `prompts:/{id}` 로 로드를 시도(최신 폴백)한다.
-  - 실제 환경에서 버전 목록이 제대로 나오는지 한 번 확인 필요.
+처음엔 `mlflow.genai.search_prompt_versions` 로 짰는데 **그 API 는 없어서**
+versions 가 무조건 0 으로 나왔다. 정확한 API 는 아래와 같다.
+
+- **버전 목록 조회**:
+  ```python
+  from mlflow import MlflowClient
+  resp = MlflowClient().search_prompt_versions(name)
+  for v in resp.prompt_versions:      # ← .prompt_versions 속성으로 순회
+      print(v.version)                # 각 버전 번호
+  ```
+  (`mlflow.genai.search_prompt_versions` 는 존재하지 않음)
+
+- **프롬프트 로드** (별칭 없이 버전 번호로):
+  ```python
+  mlflow.genai.load_prompt("name", version=3)     # 특정 버전
+  mlflow.genai.load_prompt("name")                 # 버전 생략 → 최신
+  mlflow.genai.load_prompt("prompts:/name/3")      # URI 형식도 가능
+  ```
+
 - UI 2단계 화면(프롬프트→버전 선택)은 **포탈 UI 쪽 작업** (이 문서 범위 밖).
   prompt.py 는 그 선택값(prompt_id, prompt_version)을 받기만 하면 됨.
 
