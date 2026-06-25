@@ -90,22 +90,35 @@ def _post(payload_obj: dict):
 
 
 def fetch_prompts() -> list:
-    """서버에서 등록된 프롬프트 이름 목록을 받아온다."""
+    """서버에서 등록된 프롬프트 목록을 받아온다.
+    반환: [{"name": str, "versions": int}] 또는 ["이름", ...] (구버전 호환)
+    """
     out = _post({"mode": "list_prompts", "llm_api_key": LLM_API_KEY})
     if isinstance(out, dict) and "prompts" in out:
         return out["prompts"]
     return []
 
 
-def ask(query: str, prompt_id: str, session_id: str, user_id: str = "client-user") -> str:
-    """질문 1건을 고른 prompt_id 와 함께 보낸다. (system_message 는 보내지 않음)"""
-    return _post({
+def fetch_versions(prompt_id: str) -> list:
+    """특정 프롬프트의 버전 번호 목록을 서버에서 받아온다. (예: [1, 2, 3])"""
+    out = _post({"mode": "list_versions", "prompt_id": prompt_id, "llm_api_key": LLM_API_KEY})
+    if isinstance(out, dict) and "versions" in out:
+        return out["versions"]
+    return []
+
+
+def ask(query: str, prompt_id: str, session_id: str, prompt_version=None, user_id: str = "client-user") -> str:
+    """질문 1건을 고른 prompt_id(+version) 와 함께 보낸다. (system_message 는 보내지 않음)"""
+    payload = {
         "query":       query,
         "prompt_id":   prompt_id,
         "llm_api_key": LLM_API_KEY,
         "session_id":  session_id,
         "user_id":     user_id,
-    })
+    }
+    if prompt_version is not None:
+        payload["prompt_version"] = prompt_version
+    return _post(payload)
 
 
 def _try_pretty(text: str) -> str:
@@ -152,42 +165,89 @@ def _extract_output(raw: str):
 # [2] 프롬프트 선택
 # =============================================================================
 
-def choose_prompt() -> str:
-    """시작 시 프롬프트 목록을 보여주고 하나 고르게 한다. (못 고르면 빈 값=서버 폴백)"""
+def _prompt_name(p):
+    """목록 항목에서 이름을 꺼낸다. dict({name,versions}) / 문자열 둘 다 대응."""
+    return p["name"] if isinstance(p, dict) else p
+
+
+def _prompt_vcount(p):
+    """목록 항목에서 버전 개수를 꺼낸다. 없으면 None."""
+    return p.get("versions") if isinstance(p, dict) else None
+
+
+def choose_prompt():
+    """시작 시 프롬프트 목록을 보여주고 하나 고르게 한다. 그다음 버전을 고르게 한다.
+    반환: (prompt_id, prompt_version)
+      - 프롬프트 미선택(기본) → ("", None)
+      - 버전 미선택(최신)      → (이름, None)
+      - 버전 선택              → (이름, 버전번호)
+    """
     try:
         prompts = fetch_prompts()
     except RuntimeError as e:
         print(f"[목록 조회 실패] {e}\n  -> 기본 프롬프트로 진행합니다.\n")
-        return ""
+        return "", None
 
     if not prompts:
         print("등록된 프롬프트가 없습니다. 기본 프롬프트로 진행합니다.\n")
-        return ""
+        return "", None
 
+    # --- 1단계: 프롬프트 선택 ---
     print("\n사용할 프롬프트를 고르세요: (MLflow > GenAI > Prompts 에 등록하실 수 있습니다.)")
-    for i, name in enumerate(prompts, 1):
-        print(f"  [{i}] {name}")
+    for i, p in enumerate(prompts, 1):
+        name = _prompt_name(p)
+        vc = _prompt_vcount(p)
+        label = f"{name}  [버전 {vc}개]" if vc else name
+        print(f"  [{i}] {label}")
     print("  [0] 기본 프롬프트 사용")
 
+    chosen = None
     while True:
-        sel = input("번호 선택> ").strip()
+        sel = input("프롬프트 번호 선택> ").strip()
         if sel == "0" or sel == "":
-            return ""
+            return "", None
         if sel.isdigit() and 1 <= int(sel) <= len(prompts):
-            return prompts[int(sel) - 1]
+            chosen = prompts[int(sel) - 1]
+            break
         print("  올바른 번호를 입력하세요.")
+
+    name = _prompt_name(chosen)
+
+    # --- 2단계: 버전 선택 ---
+    try:
+        versions = fetch_versions(name)
+    except RuntimeError as e:
+        print(f"[버전 조회 실패] {e}\n  -> 최신 버전으로 진행합니다.\n")
+        return name, None
+
+    if not versions:
+        print(f"  '{name}' 의 버전 목록을 가져오지 못했습니다. 최신 버전으로 진행합니다.\n")
+        return name, None
+
+    print(f"\n'{name}' 의 버전을 고르세요:")
+    for v in versions:
+        print(f"  [{v}] 버전 {v}")
+    print("  [0] 최신 버전 사용")
+
+    while True:
+        sel = input("버전 번호 선택> ").strip()
+        if sel == "0" or sel == "":
+            return name, None
+        if sel.isdigit() and int(sel) in versions:
+            return name, int(sel)
+        print("  올바른 버전 번호를 입력하세요.")
 
 
 # =============================================================================
 # [3] 대화 루프
 # =============================================================================
 
-def _ask_with_spinner(query: str, prompt_id: str, session_id: str):
+def _ask_with_spinner(query: str, prompt_id: str, session_id: str, prompt_version=None):
     """답변을 기다리는 동안 '🐋 답변 생성 중... (Ns)' 를 실시간 표시한다."""
     result = {}
     def worker():
         try:
-            result["answer"] = ask(query, prompt_id, session_id)
+            result["answer"] = ask(query, prompt_id, session_id, prompt_version)
         except Exception as e:      # noqa: BLE001 - 스레드 예외를 메인으로 전달
             result["error"] = e
 
@@ -208,15 +268,18 @@ def _ask_with_spinner(query: str, prompt_id: str, session_id: str):
 
 
 def chat_loop():
-    """프롬프트 선택 -> 질문/답변 반복. 멀티턴은 session_id 로 묶인다."""
-    prompt_id = choose_prompt()
+    """프롬프트 선택 -> 버전 선택 -> 질문/답변 반복. 멀티턴은 session_id 로 묶인다."""
+    prompt_id, prompt_version = choose_prompt()
     session_id = "sess-" + uuid.uuid4().hex[:8]
 
     print("\n🐋 Agent Client")
     print("=" * 60)
     print(f"  API      : {API_URL}")
     print(f"  Session  : {session_id}")
-    print(f"  Prompt   : {prompt_id or '(기본)'}")
+    if prompt_id:
+        print(f"  Prompt   : {prompt_id}  " + (f"v{prompt_version}" if prompt_version else "(최신)"))
+    else:
+        print(f"  Prompt   : (기본)")
     print(f"  종료     : exit / quit / 빈 줄")
     print("=" * 60 + "\n")
 
@@ -231,7 +294,7 @@ def chat_loop():
             break
 
         try:
-            answer = _ask_with_spinner(query, prompt_id, session_id)
+            answer = _ask_with_spinner(query, prompt_id, session_id, prompt_version)
         except RuntimeError as e:
             print(f"[HTTP 오류]\n{e}\n")
             continue
