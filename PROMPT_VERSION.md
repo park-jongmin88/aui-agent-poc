@@ -96,31 +96,39 @@ prompt_id 미선택             → default
 
 ---
 
-## 6. 정확한 MLflow API (확인 완료)
+## 6. 버전 조회 API (OSS 주의 — 중요)
 
-처음엔 `mlflow.genai.search_prompt_versions` 로 짰는데 **그 API 는 없어서**
-versions 가 무조건 0 으로 나왔다. 정확한 API 는 아래와 같다.
+### 핵심: search_prompt_versions 는 Databricks 전용
+- `MlflowClient().search_prompt_versions(name)` 는 **Databricks 백엔드에서만** 동작한다.
+- 우리처럼 **자체 호스팅(OSS) MLflow** 에서는 이 API 가 없어서 versions 가 항상 0 으로 나온다.
+- MLflow 버전(3.10 / 3.13) 차이가 아니라, **OSS vs Databricks** 차이다. (3.13 으로 올려도 동일)
 
-- **버전 목록 조회**:
-  ```python
-  from mlflow import MlflowClient
-  resp = MlflowClient().search_prompt_versions(name)
-  for v in resp.prompt_versions:      # ← .prompt_versions 속성으로 순회
-      print(v.version)                # 각 버전 번호
-  ```
-  (`mlflow.genai.search_prompt_versions` 는 존재하지 않음)
+### OSS 해법: load_prompt 로 순차 탐색
+버전은 1,2,3... 으로 연속 증가하므로, v=1 부터 load 가 성공하는 만큼 센다.
+```python
+def list_versions(name, max_scan=100):
+    nums, v = [], 1
+    while v <= max_scan:
+        try:
+            mlflow.genai.load_prompt(name, version=v)  # 성공 = 그 버전 존재
+            nums.append(v); v += 1
+        except Exception:
+            break          # 실패 = 더 이상 버전 없음 → 멈춤
+    return nums
+```
+- 이 탐색은 **최초 선택 화면(목록 표시) 에서만** 호출된다.
+  실제 대화 추론 경로에서는 호출되지 않으므로 약간의 비용은 문제없다.
 
-- **프롬프트 로드** (별칭 없이 버전 번호로):
-  ```python
-  mlflow.genai.load_prompt("name", version=3)     # 특정 버전
-  mlflow.genai.load_prompt("name")                 # 버전 생략 → 최신
-  mlflow.genai.load_prompt("prompts:/name/3")      # URI 형식도 가능
-  ```
+### 프롬프트 로드 (별칭 없이 버전 번호로)
+```python
+mlflow.genai.load_prompt("name", version=3)   # 특정 버전
+mlflow.genai.load_prompt("name")               # 버전 생략 → 최신
+mlflow.genai.load_prompt("prompts:/name/3")    # URI 형식도 가능
+mlflow.genai.load_prompt("prompts:/name@latest")  # @latest 별칭(예약어)도 가능
+```
 
 - UI 2단계 화면(프롬프트→버전 선택)은 **포탈 UI 쪽 작업** (이 문서 범위 밖).
   prompt.py 는 그 선택값(prompt_id, prompt_version)을 받기만 하면 됨.
-
----
 
 ## 7. 현재 상태
 
