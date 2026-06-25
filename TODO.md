@@ -9,12 +9,16 @@
 
 - [x] **에셋 모듈화** — `agent.py` 는 조립만, 기능은 `assets/` 로 분리
 - [x] **프롬프트 선택** — MLflow Prompts 에서 로드, client 는 id 만 선택 (A 원칙)
+- [x] **프롬프트 버전 선택** — 별칭 의존 제거, "프롬프트 선택 → 버전 선택" 2단계. OSS 는 순차탐색으로 버전 목록 조회 (→ PROMPT_VERSION.md)
 - [x] **Trace / Session** — 3.10 표준 metadata 키로 기록
+- [x] **trace 민감정보 마스킹** — api_key 가 trace 에 안 남도록 (_run traced 인자 분리 + span_processor 마스킹)
 - [x] **system 단일화** — system 메시지 1개로 합쳐 400 BadRequest 해결
 - [x] **rag 목업** — mocks/ json 으로 검색 동작 (Milvus 연결은 TODO 분리)
 - [x] **tool 목업** — 가상 API 8종, 키워드 매칭으로 다중 호출 (실제 연동 TODO 분리)
 - [x] **에셋 트레이스** — 각 에셋(prompt/rag/tool/llm) run 에 span 추가. 보따리(ctx) 흐름이 트레이스 트리에 보임
-- [x] **judge 사후 평가** — 세션 종료 시 답변을 LLM 으로 채점(정확성/도움됨/명확성). 평가모델 분리는 TODO
+- [x] **judge 사후 평가** — make_judge 정석 평가 (judge_eval.py, 서빙과 분리)
+- [x] **judge gateway 인증** — gateway 가 요구하는 MLflow Basic 인증을 litellm.completion 래핑으로 주입 (→ JUDGE_GATEWAY_AUTH.md)
+- [x] **등록 단계별 한국어 진단** — MLflow 연결/experiment/log_model/register_model 실패 시 한국어 원인 안내 (agent.py)
 - [x] **구조 분리** — config.py(설정) + aiu_custom/(ModelWrapper) + assets/ + agent.py(등록). 서빙 진입점 aiu_custom.predict.ModelWrapper 로 표준화
 
 ---
