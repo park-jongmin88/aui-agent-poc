@@ -53,11 +53,17 @@ def list_prompts() -> list:
 def list_versions(name: str) -> list:
     """특정 프롬프트의 버전 번호 목록을 반환한다. (예: [1, 2, 3])
     UI 2단계용: 프롬프트를 고르면 그 안의 버전들을 보여주고 하나를 고르게 한다.
+
+    정확한 API: MlflowClient().search_prompt_versions(name) → .prompt_versions
+    (mlflow.genai.search_prompt_versions 는 존재하지 않음)
     """
     try:
-        vers = mlflow.genai.search_prompt_versions(name)
+        from mlflow import MlflowClient
+        resp = MlflowClient().search_prompt_versions(name)
+        # resp 는 .prompt_versions 속성을 가진 객체 (혹은 리스트일 수도 있어 둘 다 처리)
+        items = getattr(resp, "prompt_versions", resp)
         nums = []
-        for v in vers:
+        for v in items:
             n = getattr(v, "version", None)
             if n is not None:
                 nums.append(int(n))
@@ -66,35 +72,37 @@ def list_versions(name: str) -> list:
         return []
 
 
-def _latest_version(name: str):
-    """이름의 최신(가장 큰) 버전 번호를 반환한다. 없으면 None."""
-    nums = list_versions(name)
-    return max(nums) if nums else None
-
-
 def _load_system(pid: str, version, resource) -> str:
     """prompt_id(+version) 로 system_message 를 얻는다.
     캐시에 있으면 그대로, 없으면 1회 로드 후 캐시.
-    version 이 없으면 최신 버전을 사용한다.
+    version 이 없으면 이름만으로 로드 → MLflow 가 최신 버전을 준다.
+
+    정확한 API:
+      mlflow.genai.load_prompt("name", version=3)        # 특정 버전
+      mlflow.genai.load_prompt("name")                    # 최신
+      mlflow.genai.load_prompt("prompts:/name/3")         # URI 도 가능
     """
+    cache = resource["cache"]
+
     # 이미 완전한 URI 를 보냈으면 그대로 사용
     if str(pid).startswith("prompts:/"):
-        uri = pid
         key = pid
-    else:
-        ver = version if version not in (None, "", "latest") else _latest_version(pid)
-        if ver is None:
-            # 버전을 알 수 없으면 이름만으로 로드 시도 (MLflow 가 최신을 줄 수도 있음)
-            uri = f"prompts:/{pid}"
-            key = f"{pid}@?"
-        else:
-            uri = f"prompts:/{pid}/{ver}"
-            key = f"{pid}@{ver}"
+        if key in cache:
+            return cache[key]
+        text = mlflow.genai.load_prompt(pid).format()
+        cache[key] = text
+        return text
 
-    cache = resource["cache"]
+    ver = version if version not in (None, "", "latest") else None
+    key = f"{pid}@{ver if ver is not None else 'latest'}"
     if key in cache:
         return cache[key]
-    text = mlflow.genai.load_prompt(uri).format()
+
+    if ver is not None:
+        prompt = mlflow.genai.load_prompt(pid, version=int(ver))
+    else:
+        prompt = mlflow.genai.load_prompt(pid)   # 버전 생략 → 최신
+    text = prompt.format()
     cache[key] = text
     return text
 
