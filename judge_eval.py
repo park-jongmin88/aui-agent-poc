@@ -22,6 +22,7 @@
 
 import sys
 import os
+import json
 
 import mlflow
 from mlflow.genai.judges import make_judge
@@ -76,12 +77,36 @@ JUDGE_INSTRUCTIONS = (
 
 
 def _connect():
-    """MLflow 접속 설정."""
+    """MLflow 접속 + gateway 호출용 Basic 인증 헤더 설정.
+
+    AI Gateway 는 MLflow Tracking Server 위에서 동작하고 HTTP Basic 인증을 요구한다.
+    judge 가 gateway 모델을 호출할 때 'Authorization: Basic <base64(아이디:비번)>' 를
+    헤더에 실어 보내도록 설정한다.
+    (브라우저 'Try in Browser' 가 보내던 것과 동일한 헤더를 재현)
+    """
+    # 1) MLflow Tracking 서버 접속용 (trace 조회 등)
     if _is_set(MLFLOW_USERNAME):
         os.environ["MLFLOW_TRACKING_USERNAME"] = MLFLOW_USERNAME
     if _is_set(MLFLOW_PASSWORD):
         os.environ["MLFLOW_TRACKING_PASSWORD"] = MLFLOW_PASSWORD
     mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+
+    # 2) gateway(LiteLLM) 호출용 Basic 인증 헤더 직접 주입
+    #    아이디:비번 을 base64 로 인코딩해 Authorization 헤더로 보낸다.
+    if _is_set(MLFLOW_USERNAME) and _is_set(MLFLOW_PASSWORD):
+        import base64
+        basic = base64.b64encode(
+            f"{MLFLOW_USERNAME}:{MLFLOW_PASSWORD}".encode("utf-8")
+        ).decode("ascii")
+        auth_header = f"Basic {basic}"
+
+        # LiteLLM 이 요청에 추가로 실어 보내는 헤더 (gateway 통과용)
+        #   LiteLLM 은 LITELLM_EXTRA_HEADERS / extra_headers 를 요청 헤더에 병합한다.
+        os.environ["LITELLM_EXTRA_HEADERS"] = json.dumps({"Authorization": auth_header})
+
+        # 일부 경로는 OpenAI 호환 키를 요구하므로, 빈 키로 인한 사전 차단을 막기 위해
+        # 더미 키도 채워둔다 (실제 인증은 위 Basic 헤더가 담당).
+        os.environ.setdefault("OPENAI_API_KEY", "gateway-basic-auth")
 
 
 def _is_set(v) -> bool:
