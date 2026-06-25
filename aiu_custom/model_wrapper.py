@@ -86,7 +86,7 @@ class ModelWrapper(mlflow.pyfunc.PythonModel):
         self._api_key = api_key
 
     @mlflow.trace(name="agent_pipeline")
-    def _run(self, query, system_message, api_key, session_id, user_id, trace_id, prompt_id=""):
+    def _run(self, query, system_message, api_key, session_id, user_id, trace_id, prompt_id="", prompt_version=None):
         """Trace 에 session/user 기록 후, 켜진 에셋을 순서대로 실행해 답변을 만든다."""
         try:
             mlflow.update_current_trace(
@@ -102,7 +102,7 @@ class ModelWrapper(mlflow.pyfunc.PythonModel):
 
         self._ensure_resources(api_key)
 
-        ctx = new_ctx(query, system_message, prompt_id)
+        ctx = new_ctx(query, system_message, prompt_id, prompt_version)
         for name in ENABLED_ASSETS:
             ctx = self.assets[name].run(ctx, self.resources[name])
 
@@ -122,6 +122,7 @@ class ModelWrapper(mlflow.pyfunc.PythonModel):
         query          = str(info.get("query", "")).strip()
         system_message = info.get("system_message", "")
         prompt_id      = info.get("prompt_id", "")
+        prompt_version = info.get("prompt_version", None)
         api_key        = info.get("llm_api_key", "")
         session_id     = info.get("session_id") or trace_id or "sess-" + uuid.uuid4().hex[:8]
         user_id        = info.get("user_id")
@@ -134,11 +135,22 @@ class ModelWrapper(mlflow.pyfunc.PythonModel):
                 return {"aiu_output": _agent_error("LIST_PROMPTS", e, "", session_id)}
             return {"aiu_output": {"prompts": names}}
 
+        # 모드: 특정 프롬프트의 버전 목록 조회 (프롬프트 선택 후 버전 고르도록)
+        if mode == "list_versions":
+            try:
+                if "prompt" in self.assets and hasattr(self.assets["prompt"], "list_versions"):
+                    versions = self.assets["prompt"].list_versions(prompt_id)
+                else:
+                    versions = []
+            except Exception as e:
+                return {"aiu_output": _agent_error("LIST_VERSIONS", e, "", session_id)}
+            return {"aiu_output": {"versions": versions}}
+
         if not api_key:
             return {"aiu_output": "[AGENT ERROR] llm_api_key 가 비어있습니다. 키를 입력하세요."}
 
         try:
-            answer = self._run(query, system_message, api_key, session_id, user_id, trace_id, prompt_id)
+            answer = self._run(query, system_message, api_key, session_id, user_id, trace_id, prompt_id, prompt_version)
         except Exception as e:
             answer = _agent_error("PIPELINE", e, query, session_id)
 
