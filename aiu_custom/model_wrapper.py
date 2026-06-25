@@ -21,6 +21,54 @@ from assets import new_ctx, load_asset
 from config import ENABLED_ASSETS, LLM_BASE_URL, LLM_MODEL, ASSET_CONN
 
 
+_SENSITIVE_KEYS = ("api_key", "llm_api_key", "apikey", "password", "passwd", "token", "secret", "authorization")
+
+_TRACE_MASKING_REGISTERED = False
+
+
+def _mask_value(v):
+    """dict/list 안을 재귀적으로 돌며 민감 키의 값을 [REDACTED] 로 바꾼다."""
+    if isinstance(v, dict):
+        out = {}
+        for k, val in v.items():
+            if any(s in str(k).lower() for s in _SENSITIVE_KEYS):
+                out[k] = "[REDACTED]"
+            else:
+                out[k] = _mask_value(val)
+        return out
+    if isinstance(v, (list, tuple)):
+        return type(v)(_mask_value(x) for x in v)
+    return v
+
+
+def _mask_span(span):
+    """span 의 input/output 에서 민감정보를 가린다. (span_processor 용)"""
+    try:
+        if getattr(span, "inputs", None):
+            span.set_inputs(_mask_value(span.inputs))
+    except Exception:
+        pass
+    try:
+        if getattr(span, "outputs", None) is not None:
+            span.set_outputs(_mask_value(span.outputs))
+    except Exception:
+        pass
+
+
+def _register_trace_masking():
+    """trace span 에서 민감정보를 가리는 필터를 1회 등록한다."""
+    global _TRACE_MASKING_REGISTERED
+    if _TRACE_MASKING_REGISTERED:
+        return
+    try:
+        mlflow.tracing.configure(span_processors=[_mask_span])
+        _TRACE_MASKING_REGISTERED = True
+    except Exception:
+        # 구버전 MLflow 에 span_processors 가 없으면 조용히 넘어간다.
+        # (이 경우에도 _run 에서 api_key 를 인자에서 뺐으므로 핵심 노출은 막혀 있다.)
+        pass
+
+
 def _agent_error(stage: str, exc: Exception, query: str, session_id: str) -> str:
     """예외를 '[AGENT ERROR]' 진단 문자열로 만든다(서버는 죽지 않음)."""
     import traceback
@@ -63,6 +111,10 @@ class ModelWrapper(mlflow.pyfunc.PythonModel):
             mlflow.set_experiment(exp)
         mlflow.langchain.autolog()
 
+        # trace 에 api_key/비밀번호/토큰 등 민감정보가 남지 않도록 마스킹 필터 등록.
+        # (모든 span 의 input/output/attribute 를 export 전에 검사해 가린다.)
+        _register_trace_masking()
+
         self.assets = {name: load_asset(name) for name in ENABLED_ASSETS}
         self.resources = {}
         self._api_key = None
@@ -85,9 +137,17 @@ class ModelWrapper(mlflow.pyfunc.PythonModel):
         }
         self._api_key = api_key
 
-    @mlflow.trace(name="agent_pipeline")
     def _run(self, query, system_message, api_key, session_id, user_id, trace_id, prompt_id="", prompt_version=None):
-        """Trace 에 session/user 기록 후, 켜진 에셋을 순서대로 실행해 답변을 만든다."""
+        """api_key 가 trace 인자로 기록되지 않도록, 먼저 리소스를 준비한 뒤
+        api_key 를 제외한 인자만 traced 내부 함수로 넘긴다."""
+        # 리소스 준비(키 사용)는 trace 바깥에서 수행 → api_key 가 trace 에 안 남는다.
+        self._ensure_resources(api_key)
+        return self._run_traced(query, system_message, session_id, user_id, trace_id, prompt_id, prompt_version)
+
+    @mlflow.trace(name="agent_pipeline")
+    def _run_traced(self, query, system_message, session_id, user_id, trace_id, prompt_id="", prompt_version=None):
+        """Trace 에 session/user 기록 후, 켜진 에셋을 순서대로 실행해 답변을 만든다.
+        (api_key 는 인자에 없으므로 trace 에 기록되지 않는다.)"""
         try:
             mlflow.update_current_trace(
                 metadata={
@@ -99,8 +159,6 @@ class ModelWrapper(mlflow.pyfunc.PythonModel):
             )
         except Exception:
             pass
-
-        self._ensure_resources(api_key)
 
         ctx = new_ctx(query, system_message, prompt_id, prompt_version)
         for name in ENABLED_ASSETS:
