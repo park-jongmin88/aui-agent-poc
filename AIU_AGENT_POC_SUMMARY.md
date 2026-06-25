@@ -74,7 +74,7 @@ custom_server.py
 ctx는 에셋들이 순서대로 주고받는 "보따리"다.
 
 ```
-ctx = { query, prompt_id, system_message, context, tools_result, answer, score }
+ctx = { query, prompt_id, prompt_version, system_message, context, tools_result, answer, score }
 ```
 
 각 에셋은 자기 칸만 채우고 다음 에셋에게 넘긴다. 검색(rag)·도구(tool)는 우리가 직접 채우고, LLM은 채워진 보조자료(prompt + context + tools)를 받아 답변만 작성한다.
@@ -84,14 +84,15 @@ ctx = { query, prompt_id, system_message, context, tools_result, answer, score }
 
 ## 4. custom_server.py 계약 (고정, 수정 불가)
 
-- **입력**: `model_input["input"][0]` = `{query, system_message, llm_api_key, session_id, prompt_id, user_id, mode}`, 그리고 `trace_id` 등.
+- **입력**: `model_input["input"][0]` = `{query, system_message, llm_api_key, session_id, prompt_id, prompt_version, user_id, mode}`, 그리고 `trace_id` 등.
 - **출력**: 반드시 `{"aiu_output": ...}` 키를 포함해야 한다. 없으면 custom_server 측에서 `UnboundLocalError: log_data` 연쇄 오류가 난다 (서버 측 코드라 수정 불가).
 - 정상 응답 형태: `{...,"output":{"aiu_output":"답변"}}`.
 - 에러는 서버를 죽이지 않고 `{"aiu_output":"[AGENT ERROR]..."}`로 반환한다.
 
 ### mode 분기 (predict 진입점)
 
-- `mode="list_prompts"` — 대화 시작 전 프롬프트 목록 조회.
+- `mode="list_prompts"` — 대화 시작 전 프롬프트 목록 조회 (이름 + 버전 개수).
+- `mode="list_versions"` — 특정 프롬프트의 버전 번호 목록 조회 (프롬프트 선택 후 버전 고르기).
 - 그 외 — 일반 대화 파이프라인 실행.
 - (KServe는 커스텀 엔드포인트 추가 불가 → predict 안에서 mode로 분기)
 
@@ -112,7 +113,9 @@ MLflow Prompt Registry에서 `prompt_id`로 텍스트를 로드한다.
 - **A원칙**: 프롬프트 텍스트의 주인은 서버, client는 id만 선택. client가 보낸 system_message는 무시.
 - **캐싱**: 같은 prompt_id는 첫 호출만 `load_prompt`, 이후 메모리 재사용 (응답 지연 해결의 핵심).
 - 로드 실패 시 `default_system` 폴백.
-- 프롬프트 타입은 **text** (chat 아님). 별칭 `alias="production"`, URI는 `prompts:/<이름>@production`.
+- 프롬프트 타입은 **text** (chat 아님).
+- **버전 선택**: 별칭(@production) 의존을 제거하고 버전 번호로 로드한다. client 가 `prompt_id` + `prompt_version` 을 보내면 `load_prompt(name, version=N)` 으로, 버전 생략 시 최신을 로드한다. "프롬프트 선택 → 버전 선택" 2단계. OSS MLflow 는 `search_prompt_versions`(Databricks 전용)가 없어 버전 목록을 load_prompt 순차탐색으로 조회한다. (→ PROMPT_VERSION.md)
+- 미선택/로드 실패 시 default_system 으로 폴백.
 
 ### llm (구현됨)
 LangChain 체인으로 답변 생성: `prompt | model | StrOutputParser()` (LCEL).
@@ -148,6 +151,17 @@ agent_pipeline                  ← _run() (@mlflow.trace)
 - **Session**: Sessions 탭은 metadata 표준키(`mlflow.trace.session`/`mlflow.trace.user`)를 읽는다 (mlflow 3.10). `update_current_trace`로 기록.
 
 
+## 6-1. trace 보안 (민감정보 마스킹)
+
+trace 에 api_key 등 민감정보가 남지 않도록 두 겹으로 방어한다.
+
+1. **traced 인자 분리** — `_run` 은 api_key 를 받아 리소스만 준비하고, 실제 trace 가 붙는
+   `_run_traced` 에는 api_key 를 넘기지 않는다. (`@mlflow.trace` 는 함수 인자를 자동 기록하므로,
+   인자에서 빼면 span 에 안 남는다.)
+2. **span_processor 마스킹** — 서빙 시작 시 마스킹 필터를 등록해, 모든 span 의 input/output 에서
+   `api_key/llm_api_key/password/token/secret/authorization` 류 키의 값을 `[REDACTED]` 로 가린다.
+   (`mlflow.tracing.configure(span_processors=[...])`. 구버전에 없으면 1번만으로도 핵심 노출은 차단.)
+
 ## 7. judge 평가 (MLflow 정석 make_judge)
 
 평가는 서빙과 완전히 분리된 `judge_eval.py` 스크립트로 수행한다. 목적은 평가 결과를 **MLflow > GenAI > Judges**(및 Traces)에 남기는 것이다.
@@ -173,7 +187,8 @@ mlflow.genai.evaluate(data=traces, scorers=[judge])   # trace 평가 → Feedbac
 
 ### 핵심 규칙
 - **템플릿 변수는 `{{ inputs }}`, `{{ outputs }}` 형식(중괄호 2개)만 허용**. 커스텀 변수 불가. JSON 예시 등 리터럴 중괄호는 `{{ }}`로 이스케이프해야 ChatPromptTemplate KeyError를 피한다.
-- **모델 지정**: AI Gateway 엔드포인트는 `gateway:/<엔드포인트명>` 형식 (엔드포인트 목록의 name 컬럼 값). chat 타입 엔드포인트여야 한다. gateway 방식이면 UI에서 직접 judge 실행 가능, 로컬 API 키 불필요.
+- **모델 지정**: AI Gateway 엔드포인트는 `gateway:/<엔드포인트명>` 형식 (엔드포인트 목록의 name 컬럼 값).
+- **gateway 인증**: gateway 가 MLflow 서버 위에 있어 호출 시 MLflow Basic 인증(아이디:비번)을 요구한다. litellm 1.89.x 가 헤더 환경변수를 안 읽어, litellm.completion 을 래핑해 Authorization: Basic 헤더를 주입한다. (→ JUDGE_GATEWAY_AUTH.md)
 - **평가 기준**: 정확성·도움됨·명확성을 종합한 5등급(1~5) 자연어 instructions.
 - **서빙과 분리**: judge는 쌓인 trace를 나중에 평가하므로 서빙(에이전트 운영)과 타이밍이 무관하다. AI Gateway는 judge 스크립트 실행 시에만 필요하고 서빙에는 불필요하다.
 - **버전 요구**: `make_judge` API는 MLflow >= 3.4.0 (현재 3.10.0이라 충족), UI Judge Builder는 >= 3.9.0.
