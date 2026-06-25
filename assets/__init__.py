@@ -29,12 +29,13 @@
 import importlib
 
 
-def new_ctx(query: str, system_message: str, prompt_id: str = "") -> dict:
+def new_ctx(query: str, system_message: str, prompt_id: str = "", prompt_version=None) -> dict:
     """파이프라인 맥락(ctx) 초기값을 만든다."""
     return {
         "query":          query,
         "system_message": system_message or "",
         "prompt_id":      prompt_id or "",   # client 가 고른 프롬프트 이름(서버에서 로드)
+        "prompt_version": prompt_version,    # client 가 고른 버전 (None 이면 최신)
         "context":        "",
         "tools_result":   "",
         "answer":         "",
