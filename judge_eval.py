@@ -24,6 +24,11 @@ import sys
 import os
 import json
 
+# litellm 이 모델 가격표(cost map)를 외부망에서 가져오려는 경고를 끈다.
+# 폐쇄망이거나 우리 모델이 표에 없을 때 뜨는 경고로, 평가 동작과는 무관하다.
+# litellm import 보다 먼저 설정해야 효과가 있으므로 최상단에 둔다.
+os.environ.setdefault("LITELLM_LOCAL_MODEL_COST_MAP", "True")
+
 import mlflow
 from mlflow.genai.judges import make_judge
 
