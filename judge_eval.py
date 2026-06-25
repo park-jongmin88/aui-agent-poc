@@ -91,22 +91,60 @@ def _connect():
         os.environ["MLFLOW_TRACKING_PASSWORD"] = MLFLOW_PASSWORD
     mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 
-    # 2) gateway(LiteLLM) 호출용 Basic 인증 헤더 직접 주입
-    #    아이디:비번 을 base64 로 인코딩해 Authorization 헤더로 보낸다.
+    # 2) gateway(litellm) 호출용 Basic 인증 헤더 주입
+    #    아이디:비번 을 base64 로 인코딩해 'Authorization: Basic ...' 로 보낸다.
+    #    litellm 1.89.x 는 환경변수(LITELLM_EXTRA_HEADERS)를 SDK 경로에서 안 읽으므로,
+    #    litellm.completion 을 래핑해 매 호출에 extra_headers 를 강제로 끼워넣는다.
+    #    (make_judge 가 내부적으로 litellm.completion 을 부를 때 이 헤더가 실린다.)
     if _is_set(MLFLOW_USERNAME) and _is_set(MLFLOW_PASSWORD):
         import base64
         basic = base64.b64encode(
             f"{MLFLOW_USERNAME}:{MLFLOW_PASSWORD}".encode("utf-8")
         ).decode("ascii")
         auth_header = f"Basic {basic}"
+        _patch_litellm_basic_auth(auth_header)
 
-        # LiteLLM 이 요청에 추가로 실어 보내는 헤더 (gateway 통과용)
-        #   LiteLLM 은 LITELLM_EXTRA_HEADERS / extra_headers 를 요청 헤더에 병합한다.
-        os.environ["LITELLM_EXTRA_HEADERS"] = json.dumps({"Authorization": auth_header})
-
-        # 일부 경로는 OpenAI 호환 키를 요구하므로, 빈 키로 인한 사전 차단을 막기 위해
-        # 더미 키도 채워둔다 (실제 인증은 위 Basic 헤더가 담당).
+        # litellm 이 빈 키로 사전 차단하지 않도록 더미 키도 채운다 (실제 인증은 위 헤더).
         os.environ.setdefault("OPENAI_API_KEY", "gateway-basic-auth")
+
+
+def _patch_litellm_basic_auth(auth_header: str):
+    """litellm.completion(및 acompletion)을 래핑해 모든 호출에
+    extra_headers={'Authorization': <Basic ...>} 를 강제로 주입한다.
+    이미 패치돼 있으면 다시 하지 않는다.
+    """
+    try:
+        import litellm
+    except ImportError:
+        print("[경고] litellm 이 설치돼 있지 않습니다. (pip install litellm)")
+        return
+
+    if getattr(litellm, "_aiu_basic_auth_patched", False):
+        return
+
+    def _merge_headers(kwargs):
+        eh = dict(kwargs.get("extra_headers") or {})
+        # 이미 Authorization 이 있으면 덮어쓰지 않는다.
+        eh.setdefault("Authorization", auth_header)
+        kwargs["extra_headers"] = eh
+        return kwargs
+
+    _orig_completion = litellm.completion
+
+    def _completion(*args, **kwargs):
+        return _orig_completion(*args, **_merge_headers(kwargs))
+    litellm.completion = _completion
+
+    # 비동기 경로도 함께 패치 (있으면)
+    if hasattr(litellm, "acompletion"):
+        _orig_acompletion = litellm.acompletion
+
+        async def _acompletion(*args, **kwargs):
+            return await _orig_acompletion(*args, **_merge_headers(kwargs))
+        litellm.acompletion = _acompletion
+
+    litellm._aiu_basic_auth_patched = True
+    print("[정보] litellm 호출에 Basic 인증 헤더를 주입하도록 설정했습니다.")
 
 
 def _is_set(v) -> bool:
