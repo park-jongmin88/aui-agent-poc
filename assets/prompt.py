@@ -50,26 +50,28 @@ def list_prompts() -> list:
     return out
 
 
-def list_versions(name: str) -> list:
+def list_versions(name: str, max_scan: int = 100) -> list:
     """특정 프롬프트의 버전 번호 목록을 반환한다. (예: [1, 2, 3])
     UI 2단계용: 프롬프트를 고르면 그 안의 버전들을 보여주고 하나를 고르게 한다.
 
-    정확한 API: MlflowClient().search_prompt_versions(name) → .prompt_versions
-    (mlflow.genai.search_prompt_versions 는 존재하지 않음)
+    [중요] MlflowClient().search_prompt_versions 는 Databricks 백엔드 전용이라
+    OSS(자체 호스팅) MLflow 에서는 동작하지 않는다(버전이 0으로 나옴).
+    그래서 OSS 호환을 위해 버전 1 부터 load_prompt 로 순차 탐색한다.
+    프롬프트 버전은 1,2,3... 으로 연속 증가하므로, 로드 실패가 나오면 거기서 멈춘다.
+
+    이 함수는 '최초 선택 화면(목록 표시)' 에서만 호출된다.
+    실제 대화 추론 경로에서는 호출되지 않으므로, 약간의 탐색 비용은 문제되지 않는다.
     """
-    try:
-        from mlflow import MlflowClient
-        resp = MlflowClient().search_prompt_versions(name)
-        # resp 는 .prompt_versions 속성을 가진 객체 (혹은 리스트일 수도 있어 둘 다 처리)
-        items = getattr(resp, "prompt_versions", resp)
-        nums = []
-        for v in items:
-            n = getattr(v, "version", None)
-            if n is not None:
-                nums.append(int(n))
-        return sorted(nums)
-    except Exception:
-        return []
+    nums = []
+    v = 1
+    while v <= max_scan:
+        try:
+            mlflow.genai.load_prompt(name, version=v)
+            nums.append(v)
+            v += 1
+        except Exception:
+            break
+    return nums
 
 
 def _load_system(pid: str, version, resource) -> str:
