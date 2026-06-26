@@ -1,0 +1,179 @@
+<svg width="1500" height="1050" viewBox="0 0 1500 1050" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="paper">
+      <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="5" result="noise"/>
+      <feColorMatrix in="noise" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.035 0"/>
+      <feComposite operator="over" in2="SourceGraphic"/>
+    </filter>
+    <filter id="sk" x="-10%" y="-10%" width="120%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="3" seed="4" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="2"/>
+    </filter>
+    <filter id="sk2" x="-10%" y="-10%" width="120%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="3" seed="11" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="1.5"/>
+    </filter>
+  </defs>
+
+  <rect width="1500" height="1050" fill="#f7f3e9"/>
+  <rect width="1500" height="1050" fill="#f7f3e9" filter="url(#paper)"/>
+
+  <!-- spiral binding -->
+  <g fill="#e8e2d2" stroke="#cfc7b3" stroke-width="1.3">
+    <circle cx="60" cy="34" r="9"/><circle cx="210" cy="34" r="9"/><circle cx="360" cy="34" r="9"/>
+    <circle cx="510" cy="34" r="9"/><circle cx="660" cy="34" r="9"/><circle cx="810" cy="34" r="9"/>
+    <circle cx="960" cy="34" r="9"/><circle cx="1110" cy="34" r="9"/><circle cx="1260" cy="34" r="9"/>
+    <circle cx="1410" cy="34" r="9"/>
+  </g>
+
+  <text x="60" y="110" font-family="NanumSquareRound, sans-serif" font-size="46" font-weight="bold" fill="#4b4b50">RAG <tspan fill="#b95752">파이프라인</tspan> 내부 흐름</text>
+  <text x="64" y="146" font-family="NanumSquareRound, sans-serif" font-size="22" fill="#7a7a80">사용자 질의가 파이프라인에 도착한 순간부터</text>
+  <line x1="62" y1="162" x2="640" y2="162" stroke="#d990ab" stroke-width="3" filter="url(#sk)"/>
+
+  <!-- 보따리 ctx 설명 배지 -->
+  <g filter="url(#sk2)"><rect x="980" y="80" width="470" height="70" rx="12" fill="#fdf6ec" stroke="#d99a3a" stroke-width="2"/></g>
+  <text x="1000" y="108" font-family="NanumSquareRound, sans-serif" font-size="15" font-weight="bold" fill="#b5701a">보따리(ctx) = 파이프라인을 따라 흐르는 자루</text>
+  <text x="1000" y="132" font-family="NanumSquareRound, sans-serif" font-size="13" fill="#7a5a2a">query 가 담겨 오고, rag 가 context 를 채워 다음(llm)으로</text>
+
+  <!-- ============ 진입: 사용자 질의 ============ -->
+  <g filter="url(#sk)"><rect x="60" y="200" width="300" height="80" rx="14" fill="#eef3fa" stroke="#5b7fb5" stroke-width="2.5"/></g>
+  <text x="80" y="232" font-family="NanumSquareRound, sans-serif" font-size="16" font-weight="bold" fill="#5b7fb5">사용자 질의 (자연어)</text>
+  <text x="80" y="258" font-family="NanumSquareRound, sans-serif" font-size="14" fill="#4b4b50">"반려견 키우는 법?"</text>
+
+  <!-- ctx 도착 -->
+  <g filter="url(#sk)">
+    <line x1="360" y1="240" x2="438" y2="240" stroke="#4b4b50" stroke-width="2.5"/>
+    <polygon points="440,240 428,234 428,246" fill="#4b4b50"/>
+  </g>
+  <g filter="url(#sk2)"><rect x="440" y="206" width="220" height="68" rx="10" fill="#ffffff" stroke="#4b4b50" stroke-width="2"/></g>
+  <text x="460" y="234" font-family="NanumSquareRound, sans-serif" font-size="14" font-weight="bold" fill="#4b4b50">파이프라인 도착</text>
+  <text x="460" y="258" font-family="NanumSquareRound, sans-serif" font-size="13" fill="#7a7a80">ctx["query"] 에 담김</text>
+
+  <!-- rag 켜짐 분기 -->
+  <g filter="url(#sk)">
+    <line x1="660" y1="240" x2="738" y2="240" stroke="#4b4b50" stroke-width="2.5"/>
+    <polygon points="740,240 728,234 728,246" fill="#4b4b50"/>
+  </g>
+  <g filter="url(#sk2)"><rect x="740" y="206" width="210" height="68" rx="10" fill="#eefaf0" stroke="#4a9a6a" stroke-width="2"/></g>
+  <text x="760" y="234" font-family="NanumSquareRound, sans-serif" font-size="14" font-weight="bold" fill="#4a9a6a">rag 에셋 ON 이면</text>
+  <text x="760" y="258" font-family="NanumSquareRound, sans-serif" font-size="13" fill="#7a7a80">아래 ①②③ 수행</text>
+
+  <!-- 큰 RAG 박스 -->
+  <g filter="url(#sk)"><rect x="60" y="320" width="900" height="500" rx="18" fill="#fbfdfb" stroke="#4a9a6a" stroke-width="3"/></g>
+  <text x="84" y="356" font-family="NanumSquareRound, sans-serif" font-size="20" font-weight="bold" fill="#4a9a6a">rag 에셋 내부 (asset.rag)</text>
+  <text x="84" y="380" font-family="NanumSquareRound, sans-serif" font-size="13" fill="#7a7a80">접속/위치 정보는 에이전트 모델(서버 config)에만 있다. 사용자 질의엔 없음.</text>
+
+  <!-- ① 임베딩 변환 -->
+  <g filter="url(#sk2)"><rect x="90" y="404" width="380" height="120" rx="12" fill="#eef3fa" stroke="#5b7fb5" stroke-width="2.5"/></g>
+  <text x="110" y="434" font-family="NanumSquareRound, sans-serif" font-size="17" font-weight="bold" fill="#5b7fb5">① 질의 → 벡터 변환</text>
+  <text x="110" y="460" font-family="NanumSquareRound, sans-serif" font-size="13" fill="#4b4b50">rag 가 직접 계산 X.  저장 때 쓴 같은</text>
+  <text x="110" y="480" font-family="NanumSquareRound, sans-serif" font-size="13" fill="#4b4b50">임베딩(bge-m3)에게 "벡터로 바꿔줘" 요청</text>
+  <text x="110" y="504" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#7a7a80">→ 1024 차원 벡터 수신</text>
+
+  <!-- 임베딩 공급자 (오른쪽) -->
+  <g filter="url(#sk2)"><rect x="510" y="404" width="420" height="120" rx="12" fill="#fdf1f1" stroke="#b95752" stroke-width="2.5"/></g>
+  <text x="530" y="434" font-family="NanumSquareRound, sans-serif" font-size="16" font-weight="bold" fill="#b95752">임베딩 공급자 (LLM 과 같은 공급자)</text>
+  <text x="530" y="460" font-family="NanumSquareRound, sans-serif" font-size="13" fill="#4b4b50">llm.com 의 임베딩 엔드포인트 (bge-m3)</text>
+  <text x="530" y="480" font-family="NanumSquareRound, sans-serif" font-size="13" fill="#4b4b50">LLM 접속정보(주소+키) 재사용 → 가벼움</text>
+  <text x="530" y="504" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#7a7a80">torch/로컬모델 불필요. 적재 때와 벡터 일치</text>
+
+  <!-- ①↔공급자 화살 -->
+  <g filter="url(#sk)">
+    <line x1="470" y1="450" x2="506" y2="450" stroke="#b95752" stroke-width="2.2"/>
+    <polygon points="508,450 496,444 496,456" fill="#b95752"/>
+    <line x1="506" y1="478" x2="472" y2="478" stroke="#5b7fb5" stroke-width="2.2"/>
+    <polygon points="470,478 482,472 482,484" fill="#5b7fb5"/>
+  </g>
+
+  <!-- ② Milvus 조회 -->
+  <g filter="url(#sk)">
+    <line x1="280" y1="524" x2="280" y2="566" stroke="#4b4b50" stroke-width="2.5"/>
+    <polygon points="280,568 274,556 286,556" fill="#4b4b50"/>
+  </g>
+  <g filter="url(#sk2)"><rect x="90" y="570" width="380" height="150" rx="12" fill="#f3eefa" stroke="#8a6fb5" stroke-width="2.5"/></g>
+  <text x="110" y="600" font-family="NanumSquareRound, sans-serif" font-size="17" font-weight="bold" fill="#8a6fb5">② 벡터로 Milvus 조회</text>
+  <text x="110" y="626" font-family="NanumSquareRound, sans-serif" font-size="13" fill="#4b4b50">그 벡터와 가까운 문서 검색</text>
+  <text x="110" y="648" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#7a7a80">metric L2 (거리 작을수록 유사)</text>
+  <text x="110" y="668" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#7a7a80">index IVF_FLAT · nprobe=16</text>
+  <text x="110" y="694" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#7a7a80">→ 상위 top_k 개의 text 본문 수신</text>
+
+  <!-- Milvus DB (오른쪽) -->
+  <g filter="url(#sk2)"><rect x="510" y="570" width="420" height="150" rx="12" fill="#ffffff" stroke="#4b4b50" stroke-width="2.5"/></g>
+  <text x="530" y="600" font-family="NanumSquareRound, sans-serif" font-size="16" font-weight="bold" fill="#4b4b50">Milvus 벡터 DB (직접 접속)</text>
+  <text x="530" y="624" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#7a7a80">접속: 주소 + id/pw (서버 config, 환경변수)</text>
+  <text x="530" y="650" font-family="NanumSquareRound, sans-serif" font-size="13" fill="#4b4b50">DB: default</text>
+  <text x="530" y="672" font-family="NanumSquareRound, sans-serif" font-size="13" fill="#4b4b50">Collection: iflow_aiu_collection</text>
+  <text x="530" y="694" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#7a7a80">필드: id / text(본문) / metadata / vector(1024)</text>
+
+  <!-- ②↔Milvus 화살 -->
+  <g filter="url(#sk)">
+    <line x1="470" y1="630" x2="506" y2="630" stroke="#8a6fb5" stroke-width="2.2"/>
+    <polygon points="508,630 496,624 496,636" fill="#8a6fb5"/>
+    <line x1="506" y1="660" x2="472" y2="660" stroke="#4b4b50" stroke-width="2.2"/>
+    <polygon points="470,660 482,654 482,666" fill="#4b4b50"/>
+  </g>
+
+  <!-- ③ 보따리에 담기 -->
+  <g filter="url(#sk)">
+    <line x1="280" y1="720" x2="280" y2="752" stroke="#4b4b50" stroke-width="2.5"/>
+    <polygon points="280,754 274,742 286,742" fill="#4b4b50"/>
+  </g>
+  <g filter="url(#sk2)"><rect x="90" y="756" width="840" height="48" rx="10" fill="#fdf6ec" stroke="#d99a3a" stroke-width="2.5"/></g>
+  <text x="110" y="786" font-family="NanumSquareRound, sans-serif" font-size="15" font-weight="bold" fill="#b5701a">③ 결과를 보따리에 담기 →  ctx["context"] = 찾은 text 들</text>
+
+  <!-- RAG 박스 밖: llm으로 -->
+  <g filter="url(#sk)">
+    <line x1="510" y1="820" x2="510" y2="858" stroke="#4b4b50" stroke-width="2.5"/>
+    <polygon points="510,860 504,848 516,848" fill="#4b4b50"/>
+  </g>
+  <g filter="url(#sk)"><rect x="300" y="862" width="420" height="74" rx="14" fill="#eef3fa" stroke="#5b7fb5" stroke-width="2.5"/></g>
+  <text x="320" y="892" font-family="NanumSquareRound, sans-serif" font-size="16" font-weight="bold" fill="#5b7fb5">llm 에셋</text>
+  <text x="320" y="916" font-family="NanumSquareRound, sans-serif" font-size="13" fill="#4b4b50">ctx["context"](참고자료) + query 로 답변 생성</text>
+
+  <!-- ============ 고도화 (오른쪽 패널) ============ -->
+  <g filter="url(#sk)"><rect x="990" y="320" width="460" height="616" rx="18" fill="#fffdf7" stroke="#d99a3a" stroke-width="2.5" stroke-dasharray="8 5"/></g>
+  <text x="1014" y="356" font-family="NanumSquareRound, sans-serif" font-size="19" font-weight="bold" fill="#b5701a">고도화 가능 (지금은 1개로 시작)</text>
+  <text x="1014" y="380" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#7a7a80">② 조회 단계를 늘리는 방법. 필요해질 때 추가.</text>
+
+  <!-- 고도화 1: metadata 필터 -->
+  <g filter="url(#sk2)"><rect x="1014" y="400" width="412" height="118" rx="12" fill="#f3eefa" stroke="#8a6fb5" stroke-width="2"/></g>
+  <text x="1034" y="428" font-family="NanumSquareRound, sans-serif" font-size="15" font-weight="bold" fill="#8a6fb5">A. metadata 필터 (가장 쉬움)</text>
+  <text x="1034" y="452" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">같은 컬렉션에서 출처/조건만 좁힘</text>
+  <text x="1034" y="472" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#7a7a80">expr: metadata['source']=='제품매뉴얼'</text>
+  <text x="1034" y="496" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#7a7a80">컬렉션 구조 그대로, 검색에 조건만 추가</text>
+
+  <!-- 고도화 2: 여러 파티션 -->
+  <g filter="url(#sk2)"><rect x="1014" y="528" width="412" height="110" rx="12" fill="#eefaf0" stroke="#4a9a6a" stroke-width="2"/></g>
+  <text x="1034" y="556" font-family="NanumSquareRound, sans-serif" font-size="15" font-weight="bold" fill="#4a9a6a">B. 여러 파티션 조회</text>
+  <text x="1034" y="580" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">한 컬렉션 안의 칸막이(연도/부서 등)</text>
+  <text x="1034" y="600" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#7a7a80">partition=[2023, 2024] 만 검색</text>
+  <text x="1034" y="622" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#7a7a80">대용량일 때 검색 범위 축소 → 빠름</text>
+
+  <!-- 고도화 3: 여러 컬렉션 -->
+  <g filter="url(#sk2)"><rect x="1014" y="648" width="412" height="120" rx="12" fill="#eef3fa" stroke="#5b7fb5" stroke-width="2"/></g>
+  <text x="1034" y="676" font-family="NanumSquareRound, sans-serif" font-size="15" font-weight="bold" fill="#5b7fb5">C. 여러 컬렉션 조회 (멀티)</text>
+  <text x="1034" y="700" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">도메인이 완전히 다를 때</text>
+  <text x="1034" y="720" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#7a7a80">매뉴얼 / FAQ / 정책 … 각각 조회</text>
+  <text x="1034" y="742" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#7a7a80">결과 합쳐(merge) context 에 담기</text>
+
+  <!-- 고도화 분기 그림 -->
+  <text x="1034" y="800" font-family="NanumSquareRound, sans-serif" font-size="13" font-weight="bold" fill="#b5701a">질의 벡터 1개 →</text>
+  <g filter="url(#sk)" stroke="#7a7a80" stroke-width="1.8" fill="none">
+    <line x1="1150" y1="796" x2="1190" y2="796"/>
+    <line x1="1190" y1="796" x2="1190" y2="780"/><line x1="1190" y1="780" x2="1230" y2="780"/>
+    <line x1="1190" y1="796" x2="1230" y2="796"/>
+    <line x1="1190" y1="796" x2="1190" y2="812"/><line x1="1190" y1="812" x2="1230" y2="812"/>
+  </g>
+  <text x="1236" y="784" font-family="NanumSquareRound, sans-serif" font-size="11" fill="#5b7fb5">컬렉션 A</text>
+  <text x="1236" y="800" font-family="NanumSquareRound, sans-serif" font-size="11" fill="#5b7fb5">컬렉션 B</text>
+  <text x="1236" y="816" font-family="NanumSquareRound, sans-serif" font-size="11" fill="#5b7fb5">컬렉션 C</text>
+  <text x="1320" y="800" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">→ 합침</text>
+
+  <text x="1014" y="858" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#7a7a80">※ 현재: 컬렉션 1개 단순 조회. RAG 가 복잡해지면</text>
+  <text x="1014" y="878" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#7a7a80">   A(필터)부터 추가하는 것이 가장 자연스럽다.</text>
+  <text x="1014" y="906" font-family="NanumSquareRound, sans-serif" font-size="12" font-weight="bold" fill="#b95752">핵심: 접속정보는 서버에, 사용자는 질의만.</text>
+
+  <!-- 범례 -->
+  <text x="64" y="970" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#7a7a80">① 변환(임베딩 공급자) → ② 조회(Milvus) → ③ 보따리에 담기(ctx context) → llm 이 참고자료로 답변</text>
+  <text x="64" y="992" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#7a7a80">임베딩은 저장 때와 같은 bge-m3 사용(필수). Milvus 는 gateway 와 무관한 별도 DB(직접 접속).</text>
+</svg>
