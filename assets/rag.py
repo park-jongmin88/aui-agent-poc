@@ -100,6 +100,7 @@ def _build_milvus(conn: dict):
         "coll":   coll,
         "metric": metric,
         "top_k":  (conn or {}).get("top_k", 3),
+        "nprobe": (conn or {}).get("nprobe", 16),   # IVF_FLAT 검색 파라미터
         "embed":  embed,
     }
 
@@ -107,15 +108,13 @@ def _build_milvus(conn: dict):
 def _make_embedder(conn: dict):
     """query 를 1024 차원 벡터로 바꾸는 임베딩 함수를 만든다.
 
-    ============================ TODO: 임베딩 모델 확인 ============================
-    iflow_aiu_collection 은 1024 차원으로 적재돼 있다. 검색 시에도 '적재 때와
-    동일한 임베딩 모델' 을 써야 결과가 정확하다. (모델이 다르면 차원이 같아도
-    벡터 공간이 달라 검색 품질이 떨어진다.)
+    임베딩 모델: BAAI/bge-m3 (1024 차원) — iflow_aiu_collection 적재 때와 동일함을 확인함.
+    검색 시에도 반드시 같은 모델을 써야 벡터 공간이 일치한다.
 
-    현재는 가장 흔한 1024 차원 모델인 BAAI/bge-m3 를 기본값으로 채워둠.
-    => 적재 파이프라인(iflow) 담당자에게 실제 임베딩 모델을 확인해서 맞출 것.
-       - 사내 gateway(llm.com)에 임베딩 엔드포인트가 있으면 그쪽일 가능성도 있음.
-    ============================================================================
+    실행 위치(둘 중 택1):
+      - 로컬: sentence-transformers 로 bge-m3 로드 (아래 기본 구현, torch 필요 → 이미지 큼)
+      - gateway: 사내 gateway 에 bge-m3 임베딩 엔드포인트가 있으면 그 API 호출로 교체
+                 (가볍고 적재 인프라와 일치. embed 함수만 그쪽 호출로 바꾸면 됨)
     """
     model_name = (conn or {}).get("embed_model", "BAAI/bge-m3")
 
@@ -139,12 +138,20 @@ def _make_embedder(conn: dict):
 
 
 def _search_milvus(query: str, resource) -> str:
-    """query 를 임베딩해 벡터 검색 후 상위 문서 본문(text)을 잇는다."""
+    """query 를 임베딩해 벡터 검색 후 상위 문서 본문(text)을 잇는다.
+
+    인덱스: IVF_FLAT (nlist=128) / metric: L2
+      - IVF_FLAT 은 검색 시 nprobe(뒤질 클러스터 수)가 필요하다.
+        nprobe 가 클수록 정확하지만 느리다. nlist=128 기준 16 정도가 무난.
+    """
     vec = resource["embed"](query)
     res = resource["coll"].search(
         data=[vec],
         anns_field="vector",                       # 스키마의 벡터 필드명
-        param={"metric_type": resource["metric"]}, # 이 컬렉션은 L2 (인덱스에서 읽음)
+        param={
+            "metric_type": resource["metric"],     # L2 (인덱스에서 읽음)
+            "params": {"nprobe": resource.get("nprobe", 16)},  # IVF_FLAT 검색 파라미터
+        },
         limit=resource["top_k"],
         output_fields=["text"],                    # 본문 필드
     )
