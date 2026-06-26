@@ -4,3 +4,8 @@ langchain-openai==1.2.1
 langchain==1.2.15
 pandas==2.3.3
 kserve==0.15.0
+pymilvus==2.4.9
+# RAG 임베딩: 로컬 임베딩(bge-m3 등)을 쓸 경우 아래 주석 해제.
+# torch 포함이라 이미지가 커진다. gateway 임베딩 API 를 쓰면 불필요.
+# TODO 임베딩 방식(로컬 vs gateway) 확정 후 결정.
+# sentence-transformers==3.3.1
