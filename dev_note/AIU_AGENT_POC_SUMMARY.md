@@ -37,7 +37,7 @@ assets/              에셋 모듈 모음 (기능 추가는 여기)
   ├── __init__.py        에셋 공통 규약 + ctx 생성/로더
   ├── prompt.py          [구현] MLflow Prompts 로드 (캐싱)
   ├── llm.py             [구현] LangChain 체인으로 답변 생성
-  ├── rag.py             [구현] Milvus 연결 (iflow_aiu_collection, bge-m3 1024, L2/IVF_FLAT). mode=mock 기본
+  ├── rag.py             [구현중] Milvus 연결 코드 (iflow_aiu_collection, 1024, L2/IVF_FLAT). mode=mock 기본, 임베딩 호출부 미완
   └── tool.py            [목업] mocks/ 가상 API 호출 (실제 연동 TODO)
 mocks/               목업 데이터 (실제 연결 전 POC용)
   ├── rag_documents.json   딥러닝/ML/GenAI 문서 20건
@@ -123,10 +123,10 @@ LangChain 체인으로 답변 생성: `prompt | model | StrOutputParser()` (LCEL
 - **system 메시지 단일화**: context/tools_result를 하나의 system 메시지로 합친다. (system을 여러 개 보내면 Qwen 등 일부 모델이 400 BadRequest 반환)
 - surrogate 정화(`_safe_text`) 포함.
 
-### rag (구현: Milvus)
+### rag (구현중: Milvus 연결)
 질문 키워드로 문서를 검색해 `ctx["context"]`를 채운다.
 - 기본 mode=mock: `mocks/rag_documents.json` (딥러닝/ML/GenAI 20건) 키워드 매칭.
-- 실제 Milvus: `iflow_aiu_collection`(default DB), 필드 text/vector(1024), 인덱스 IVF_FLAT/L2. 임베딩 bge-m3(LLM 공급자 재사용). 환경변수 MILVUS_URI/USER/PASSWORD 주입 후 mode=milvus.
+- 실제 Milvus(구현중): `iflow_aiu_collection`(default DB), 필드 text/vector(1024), 인덱스 IVF_FLAT/L2. 임베딩은 bge-m3(LLM 공급자 재사용 예정)이나 호출부 `_make_embedder` 미완. 환경변수 MILVUS_URI/USER/PASSWORD 주입 후 mode=milvus (아직 미검증).
 - `_build_mock`/`_search_mock` vs `_build_milvus`/`_search_milvus` 함수 분리. (임베딩 호출부 `_make_embedder` 는 공급자 API 연결 예정)
 
 ### tool (목업)
