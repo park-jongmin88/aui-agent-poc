@@ -6,3 +6,4 @@ openai==2.26.0          # LLM 호출 + RAG 임베딩(분리 서버 bge-m3, OpenA
 pandas==2.3.3
 kserve==0.15.0
 pymilvus==2.4.9         # RAG: Milvus 벡터DB 클라이언트
+setuptools==75.8.0      # pymilvus 가 쓰는 pkg_resources 제공 (pymilvus 요구: >69). Python3.12 슬림 환경엔 기본 미포함
