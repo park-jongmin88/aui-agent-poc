@@ -7,3 +7,4 @@ pandas==2.3.3
 kserve==0.15.0
 pymilvus==2.4.9         # RAG: Milvus 벡터DB 클라이언트
 setuptools==75.8.0      # pymilvus 가 쓰는 pkg_resources 제공 (pymilvus 요구: >69). Python3.12 슬림 환경엔 기본 미포함
+marshmallow==3.26.2     # pymilvus→environs 의존. marshmallow 4.x 는 __version_info__ 제거로 깨짐 → 3.x 고정
