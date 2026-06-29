@@ -113,14 +113,37 @@ def _load_system(pid: str, version, resource) -> str:
 def run(ctx: dict, resource) -> dict:
     """client 가 고른 prompt_id(+prompt_version) 로 system_message 를 채운다. (캐시 사용)
     실패하거나 미선택이면 default 로 폴백한다.
+
+    [진단] 로드 실패 시 예외를 삼키지 않고 trace span 에 기록한다.
+           (prompt_id/version 은 정상인데 default 로 폴백되는 원인을 추적하기 위함)
     """
+    import traceback as _tb
+
     pid = ctx.get("prompt_id")
     version = ctx.get("prompt_version")   # 없으면 최신 버전 사용
+
+    # 진단: 무엇으로 로드를 시도하는지 span 에 남긴다.
+    try:
+        span = mlflow.get_current_active_span()
+        if span is not None:
+            span.set_attribute("prompt.pid", str(pid))
+            span.set_attribute("prompt.version", str(version))
+            span.set_attribute("prompt.mlflow_version", getattr(mlflow, "__version__", "?"))
+    except Exception:
+        span = None
+
     if pid:
         try:
             ctx["system_message"] = _load_system(pid, version, resource)
+            if span is not None:
+                span.set_attribute("prompt.loaded", "ok")
             return ctx
-        except Exception:
-            pass
+        except Exception as e:
+            # 예외를 삼키지 말고 무엇이 왜 실패했는지 span 에 기록한다.
+            if span is not None:
+                span.set_attribute("prompt.loaded", "FAILED -> default 폴백")
+                span.set_attribute("prompt.error_type", type(e).__name__)
+                span.set_attribute("prompt.error_msg", str(e)[:500])
+                span.set_attribute("prompt.error_trace", _tb.format_exc()[-1500:])
     ctx["system_message"] = resource.get("default", "")
     return ctx
