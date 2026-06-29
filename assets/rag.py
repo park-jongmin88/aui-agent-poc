@@ -66,13 +66,16 @@ def _build_milvus(conn: dict):
     conn 예시 (config.py ASSET_CONN["rag"]):
         {
           "mode": "milvus",
-          "uri":        "<MILVUS_URI>",      # 예: http://milvus-host:19530
-          "user":       "<MILVUS_USER>",
-          "password":   "<MILVUS_PASSWORD>",
-          "db_name":    "default",
-          "collection": "iflow_aiu_collection",
-          "top_k":      3,
-          "embed_model":"<임베딩 모델명>",     # 적재 때와 동일해야 함 (아래 TODO 확인)
+          "uri":            "<MILVUS_URI>",      # 예: http://milvus.도메인.com:19530
+          "user":           "<MILVUS_USER>",
+          "password":       "<MILVUS_PASSWORD>",
+          "db_name":        "default",
+          "collection":     "iflow_aiu_collection",
+          "top_k":          3,
+          "nprobe":         16,
+          "embed_base_url": "<임베딩 서버>",       # 예: http://embedding.llm.도메인.com/v1
+          "embed_api_key":  "<임베딩 키>",
+          "embed_model":    "bge-m3",
         }
     """
     from pymilvus import connections, Collection
@@ -108,33 +111,33 @@ def _build_milvus(conn: dict):
 def _make_embedder(conn: dict):
     """query 를 1024 차원 벡터로 바꾸는 임베딩 함수를 만든다.
 
-    임베딩 모델: BAAI/bge-m3 (1024 차원) — iflow_aiu_collection 적재 때와 동일함을 확인함.
-    검색 시에도 반드시 같은 모델을 써야 벡터 공간이 일치한다.
+    임베딩 모델: bge-m3 (1024 차원) — iflow_aiu_collection 적재 때 쓴 것과 동일.
+    검색 시에도 반드시 같은 모델/서버를 써야 벡터 공간이 일치한다.
 
-    실행 위치(둘 중 택1):
-      - 로컬: sentence-transformers 로 bge-m3 로드 (아래 기본 구현, torch 필요 → 이미지 큼)
-      - gateway: 사내 gateway 에 bge-m3 임베딩 엔드포인트가 있으면 그 API 호출로 교체
-                 (가볍고 적재 인프라와 일치. embed 함수만 그쪽 호출로 바꾸면 됨)
+    호출 방식: OpenAI 호환 임베딩 API (/v1/embeddings).
+      - 적재 때 쓴 임베딩 서버를 그대로 사용한다.
+      - 이 서버는 LLM 과 도메인은 같지만 서브도메인이 분리돼 있다.
+        예) LLM      http://llm.도메인.com/v1
+            임베딩   http://embedding.llm.도메인.com/v1
+      - torch/로컬 모델 불필요(가벼움), 적재 인프라와 벡터 일치.
+
+    conn 에서 사용하는 값 (config.py ASSET_CONN["rag"]):
+        embed_base_url : 임베딩 서버 주소 (예: http://embedding.llm.도메인.com/v1)
+        embed_api_key  : 인증 키 (환경변수 주입)
+        embed_model    : 모델명 (bge-m3)
     """
-    model_name = (conn or {}).get("embed_model", "BAAI/bge-m3")
+    base_url = (conn or {}).get("embed_base_url", "")
+    api_key  = (conn or {}).get("embed_api_key", "")
+    model    = (conn or {}).get("embed_model", "bge-m3")
 
-    # 기본: sentence-transformers 로 로컬 임베딩 (bge-m3 는 1024 차원)
-    try:
-        from sentence_transformers import SentenceTransformer
-        _model = SentenceTransformer(model_name)
+    from openai import OpenAI
+    client = OpenAI(base_url=base_url, api_key=api_key)
 
-        def embed(text: str):
-            vec = _model.encode([text], normalize_embeddings=True)[0]
-            return vec.tolist()
+    def embed(text: str):
+        resp = client.embeddings.create(model=model, input=text)
+        return resp.data[0].embedding   # 1024 차원 벡터
 
-        return embed
-    except Exception as e:
-        # sentence-transformers 가 없거나 모델 로드 실패 시, 명확히 알린다.
-        # (gateway 임베딩 API 를 쓰는 경우 여기서 그 호출로 교체하면 됨)
-        raise NotImplementedError(
-            f"임베딩 모델 준비 실패({model_name}): {e}. "
-            "requirements 에 sentence-transformers 추가 또는 embed_model 확인 필요."
-        )
+    return embed
 
 
 def _search_milvus(query: str, resource) -> str:
