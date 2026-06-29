@@ -34,6 +34,10 @@ from config import (
 from aiu_custom.predict import ModelWrapper
 
 
+# 의존성 파일 경로 (이 파일 기준 절대경로 → 실행 위치와 무관하게 찾음)
+_REQUIREMENTS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "requirements.txt")
+
+
 # =============================================================================
 # 유틸
 # =============================================================================
@@ -149,14 +153,9 @@ def register_agent():
             artifacts        = artifacts,
             input_example    = input_example,
             code_paths       = ["aiu_custom", "config.py", "assets", "mocks"],
-            pip_requirements = [
-                "mlflow==3.10.0",
-                "cloudpickle==3.1.2",
-                "langchain-openai==1.2.1",
-                "langchain==1.2.15",
-                "pandas==2.3.3",
-                "kserve==0.15.0",
-            ],
+            # 의존성은 requirements.txt 파일 한 곳에서 관리한다 (이중 관리 방지).
+            # MLflow 가 이 파일을 읽어 모델에 박는다. 의존성 추가 시 requirements.txt 만 수정.
+            pip_requirements = _REQUIREMENTS_PATH,
         )
 
         def _do_log_model():
@@ -200,3 +199,4 @@ def safe_main():
 
 if __name__ == "__main__":
     safe_main()
+
