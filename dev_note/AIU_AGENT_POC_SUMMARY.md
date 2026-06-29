@@ -37,7 +37,7 @@ assets/              에셋 모듈 모음 (기능 추가는 여기)
   ├── __init__.py        에셋 공통 규약 + ctx 생성/로더
   ├── prompt.py          [구현] MLflow Prompts 로드 (캐싱)
   ├── llm.py             [구현] LangChain 체인으로 답변 생성
-  ├── rag.py             [구현중] Milvus 연결 코드 (iflow_aiu_collection, 1024, L2/IVF_FLAT). mode=mock 기본, 임베딩 호출부 미완
+  ├── rag.py             [구현] Milvus 연결 (iflow_aiu_collection, 1024, L2/IVF_FLAT) + 임베딩 bge-m3(분리 서버). mode=milvus 기본
   └── tool.py            [목업] mocks/ 가상 API 호출 (실제 연동 TODO)
 mocks/               목업 데이터 (실제 연결 전 POC용)
   ├── rag_documents.json   딥러닝/ML/GenAI 문서 20건
@@ -101,7 +101,9 @@ ctx = { query, prompt_id, prompt_version, system_message, context, tools_result,
 - signature 금지 → `input_example`만 사용.
 - pip 버전 고정 필수 (포탈이 `mlflow==` 패턴을 파싱함).
 - `code_paths = ["aiu_custom", "config.py", "assets", "mocks"]` — 서빙 환경에서 import 가능하도록 패키지/설정 동봉.
-- requirements: `mlflow==3.10.0, cloudpickle==3.1.2, langchain-openai==1.2.1, langchain==1.2.15, pandas==2.3.3, kserve==0.15.0`.
+- requirements (requirements.txt 파일 한 곳에서 관리): mlflow, cloudpickle, langchain, langchain-openai, openai==2.26.0, pandas, kserve, pymilvus==2.4.9, setuptools==75.8.0, marshmallow==3.26.2.
+  - 의존성은 agent.py 에 박지 않고 `pip_requirements=requirements.txt`(파일 참조)로 일원화 — 이중 관리 제거.
+  - RAG 의존성 주의: pymilvus → environs → marshmallow. marshmallow 4.x 는 `__version_info__` 제거로 깨짐 → **3.26.2 고정**. pymilvus 는 pkg_resources 필요 → **setuptools 포함**. (Python 3.12 슬림 이미지에서 필수)
 - 권장 Python: **3.11.9** (kserve 0.15.0 호환; 3.13은 kserve 설치 안 됨).
 - **코드 변경 시 재등록·재서빙 필수** — config(모델명 등)·model_wrapper·assets는 모두 서버 코드라 로컬만 고치면 반영되지 않는다. (client.py는 로컬 실행이라 재서빙 불필요)
 
@@ -123,11 +125,11 @@ LangChain 체인으로 답변 생성: `prompt | model | StrOutputParser()` (LCEL
 - **system 메시지 단일화**: context/tools_result를 하나의 system 메시지로 합친다. (system을 여러 개 보내면 Qwen 등 일부 모델이 400 BadRequest 반환)
 - surrogate 정화(`_safe_text`) 포함.
 
-### rag (구현중: Milvus 연결)
+### rag (구현: Milvus + bge-m3)
 질문 키워드로 문서를 검색해 `ctx["context"]`를 채운다.
 - 기본 mode=mock: `mocks/rag_documents.json` (딥러닝/ML/GenAI 20건) 키워드 매칭.
-- 실제 Milvus(구현중): `iflow_aiu_collection`(default DB), 필드 text/vector(1024), 인덱스 IVF_FLAT/L2. 임베딩은 bge-m3(LLM 공급자 재사용 예정)이나 호출부 `_make_embedder` 미완. 환경변수 MILVUS_URI/USER/PASSWORD 주입 후 mode=milvus (아직 미검증).
-- `_build_mock`/`_search_mock` vs `_build_milvus`/`_search_milvus` 함수 분리. (임베딩 호출부 `_make_embedder` 는 공급자 API 연결 예정)
+- 실제 Milvus: `iflow_aiu_collection`(default DB), 필드 text/vector(1024), 인덱스 IVF_FLAT/L2/nprobe=16. 임베딩은 bge-m3 — 문서 적재 때 쓴 임베딩 서버(LLM 과 분리된 서브도메인 embedding.llm.도메인.com/v1)를 OpenAI 호환 API 로 호출. 환경변수 MILVUS_URI/USER/PASSWORD + EMBED_BASE_URL/EMBED_API_KEY 주입. 조회 동작 확인됨.
+- `_build_mock`/`_search_mock` vs `_build_milvus`/`_search_milvus` 함수 분리. `_make_embedder` 는 openai 호환 API(`/v1/embeddings`, bge-m3) 호출 — torch 불필요, 적재 인프라와 벡터 일치.
 
 ### tool (목업)
 질문에 맞는 도구(API)를 호출해 `ctx["tools_result"]`를 채운다.
