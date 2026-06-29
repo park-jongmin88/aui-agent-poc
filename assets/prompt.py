@@ -74,6 +74,29 @@ def list_versions(name: str, max_scan: int = 100) -> list:
     return nums
 
 
+def _prompt_to_text(prompt) -> str:
+    """Prompt 객체에서 system_message 로 쓸 문자열을 안전하게 얻는다.
+
+    [중요] MLflow Prompt.format() 은 템플릿에 변수({{var}})가 있는데 값을 안 주면
+    'Missing variables' 예외를 던진다. 우리 프롬프트는 시스템 지시문이라
+    {{document}}, {{max_words}} 같은 변수를 포함할 수 있으므로, 변수가 있어도
+    예외 없이 원본 템플릿 문자열을 그대로 system_message 로 쓴다.
+    (변수 치환이 필요하면 이후 단계에서 처리. default 폴백보다 실제 프롬프트가 맞다.)
+    """
+    # 변수가 없으면 format() 이 바로 완성된 str 을 준다.
+    try:
+        t = prompt.format()
+        if isinstance(t, str):
+            return t
+    except Exception:
+        pass
+    # 변수가 있으면 원본 템플릿 문자열을 그대로 사용한다.
+    raw = getattr(prompt, "template", None)
+    if raw is not None:
+        return str(raw)
+    return str(prompt)
+
+
 def _load_system(pid: str, version, resource) -> str:
     """prompt_id(+version) 로 system_message 를 얻는다.
     캐시에 있으면 그대로, 없으면 1회 로드 후 캐시.
@@ -91,7 +114,7 @@ def _load_system(pid: str, version, resource) -> str:
         key = pid
         if key in cache:
             return cache[key]
-        text = mlflow.genai.load_prompt(pid).format()
+        text = _prompt_to_text(mlflow.genai.load_prompt(pid))
         cache[key] = text
         return text
 
@@ -104,7 +127,7 @@ def _load_system(pid: str, version, resource) -> str:
         prompt = mlflow.genai.load_prompt(pid, version=int(ver))
     else:
         prompt = mlflow.genai.load_prompt(pid)   # 버전 생략 → 최신
-    text = prompt.format()
+    text = _prompt_to_text(prompt)
     cache[key] = text
     return text
 
@@ -113,37 +136,20 @@ def _load_system(pid: str, version, resource) -> str:
 def run(ctx: dict, resource) -> dict:
     """client 가 고른 prompt_id(+prompt_version) 로 system_message 를 채운다. (캐시 사용)
     실패하거나 미선택이면 default 로 폴백한다.
-
-    [진단] 로드 실패 시 예외를 삼키지 않고 trace span 에 기록한다.
-           (prompt_id/version 은 정상인데 default 로 폴백되는 원인을 추적하기 위함)
     """
-    import traceback as _tb
-
     pid = ctx.get("prompt_id")
     version = ctx.get("prompt_version")   # 없으면 최신 버전 사용
-
-    # 진단: 무엇으로 로드를 시도하는지 span 에 남긴다.
-    try:
-        span = mlflow.get_current_active_span()
-        if span is not None:
-            span.set_attribute("prompt.pid", str(pid))
-            span.set_attribute("prompt.version", str(version))
-            span.set_attribute("prompt.mlflow_version", getattr(mlflow, "__version__", "?"))
-    except Exception:
-        span = None
-
     if pid:
         try:
             ctx["system_message"] = _load_system(pid, version, resource)
-            if span is not None:
-                span.set_attribute("prompt.loaded", "ok")
             return ctx
         except Exception as e:
-            # 예외를 삼키지 말고 무엇이 왜 실패했는지 span 에 기록한다.
-            if span is not None:
-                span.set_attribute("prompt.loaded", "FAILED -> default 폴백")
-                span.set_attribute("prompt.error_type", type(e).__name__)
-                span.set_attribute("prompt.error_msg", str(e)[:500])
-                span.set_attribute("prompt.error_trace", _tb.format_exc()[-1500:])
+            # 폴백되면 원인을 알 수 있게 span 에만 짧게 남긴다 (대화는 계속).
+            try:
+                span = mlflow.get_current_active_span()
+                if span is not None:
+                    span.set_attribute("prompt.fallback_reason", f"{type(e).__name__}: {str(e)[:300]}")
+            except Exception:
+                pass
     ctx["system_message"] = resource.get("default", "")
     return ctx
