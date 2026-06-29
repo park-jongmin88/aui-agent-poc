@@ -25,7 +25,7 @@ LangChain 기반 LLM 에이전트를 **MLflow pyfunc 모델**로 등록하고,
 |:--|:--:|:--|:--|
 | `prompt` | ✅ 구현 | `system_message` | **MLflow Prompts** 에서 버전 번호로 로드 (client 가 프롬프트+버전 선택) |
 | `llm` | ✅ 구현 | `answer` | LangChain `ChatOpenAI` + autolog |
-| `rag` | 🟡 구현중 | `context` | 벡터DB 검색. Milvus 연결 코드 작성(iflow_aiu_collection, L2/IVF_FLAT). 기본 mode=mock. 임베딩 호출부(bge-m3) 미완 + 미검증 |
+| `rag` | ✅ 구현 | `context` | 벡터DB 검색 동작 확인. Milvus(iflow_aiu_collection, 1024, L2/IVF_FLAT) + 임베딩 bge-m3(분리 서버). 기본 mode=milvus, mock 도 가능 |
 | `tool` | 🟡 목업 | `tools_result` | 가상 API 8종. 키워드 매칭→목업응답, 실제 연동 TODO |
 | `judge` | ⬜ 템플릿 | `score` | 응답 품질 평가 (보통 맨 뒤) |
 
@@ -69,7 +69,7 @@ config.py            설정 (ENABLED_ASSETS, MLFLOW_CONN, LLM_*, ASSET_CONN)
 agent.py             등록 진입점 (register_agent + 단계별 한국어 진단)
 client.py            서빙 엔드포인트 호출 테스트용 (프롬프트+버전 2단계 선택)
 judge_eval.py        평가 (make_judge, 서빙과 분리. gateway Basic 인증 처리)
-requirements.txt     서빙 환경 의존성 (버전 고정, pymilvus 포함)
+requirements.txt     서빙 의존성 (버전 고정). agent.py 가 이 파일을 참조 — 의존성은 여기서만 관리
 aiu_custom/          서빙되는 모델 본체
 ├── __init__.py
 ├── model_wrapper.py   ModelWrapper (load_context / predict / 파이프라인 + trace 마스킹)
@@ -78,7 +78,7 @@ assets/              에셋 모듈 모음 ← 기능 추가는 여기
 ├── __init__.py     에셋 공통 규약 + ctx 생성/로더 (prompt_version 포함)
 ├── prompt.py       [구현] MLflow Prompts 버전 번호 로드 (캐싱)
 ├── llm.py          [구현] LangChain 체인으로 답변 생성
-├── rag.py          [구현중] Milvus 연결 코드 (iflow_aiu_collection, 1024, L2/IVF_FLAT). mode=mock 기본, 임베딩 호출부 미완
+├── rag.py          [구현] Milvus 연결 (iflow_aiu_collection, 1024, L2/IVF_FLAT) + 임베딩 bge-m3(분리 서버 API). mode=milvus 기본
 ├── tool.py         [목업] mocks/ 가상 API 호출 (실제 연동 TODO)
 └── judge.py        [템플릿]
 mocks/               목업 데이터 (실제 연결 전 POC용)
