@@ -1,0 +1,159 @@
+<svg width="1600" height="1000" viewBox="0 0 1600 1000" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    
+    
+    
+  </defs>
+
+  <rect width="1600" height="1000" fill="#ffffff"/>
+  <rect width="1600" height="1000" fill="#ffffff"/>
+
+  <g fill="#e8e2d2" stroke="#b0b0b0" stroke-width="1.3">
+    <circle cx="80" cy="34" r="9"/><circle cx="230" cy="34" r="9"/><circle cx="380" cy="34" r="9"/>
+    <circle cx="530" cy="34" r="9"/><circle cx="680" cy="34" r="9"/><circle cx="830" cy="34" r="9"/>
+    <circle cx="980" cy="34" r="9"/><circle cx="1130" cy="34" r="9"/><circle cx="1280" cy="34" r="9"/>
+    <circle cx="1430" cy="34" r="9"/><circle cx="1540" cy="34" r="9"/>
+  </g>
+
+  <text x="70" y="116" font-family="NanumSquareRound, sans-serif" font-size="54" font-weight="bold" fill="#4b4b50">포탈 <tspan fill="#b95752">x</tspan> AGENT</text>
+  <text x="74" y="154" font-family="NanumSquareRound, sans-serif" font-size="25" fill="#5f6368">UI 적용 구상도 (전체 흐름)</text>
+  <line x1="72" y1="170" x2="560" y2="170" stroke="#d990ab" stroke-width="3"/>
+
+  <text x="800" y="108" font-family="NanumSquareRound, sans-serif" font-size="16" font-weight="bold" fill="#b5701a">①관리자 → ②빌더(UI/IDE) → 업로드 → ③서빙 → ④대화 / ⑤평가</text>
+  <text x="800" y="134" font-family="NanumSquareRound, sans-serif" font-size="14" fill="#7a5a2a">관리자가 토대를 깔고, 사용자가 빌더로 만들어 서빙·대화·평가</text>
+
+  <!-- ① 관리자 -->
+  <text x="70" y="232" font-family="NanumSquareRound, sans-serif" font-size="20" font-weight="bold" fill="#8a6fb5">① 관리자 기준정보 (선행·별도)</text>
+  <g>
+    <rect x="70" y="246" width="270" height="270" rx="14" fill="#ebdef9" stroke="#8a6fb5" stroke-width="2.5"/>
+  </g>
+  <text x="90" y="278" font-family="NanumSquareRound, sans-serif" font-size="17" font-weight="bold" fill="#8a6fb5">Admin Settings</text>
+  <text x="90" y="304" font-family="NanumSquareRound, sans-serif" font-size="13" fill="#5f6368">관리자가 한 번 깔아두는 토대</text>
+  <text x="90" y="338" font-family="NanumSquareRound, sans-serif" font-size="14" fill="#4b4b50">· 계정 / 인증 / 권한</text>
+  <text x="90" y="364" font-family="NanumSquareRound, sans-serif" font-size="14" fill="#4b4b50">· 에셋 기본정보 (마스터)</text>
+  <text x="110" y="386" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#5f6368">prompt · rag · tool · llm</text>
+  <text x="90" y="412" font-family="NanumSquareRound, sans-serif" font-size="14" fill="#4b4b50">· 공통 프롬프트</text>
+  <text x="90" y="438" font-family="NanumSquareRound, sans-serif" font-size="14" fill="#4b4b50">· Gateway / 인프라 URL</text>
+  <text x="90" y="464" font-family="NanumSquareRound, sans-serif" font-size="14" fill="#4b4b50">· 디폴트 judge (평가 기준)</text>
+  <text x="90" y="496" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#8a6fb5">→ 사용자가 가져다 선택·사용</text>
+
+  <!-- ① → ② 주입 -->
+  <g>
+    <line x1="340" y1="350" x2="408" y2="350" stroke="#8a6fb5" stroke-width="2.5" stroke-dasharray="7 5"/>
+    <polygon points="410,350 398,344 398,356" fill="#8a6fb5"/>
+  </g>
+  <text x="345" y="340" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#8a6fb5">주입</text>
+
+  <!-- ② 빌더 -->
+  <text x="430" y="232" font-family="NanumSquareRound, sans-serif" font-size="20" font-weight="bold" fill="#b95752">② 빌더 (선택 / 목록)</text>
+  <g>
+    <rect x="410" y="246" width="290" height="270" rx="14" fill="#ffffff" stroke="#4b4b50" stroke-width="2.5"/>
+  </g>
+  <g><rect x="430" y="264" width="250" height="34" rx="8" fill="#fef3e2" stroke="#d99a3a" stroke-width="2"/></g>
+  <text x="448" y="287" font-family="NanumSquareRound, sans-serif" font-size="15" font-weight="bold" fill="#b5701a">[+ 생성]  ·  [목록] 만든 히스토리</text>
+  <text x="430" y="324" font-family="NanumSquareRound, sans-serif" font-size="13" fill="#5f6368">생성하면 두 갈래 (일회성)</text>
+  <g><rect x="430" y="338" width="250" height="68" rx="10" fill="#dbe9fb" stroke="#5b7fb5" stroke-width="2"/></g>
+  <text x="448" y="364" font-family="NanumSquareRound, sans-serif" font-size="16" font-weight="bold" fill="#5b7fb5">2.1 UI 빌더</text>
+  <text x="448" y="388" font-family="NanumSquareRound, sans-serif" font-size="13" fill="#4b4b50">화면에서 선택 → 템플릿 완성</text>
+  <g><rect x="430" y="416" width="250" height="80" rx="10" fill="#d6f3e0" stroke="#4a9a6a" stroke-width="2"/></g>
+  <text x="448" y="442" font-family="NanumSquareRound, sans-serif" font-size="16" font-weight="bold" fill="#4a9a6a">2.2 IDE 빌더</text>
+  <text x="448" y="466" font-family="NanumSquareRound, sans-serif" font-size="13" fill="#4b4b50">생성 런처 → 도커 IDE 1건</text>
+  <text x="448" y="486" font-family="NanumSquareRound, sans-serif" font-size="13" fill="#4b4b50">(에셋 내장, 코드 직접 수정)</text>
+
+  <!-- ② → 업로드 -->
+  <g>
+    <line x1="700" y1="381" x2="788" y2="381" stroke="#4b4b50" stroke-width="2.5"/>
+    <polygon points="790,381 778,375 778,387" fill="#4b4b50"/>
+  </g>
+
+  <!-- 모델 업로드 완료 (번호 없음) -->
+  <g>
+    <rect x="790" y="344" width="120" height="74" rx="12" fill="#fde0e0" stroke="#b95752" stroke-width="2.5"/>
+  </g>
+  <text x="850" y="366" font-family="NanumSquareRound, sans-serif" font-size="15" font-weight="bold" fill="#b95752" text-anchor="middle">모델</text>
+  <text x="850" y="386" font-family="NanumSquareRound, sans-serif" font-size="15" font-weight="bold" fill="#b95752" text-anchor="middle">업로드</text>
+  <text x="850" y="406" font-family="NanumSquareRound, sans-serif" font-size="15" font-weight="bold" fill="#b95752" text-anchor="middle">완료</text>
+
+  <!-- 업로드 → ③ -->
+  <g>
+    <line x1="910" y1="381" x2="1008" y2="381" stroke="#4b4b50" stroke-width="2.5"/>
+    <polygon points="1010,381 998,375 998,387" fill="#4b4b50"/>
+  </g>
+
+  <!-- ③ 서빙 (② 빌더와 같은 크기 290x270, 내용 채움) -->
+  <text x="1030" y="232" font-family="NanumSquareRound, sans-serif" font-size="20" font-weight="bold" fill="#4a9a6a">③ 서빙 (이미 존재) · 허브</text>
+  <g>
+    <rect x="1010" y="246" width="290" height="270" rx="14" fill="#d6f3e0" stroke="#4a9a6a" stroke-width="3"/>
+  </g>
+  <text x="1030" y="278" font-family="NanumSquareRound, sans-serif" font-size="17" font-weight="bold" fill="#4a9a6a">Serving 목록</text>
+  <g>
+    <rect x="1030" y="292" width="250" height="38" rx="8" fill="#ffffff" stroke="#7a7a80" stroke-width="1.8"/>
+  </g>
+  <circle cx="1048" cy="311" r="7" fill="#4a9a6a"/>
+  <text x="1064" y="317" font-family="NanumSquareRound, sans-serif" font-size="14" font-weight="bold" fill="#4b4b50">my-agent</text>
+  <text x="1198" y="317" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4a9a6a">[준비됨]</text>
+  <text x="1030" y="354" font-family="NanumSquareRound, sans-serif" font-size="13" fill="#4b4b50">· 신호등: 준비 / 깨우는중 / 문제</text>
+  <text x="1030" y="376" font-family="NanumSquareRound, sans-serif" font-size="13" fill="#4b4b50">· 버전 생성 시 신규 등록처럼</text>
+  <text x="1048" y="396" font-family="NanumSquareRound, sans-serif" font-size="13" fill="#5f6368">다시 서빙 (버전업=재서빙)</text>
+  <text x="1030" y="424" font-family="NanumSquareRound, sans-serif" font-size="13" font-weight="bold" fill="#4b4b50">+ 버튼 두 개 추가:</text>
+  <text x="1030" y="448" font-family="NanumSquareRound, sans-serif" font-size="13" fill="#5b7fb5">· [대화하기] → ④ 플레이그라운드</text>
+  <text x="1030" y="470" font-family="NanumSquareRound, sans-serif" font-size="13" fill="#b95752">· [평가하기] → ⑤ 평가</text>
+  <text x="1030" y="498" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#5f6368">버튼은 ④·⑤ 기능으로 가는 연결</text>
+
+  <!-- 대화하기(파랑): ③ 오른쪽 아래(1240) ↓ → ④ 상단(720) 닿게 -->
+  <g stroke="#5b7fb5" stroke-width="2.5" fill="none">
+    <line x1="1240" y1="516" x2="1240" y2="718"/>
+  </g>
+  <polygon points="1240,720 1234,708 1246,708" fill="#5b7fb5"/>
+  <text x="1250" y="620" font-family="NanumSquareRound, sans-serif" font-size="13" fill="#5b7fb5">대화하기</text>
+
+  <!-- 평가하기(빨강): ③ 왼쪽 아래(1070) ↓ 가로 ↓ → ⑤ 상단(720) - 세로:가로:세로 비율 맞춤 -->
+  <!-- 세로1: 516→620 (104), 가로: 1070→765 (305), 세로2: 620→718 (98) ≈ 세로비율 비슷 -->
+  <g stroke="#b95752" stroke-width="2.5" fill="none">
+    <line x1="1070" y1="516" x2="1070" y2="620"/>
+    <line x1="1070" y1="620" x2="765" y2="620"/>
+    <line x1="765" y1="620" x2="765" y2="718"/>
+  </g>
+  <polygon points="765,720 759,708 771,708" fill="#b95752"/>
+  <text x="890" y="612" font-family="NanumSquareRound, sans-serif" font-size="13" fill="#b95752">평가하기</text>
+
+  <!-- ④ 플레이그라운드 (아래 y 720~900) -->
+  <text x="1010" y="708" font-family="NanumSquareRound, sans-serif" font-size="20" font-weight="bold" fill="#5b7fb5">④ 플레이그라운드</text>
+  <g>
+    <rect x="1010" y="720" width="320" height="180" rx="14" fill="#dbe9fb" stroke="#5b7fb5" stroke-width="2.5"/>
+  </g>
+  <text x="1030" y="750" font-family="NanumSquareRound, sans-serif" font-size="16" font-weight="bold" fill="#5b7fb5">Chat (엔드포인트 호출)</text>
+  <text x="1030" y="772" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#b95752" font-weight="bold">※ 기존에 있던 화면 활용</text>
+  <text x="1030" y="798" font-family="NanumSquareRound, sans-serif" font-size="13" fill="#4b4b50">실행: UI 실행 / IDE 직접 실행</text>
+  <text x="1030" y="822" font-family="NanumSquareRound, sans-serif" font-size="13" fill="#4b4b50">· 프롬프트 선택 → 질문 → 답변</text>
+  <text x="1030" y="844" font-family="NanumSquareRound, sans-serif" font-size="13" fill="#4b4b50">· 답변마다 trace 링크 (MLflow)</text>
+  <text x="1030" y="866" font-family="NanumSquareRound, sans-serif" font-size="13" fill="#4b4b50">· 세션이 곧 trace 로 쌓임</text>
+  <text x="1030" y="888" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#5f6368">→ 이 trace 가 ⑤ 평가의 입력</text>
+
+  <!-- ④ → ⑤ trace -->
+  <g>
+    <line x1="1010" y1="810" x2="952" y2="810" stroke="#d99a3a" stroke-width="2.5"/>
+    <polygon points="950,810 962,804 962,816" fill="#d99a3a"/>
+  </g>
+  <text x="963" y="800" font-family="NanumSquareRound, sans-serif" font-size="13" fill="#b5701a">trace</text>
+
+  <!-- ⑤ 평가 (아래 y 720~900) -->
+  <text x="600" y="708" font-family="NanumSquareRound, sans-serif" font-size="20" font-weight="bold" fill="#b95752">⑤ 평가 (judge)</text>
+  <g>
+    <rect x="590" y="720" width="360" height="180" rx="14" fill="#fde0e0" stroke="#b95752" stroke-width="2.5"/>
+  </g>
+  <text x="610" y="750" font-family="NanumSquareRound, sans-serif" font-size="16" font-weight="bold" fill="#b95752">Evaluation (judge_eval)</text>
+  <text x="610" y="778" font-family="NanumSquareRound, sans-serif" font-size="14" fill="#4b4b50">· 평가 등록 / 수정 / 실행</text>
+  <text x="610" y="802" font-family="NanumSquareRound, sans-serif" font-size="14" fill="#4b4b50">· 디폴트 judge 제공 (관리자)</text>
+  <text x="610" y="822" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#5f6368">  없으면 실행 전 확인 후 등록</text>
+  <text x="610" y="848" font-family="NanumSquareRound, sans-serif" font-size="14" fill="#4b4b50">· 쌓인 trace 채점 → 점수</text>
+  <text x="610" y="872" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#5f6368">{{ trace }} · gateway 모델 · 자동평가</text>
+
+  <!-- ① judge → ⑤ 왼쪽 정가운데(590, y=810) -->
+  <g stroke="#8a6fb5" stroke-width="1.6" fill="none" stroke-dasharray="5 4">
+    <line x1="150" y1="516" x2="150" y2="810"/>
+    <line x1="150" y1="810" x2="588" y2="810"/>
+  </g>
+  <polygon points="590,810 578,804 578,816" fill="#8a6fb5"/>
+  <text x="250" y="800" font-family="NanumSquareRound, sans-serif" font-size="13" fill="#8a6fb5">① 디폴트 judge 공급 (없으면 ⑤에서 직접 등록)</text>
+</svg>
