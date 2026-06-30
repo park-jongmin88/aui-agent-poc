@@ -1,0 +1,219 @@
+<svg width="1400" height="1560" viewBox="0 0 1400 1560" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="paper">
+      <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="5" result="noise"/>
+      <feColorMatrix in="noise" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.04 0"/>
+      <feComposite operator="over" in2="SourceGraphic"/>
+    </filter>
+    <filter id="sk" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="3" seed="4" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="2.2"/>
+    </filter>
+    <filter id="sk2" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="3" seed="11" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="1.7"/>
+    </filter>
+  </defs>
+
+  <rect width="1400" height="1560" fill="#f7f3e9"/>
+  <rect width="1400" height="1560" fill="#f7f3e9" filter="url(#paper)"/>
+
+  <!-- 바인딩 구멍 -->
+  <g fill="#e8e2d2" stroke="#cfc7b3" stroke-width="1.5">
+    <circle cx="38" cy="70" r="11"/><circle cx="38" cy="180" r="11"/><circle cx="38" cy="290" r="11"/>
+    <circle cx="38" cy="400" r="11"/><circle cx="38" cy="510" r="11"/><circle cx="38" cy="620" r="11"/>
+    <circle cx="38" cy="730" r="11"/><circle cx="38" cy="840" r="11"/><circle cx="38" cy="950" r="11"/>
+    <circle cx="38" cy="1060" r="11"/><circle cx="38" cy="1170" r="11"/><circle cx="38" cy="1280" r="11"/>
+    <circle cx="38" cy="1390" r="11"/><circle cx="38" cy="1500" r="11"/>
+  </g>
+
+  <!-- 제목 -->
+  <text x="130" y="78" font-family='NanumSquareRound, sans-serif' font-size="44" font-weight="bold" fill="#4b4b50">AI-Studio GenAI Agent</text>
+  <text x="132" y="118" font-family='NanumSquareRound, sans-serif' font-size="22" fill="#7a7a80">— Agent POC at a Glance —</text>
+  <line x1="130" y1="132" x2="760" y2="132" stroke="#d990ab" stroke-width="3" filter="url(#sk)"/>
+
+  <!-- ① 대화 시작 -->
+  <text x="100" y="195" font-family='NanumSquareRound, sans-serif' font-size="26" font-weight="bold" fill="#b95752">① 대화 시작 — client 가 먼저 고른다</text>
+  <g filter="url(#sk2)">
+    <rect x="105" y="208" width="770" height="158" rx="18" fill="none" stroke="#5b7fb5" stroke-width="2" stroke-dasharray="8 6"/>
+  </g>
+  <g filter="url(#sk)">
+    <rect x="690" y="198" width="180" height="26" rx="10" fill="#eef3fa" stroke="#5b7fb5" stroke-width="1.5"/>
+  </g>
+  <text x="705" y="216" font-family='NanumSquareRound, sans-serif' font-size="14" font-weight="bold" fill="#5b7fb5">임시 접속 client 파일</text>
+  <g filter="url(#sk)">
+    <rect x="120" y="223" width="300" height="130" rx="18" fill="#ffffff" stroke="#4b4b50" stroke-width="2.5"/>
+  </g>
+  <text x="140" y="256" font-family='NanumSquareRound, sans-serif' font-size="22" font-weight="bold" fill="#5b7fb5">client.py</text>
+  <text x="140" y="286" font-family='NanumSquareRound, sans-serif' font-size="16" fill="#4b4b50">· 프롬프트 목록 받아 고름</text>
+  <text x="140" y="310" font-family='NanumSquareRound, sans-serif' font-size="16" fill="#4b4b50">· (질문은 prompt_id 만 동봉)</text>
+  <text x="140" y="334" font-family='NanumSquareRound, sans-serif' font-size="16" fill="#4b4b50">· 로딩 · surrogate 양방향 방어</text>
+
+  <!-- 화살표: client(420,288) → registry(565,...) -->
+  <g filter="url(#sk)">
+    <line x1="420" y1="288" x2="563" y2="288" stroke="#4b4b50" stroke-width="2.5"/>
+    <polygon points="565,288 553,282 553,294" fill="#4b4b50"/>
+  </g>
+  <text x="430" y="278" font-family='NanumSquareRound, sans-serif' font-size="14" fill="#7a7a80">mode=list_prompts</text>
+
+  <g filter="url(#sk2)">
+    <rect x="565" y="230" width="290" height="116" rx="18" fill="#fdf1f1" stroke="#b95752" stroke-width="2.5"/>
+  </g>
+  <text x="585" y="263" font-family='NanumSquareRound, sans-serif' font-size="20" font-weight="bold" fill="#b95752">MLflow Prompt Registry</text>
+  <text x="585" y="292" font-family='NanumSquareRound, sans-serif' font-size="16" fill="#4b4b50">프롬프트 텍스트의 주인 (A원칙)</text>
+  <text x="585" y="316" font-family='NanumSquareRound, sans-serif' font-size="16" fill="#4b4b50">client 는 이름(id)만 고른다</text>
+  <text x="585" y="338" font-family='NanumSquareRound, sans-serif' font-size="14" fill="#7a7a80">※ 캐싱 + 워밍업으로 첫 응답 가속</text>
+
+  <!-- ② 질문 진입 (여백 늘림: 405→445) -->
+  <text x="100" y="450" font-family='NanumSquareRound, sans-serif' font-size="26" font-weight="bold" fill="#b95752">② 질문 한 건 — 엔드포인트 호출로 들어온다</text>
+  <g filter="url(#sk)">
+    <rect x="120" y="478" width="330" height="92" rx="16" fill="#eef3fa" stroke="#5b7fb5" stroke-width="2.5"/>
+  </g>
+  <text x="140" y="510" font-family='NanumSquareRound, sans-serif' font-size="20" font-weight="bold" fill="#5b7fb5">custom_server.py  (서빙 이미지)</text>
+  <text x="140" y="538" font-family='NanumSquareRound, sans-serif' font-size="15" fill="#4b4b50">입력 { input:[{ query, prompt_id, llm_api_key,</text>
+  <text x="140" y="558" font-family='NanumSquareRound, sans-serif' font-size="15" fill="#4b4b50">        session_id }], trace_id ... }</text>
+
+  <!-- 화살표: server(450,524) → wrapper(605) -->
+  <g filter="url(#sk)">
+    <line x1="450" y1="524" x2="603" y2="524" stroke="#4b4b50" stroke-width="2.5"/>
+    <polygon points="605,524 593,518 593,530" fill="#4b4b50"/>
+  </g>
+
+  <g filter="url(#sk2)">
+    <rect x="605" y="478" width="660" height="92" rx="16" fill="#ffffff" stroke="#4b4b50" stroke-width="2.5"/>
+  </g>
+  <text x="625" y="510" font-family='NanumSquareRound, sans-serif' font-size="20" font-weight="bold" fill="#4b4b50">aiu_custom.predict.ModelWrapper</text>
+  <text x="625" y="538" font-family='NanumSquareRound, sans-serif' font-size="15" fill="#4b4b50">고정된 진입점(래퍼). 내용물(config·assets·mocks)은 갈아끼움</text>
+  <text x="625" y="558" font-family='NanumSquareRound, sans-serif' font-size="14" fill="#7a7a80">predict() → mode 분기(list_prompts / 대화) → _run()</text>
+
+  <!-- 세로 화살표: wrapper 아래(285,570) → 파이프라인(285,640) -->
+  <g filter="url(#sk)">
+    <line x1="285" y1="570" x2="285" y2="643" stroke="#4b4b50" stroke-width="2.5"/>
+    <polygon points="285,645 279,633 291,633" fill="#4b4b50"/>
+  </g>
+
+  <!-- ③ 파이프라인 (여백 늘림) -->
+  <text x="100" y="635" font-family='NanumSquareRound, sans-serif' font-size="26" font-weight="bold" fill="#b95752">③ 보따리(ctx)가 에셋들을 차례로 통과한다</text>
+  <g filter="url(#sk2)">
+    <rect x="90" y="660" width="1230" height="500" rx="22" fill="none" stroke="#7a7a80" stroke-width="2" stroke-dasharray="9 7"/>
+  </g>
+  <text x="115" y="690" font-family='NanumSquareRound, sans-serif' font-size="18" font-weight="bold" fill="#7a7a80">@mlflow.trace  agent_pipeline   ·  ENABLED_ASSETS = [ prompt → rag → tool → llm ]</text>
+
+  <g filter="url(#sk)">
+    <rect x="115" y="707" width="1180" height="58" rx="14" fill="#fdf6ec" stroke="#d99a3a" stroke-width="2"/>
+  </g>
+  <text x="135" y="733" font-family='NanumSquareRound, sans-serif' font-size="17" font-weight="bold" fill="#b5701a">[보따리] ctx = { query, prompt_id, system_message, context, tools_result, answer }</text>
+  <text x="135" y="755" font-family='NanumSquareRound, sans-serif' font-size="15" fill="#7a5a2a">각 에셋은 '자기 칸'만 채우고 다음 에셋에게 넘긴다. LLM 은 채워진 재료로 답을 쓴다.</text>
+
+  <!-- 에셋 박스 4개 (y 790~1080) -->
+  <!-- prompt -->
+  <g filter="url(#sk)">
+    <rect x="120" y="790" width="270" height="295" rx="16" fill="#ffffff" stroke="#4b4b50" stroke-width="2.5"/>
+    <rect x="120" y="790" width="270" height="46" rx="16" fill="#eef3fa" stroke="#5b7fb5" stroke-width="2"/>
+  </g>
+  <text x="140" y="821" font-family='NanumSquareRound, sans-serif' font-size="22" font-weight="bold" fill="#5b7fb5">prompt (완료)</text>
+  <text x="140" y="861" font-family='NanumSquareRound, sans-serif' font-size="15" fill="#4b4b50">고른 prompt_id 로</text>
+  <text x="140" y="883" font-family='NanumSquareRound, sans-serif' font-size="15" fill="#4b4b50">MLflow 에서 텍스트 로드</text>
+  <text x="140" y="919" font-family='NanumSquareRound, sans-serif' font-size="15" font-weight="bold" fill="#b95752">→ 채움: system_message</text>
+  <text x="140" y="957" font-family='NanumSquareRound, sans-serif' font-size="14" fill="#7a7a80">없으면 default_system</text>
+  <text x="140" y="979" font-family='NanumSquareRound, sans-serif' font-size="14" fill="#7a7a80">폴백 (A원칙 유지)</text>
+  <text x="140" y="1035" font-family='NanumSquareRound, sans-serif' font-size="13" fill="#9a9aa0">span: asset.prompt [CHAIN]</text>
+
+  <!-- rag -->
+  <g filter="url(#sk)">
+    <rect x="410" y="790" width="270" height="295" rx="16" fill="#ffffff" stroke="#4b4b50" stroke-width="2.5"/>
+    <rect x="410" y="790" width="270" height="46" rx="16" fill="#fdf1f1" stroke="#b95752" stroke-width="2"/>
+  </g>
+  <text x="430" y="821" font-family='NanumSquareRound, sans-serif' font-size="22" font-weight="bold" fill="#b95752">rag (목업)</text>
+  <text x="430" y="861" font-family='NanumSquareRound, sans-serif' font-size="15" fill="#4b4b50">질문 키워드로 문서 검색</text>
+  <text x="430" y="883" font-family='NanumSquareRound, sans-serif' font-size="15" fill="#4b4b50">(mocks/ 딥러닝·ML·GenAI)</text>
+  <text x="430" y="919" font-family='NanumSquareRound, sans-serif' font-size="15" font-weight="bold" fill="#b95752">→ 채움: context</text>
+  <text x="430" y="957" font-family='NanumSquareRound, sans-serif' font-size="14" fill="#7a7a80">mock ↔ milvus 분리</text>
+  <text x="430" y="979" font-family='NanumSquareRound, sans-serif' font-size="14" fill="#7a7a80">실제연결은 TODO</text>
+  <text x="430" y="1035" font-family='NanumSquareRound, sans-serif' font-size="13" fill="#9a9aa0">span: asset.rag [RETRIEVER]</text>
+
+  <!-- tool -->
+  <g filter="url(#sk)">
+    <rect x="700" y="790" width="270" height="295" rx="16" fill="#ffffff" stroke="#4b4b50" stroke-width="2.5"/>
+    <rect x="700" y="790" width="270" height="46" rx="16" fill="#f3eefa" stroke="#8a6fb5" stroke-width="2"/>
+  </g>
+  <text x="720" y="821" font-family='NanumSquareRound, sans-serif' font-size="22" font-weight="bold" fill="#8a6fb5">tool (목업)</text>
+  <text x="720" y="861" font-family='NanumSquareRound, sans-serif' font-size="15" fill="#4b4b50">키워드 매칭된 도구를</text>
+  <text x="720" y="883" font-family='NanumSquareRound, sans-serif' font-size="15" fill="#4b4b50">전부 호출 (가상 API 8종)</text>
+  <text x="720" y="919" font-family='NanumSquareRound, sans-serif' font-size="15" font-weight="bold" fill="#b95752">→ 채움: tools_result</text>
+  <text x="720" y="957" font-family='NanumSquareRound, sans-serif' font-size="14" fill="#7a7a80">날씨·GPU·모델·실험·</text>
+  <text x="720" y="979" font-family='NanumSquareRound, sans-serif' font-size="14" fill="#7a7a80">데이터셋·학습 등</text>
+  <text x="720" y="1035" font-family='NanumSquareRound, sans-serif' font-size="13" fill="#9a9aa0">span: asset.tool [TOOL]</text>
+
+  <!-- llm -->
+  <g filter="url(#sk)">
+    <rect x="990" y="790" width="300" height="295" rx="16" fill="#ffffff" stroke="#4b4b50" stroke-width="2.5"/>
+    <rect x="990" y="790" width="300" height="46" rx="16" fill="#eefaf0" stroke="#4a9a6a" stroke-width="2"/>
+  </g>
+  <text x="1010" y="821" font-family='NanumSquareRound, sans-serif' font-size="22" font-weight="bold" fill="#4a9a6a">llm (완료)</text>
+  <text x="1010" y="861" font-family='NanumSquareRound, sans-serif' font-size="15" fill="#4b4b50">LangChain 체인으로</text>
+  <text x="1010" y="883" font-family='NanumSquareRound, sans-serif' font-size="15" fill="#4b4b50">답변 생성 (ChatOpenAI)</text>
+  <text x="1010" y="919" font-family='NanumSquareRound, sans-serif' font-size="15" fill="#4b4b50">system 1개로 합침:</text>
+  <text x="1010" y="941" font-family='NanumSquareRound, sans-serif' font-size="14" fill="#7a7a80">prompt + context + tools</text>
+  <text x="1010" y="975" font-family='NanumSquareRound, sans-serif' font-size="15" font-weight="bold" fill="#b95752">→ 채움: answer</text>
+  <text x="1010" y="1035" font-family='NanumSquareRound, sans-serif' font-size="13" fill="#9a9aa0">span: asset.llm + autolog</text>
+
+  <!-- 에셋 사이 보따리 화살표 (박스 사이 정확히: 390→410, 680→700, 970→990) at y=937 -->
+  <g filter="url(#sk)" stroke="#d99a3a" stroke-width="3" fill="#d99a3a">
+    <line x1="390" y1="937" x2="406" y2="937"/><polygon points="410,937 398,931 398,943"/>
+    <line x1="680" y1="937" x2="696" y2="937"/><polygon points="700,937 688,931 688,943"/>
+    <line x1="970" y1="937" x2="986" y2="937"/><polygon points="990,937 978,931 978,943"/>
+  </g>
+
+  <!-- LangChain 전환 메모 -->
+  <g filter="url(#sk)">
+    <rect x="410" y="1100" width="880" height="50" rx="12" fill="#f3eefa" stroke="#8a6fb5" stroke-width="2"/>
+  </g>
+  <text x="430" y="1124" font-family='NanumSquareRound, sans-serif' font-size="15" font-weight="bold" fill="#8a6fb5">▶ 추후: rag·tool 을 LangChain Retriever / Tool(function calling) 로 전환 예정</text>
+  <text x="430" y="1142" font-family='NanumSquareRound, sans-serif' font-size="13" fill="#7a5a2a">필요성 — LLM 이 도구를 스스로 선택, 호출이 autolog 트레이스에 자동 기록, 실제 연동 구조와 일치</text>
+
+  <!-- 세로 화살표: 파이프라인 아래(700,1160) → 반환(700,1230) -->
+  <g filter="url(#sk)">
+    <line x1="700" y1="1162" x2="700" y2="1228" stroke="#4b4b50" stroke-width="2.5"/>
+    <polygon points="700,1230 694,1218 706,1218" fill="#4b4b50"/>
+  </g>
+
+  <!-- ④ 반환 (여백 늘림) -->
+  <text x="100" y="1235" font-family='NanumSquareRound, sans-serif' font-size="26" font-weight="bold" fill="#b95752">④ answer 를 꺼내 반환</text>
+  <g filter="url(#sk)">
+    <rect x="450" y="1262" width="500" height="70" rx="16" fill="#eefaf0" stroke="#4a9a6a" stroke-width="2.5"/>
+  </g>
+  <text x="475" y="1294" font-family='NanumSquareRound, sans-serif' font-size="19" font-weight="bold" fill="#4a9a6a">출력  { "aiu_output" : "답변 문자열" }</text>
+  <text x="475" y="1318" font-family='NanumSquareRound, sans-serif' font-size="14" fill="#7a7a80">※ aiu_output 키 필수 (custom_server 계약) · 에러도 [AGENT ERROR] 로 감싸 반환</text>
+
+  <g filter="url(#sk2)">
+    <rect x="990" y="1252" width="305" height="90" rx="14" fill="#fdf6ec" stroke="#d99a3a" stroke-width="2"/>
+  </g>
+  <text x="1010" y="1280" font-family='NanumSquareRound, sans-serif' font-size="16" font-weight="bold" fill="#b5701a">※ 매 대화마다 자동 기록</text>
+  <text x="1010" y="1304" font-family='NanumSquareRound, sans-serif' font-size="14" fill="#7a5a2a">Trace = 위 에셋 span 트리</text>
+  <text x="1010" y="1326" font-family='NanumSquareRound, sans-serif' font-size="14" fill="#7a5a2a">Session = session_id 로 묶임</text>
+
+  <!-- ⑤ 평가 (여백 늘림) -->
+  <text x="100" y="1415" font-family='NanumSquareRound, sans-serif' font-size="26" font-weight="bold" fill="#b95752">⑤ 평가 — judge_eval.py 로 따로 돌린다 (서빙과 분리)</text>
+
+  <g filter="url(#sk)">
+    <rect x="120" y="1440" width="360" height="100" rx="16" fill="#ffffff" stroke="#4b4b50" stroke-width="2.5"/>
+  </g>
+  <text x="140" y="1470" font-family='NanumSquareRound, sans-serif' font-size="20" font-weight="bold" fill="#4b4b50">judge_eval.py</text>
+  <text x="140" y="1498" font-family='NanumSquareRound, sans-serif' font-size="14" fill="#4b4b50">정석 make_judge · 5등급 자연어</text>
+  <text x="140" y="1520" font-family='NanumSquareRound, sans-serif' font-size="13" fill="#7a7a80">register→Judges등록 · evaluate→trace평가</text>
+
+  <!-- 화살표: judge_eval(480) → judges(595) y=1490 -->
+  <g filter="url(#sk)">
+    <line x1="480" y1="1490" x2="593" y2="1490" stroke="#4b4b50" stroke-width="2.5"/>
+    <polygon points="595,1490 583,1484 583,1496" fill="#4b4b50"/>
+  </g>
+  <text x="490" y="1480" font-family='NanumSquareRound, sans-serif' font-size="13" fill="#7a7a80">쌓인 trace</text>
+
+  <g filter="url(#sk2)">
+    <rect x="595" y="1440" width="695" height="100" rx="16" fill="#eefaf0" stroke="#4a9a6a" stroke-width="2.5"/>
+  </g>
+  <text x="615" y="1470" font-family='NanumSquareRound, sans-serif' font-size="20" font-weight="bold" fill="#4a9a6a">MLflow > GenAI > Judges</text>
+  <text x="615" y="1498" font-family='NanumSquareRound, sans-serif' font-size="14" fill="#4b4b50">· trace 를 judge LLM(gateway:/엔드포인트)으로 채점 → trace 에 점수 부착</text>
+  <text x="615" y="1522" font-family='NanumSquareRound, sans-serif' font-size="14" fill="#4b4b50">· {{ trace }} 로 과정까지 평가 · 자동평가는 experiment 단위로 한 번 설정</text>
+</svg>
