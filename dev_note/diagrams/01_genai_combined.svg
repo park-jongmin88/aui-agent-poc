@@ -1,0 +1,288 @@
+<svg width="2210" height="1180" viewBox="0 0 2210 1180" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="paper">
+      <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="5" result="noise"/>
+      <feColorMatrix in="noise" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.035 0"/>
+      <feComposite operator="over" in2="SourceGraphic"/>
+    </filter>
+    <filter id="sk" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="3" seed="4" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="2"/>
+    </filter>
+    <filter id="skb" x="-8%" y="-8%" width="116%" height="116%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.015" numOctaves="3" seed="4" result="n2"/>
+      <feDisplacementMap in="SourceGraphic" in2="n2" scale="2.2"/>
+    </filter>
+    <marker id="arr" markerWidth="12" markerHeight="12" refX="9" refY="4" orient="auto">
+      <path d="M0,0 L9,4 L0,8" fill="none" stroke="#6a6a70" stroke-width="1.6"/>
+    </marker>
+  </defs>
+
+  <rect width="2210" height="1180" fill="#f7f3e9"/>
+  <rect width="2210" height="1180" fill="#f7f3e9" filter="url(#paper)"/>
+
+  <g fill="#e8e2d2" stroke="#cfc7b3" stroke-width="1.3">
+    <circle cx="60" cy="30" r="8"/><circle cx="230" cy="30" r="8"/><circle cx="400" cy="30" r="8"/>
+    <circle cx="570" cy="30" r="8"/><circle cx="740" cy="30" r="8"/><circle cx="910" cy="30" r="8"/>
+    <circle cx="1080" cy="30" r="8"/><circle cx="1250" cy="30" r="8"/><circle cx="1420" cy="30" r="8"/>
+    <circle cx="1470" cy="30" r="8"/><circle cx="1640" cy="30" r="8"/><circle cx="1810" cy="30" r="8"/>
+    <circle cx="1980" cy="30" r="8"/><circle cx="2150" cy="30" r="8"/>
+  </g>
+
+  <text x="55" y="92" font-family="NanumSquareRound, sans-serif" font-size="36" font-weight="bold" fill="#4b4b50">MLflow <tspan fill="#b95752">GenAI</tspan> 탭 정리 &amp; 흐름·선행관계도</text>
+  <text x="58" y="120" font-family="NanumSquareRound, sans-serif" font-size="16" fill="#7a7a80">3.13.0 기준 · 왼쪽: 메뉴별 정리표 · 오른쪽: 메뉴 간 흐름 관계도</text>
+  <line x1="56" y1="134" x2="850" y2="134" stroke="#d990ab" stroke-width="3" filter="url(#sk)"/>
+
+  <!-- ===================== 왼쪽: 표 ============================= -->
+  <!-- 컬럼: 메뉴 55-195(140) / 목적 201-491(290) / 흐름 497-705(208) / 적용 711-1343(632) -->
+  <g filter="url(#sk)">
+    <rect x="55" y="150" width="140" height="44" rx="8" fill="#4b4b50"/>
+    <rect x="201" y="150" width="290" height="44" rx="8" fill="#4b4b50"/>
+    <rect x="497" y="150" width="208" height="44" rx="8" fill="#4b4b50"/>
+    <rect x="711" y="150" width="540" height="44" rx="8" fill="#4b4b50"/>
+  </g>
+  <text x="125" y="178" font-family="NanumSquareRound, sans-serif" font-size="15" font-weight="bold" fill="#f7f3e9" text-anchor="middle">메뉴명</text>
+  <text x="346" y="178" font-family="NanumSquareRound, sans-serif" font-size="15" font-weight="bold" fill="#f7f3e9" text-anchor="middle">설명 (목적)</text>
+  <text x="601" y="178" font-family="NanumSquareRound, sans-serif" font-size="15" font-weight="bold" fill="#f7f3e9" text-anchor="middle">흐름 / 선행관계</text>
+  <text x="981" y="178" font-family="NanumSquareRound, sans-serif" font-size="15" font-weight="bold" fill="#f7f3e9" text-anchor="middle">적용 (이슈)</text>
+
+  <!-- Overview y200 h76 -->
+  <g filter="url(#sk)">
+    <rect x="55" y="200" width="140" height="76" rx="8" fill="#fdf6ec" stroke="#d99a3a" stroke-width="2"/>
+    <rect x="201" y="200" width="290" height="76" rx="8" fill="#ffffff" stroke="#cfc7b3" stroke-width="1.5"/>
+    <rect x="497" y="200" width="208" height="76" rx="8" fill="#fdfbf5" stroke="#cfc7b3" stroke-width="1.5"/>
+    <rect x="711" y="200" width="540" height="76" rx="8" fill="#fbfdfb" stroke="#cfc7b3" stroke-width="1.5"/>
+  </g>
+  <text x="125" y="243" font-family="NanumSquareRound, sans-serif" font-size="14" font-weight="bold" fill="#b5701a" text-anchor="middle">Overview</text>
+  <text x="216" y="233" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">비용·지연·요청수·품질점수를</text>
+  <text x="216" y="252" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">한눈에 보는 요약 대시보드.</text>
+  <text x="512" y="233" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">기록이 쌓이면 집계되는</text>
+  <text x="512" y="252" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">시작 화면(후행).</text>
+  <text x="726" y="243" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#3a7a4a">[적용] 대화 기록이 쌓이면 지표가 자동으로 채워져 별도 작업이 없음</text>
+
+  <!-- Traces y284 h104 -->
+  <g filter="url(#sk)">
+    <rect x="55" y="284" width="140" height="104" rx="8" fill="#fdf6ec" stroke="#d99a3a" stroke-width="2"/>
+    <rect x="201" y="284" width="290" height="104" rx="8" fill="#ffffff" stroke="#cfc7b3" stroke-width="1.5"/>
+    <rect x="497" y="284" width="208" height="104" rx="8" fill="#fdfbf5" stroke="#cfc7b3" stroke-width="1.5"/>
+    <rect x="711" y="284" width="540" height="104" rx="8" fill="#fbfdfb" stroke="#cfc7b3" stroke-width="1.5"/>
+  </g>
+  <text x="125" y="340" font-family="NanumSquareRound, sans-serif" font-size="14" font-weight="bold" fill="#b5701a" text-anchor="middle">Traces</text>
+  <text x="216" y="312" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">에이전트가 답하기까지의</text>
+  <text x="216" y="331" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">실행 과정을 단계별로 기록.</text>
+  <text x="216" y="350" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">입출력·응답시간·토큰 확인.</text>
+  <text x="216" y="369" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">필터·검색·정렬 가능.</text>
+  <text x="512" y="322" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">모든 실행 결과가</text>
+  <text x="512" y="341" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">여기 쌓임. 세션·평가·</text>
+  <text x="512" y="360" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">데이터셋의 원천이</text>
+  <text x="512" y="379" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">되는 기본 화면.</text>
+  <text x="726" y="312" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#3a7a4a">[적용] 에이전트 실행 과정을 단계별로 기록하고, 대화 세션 정보도 남김</text>
+  <text x="726" y="335" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#3a7a4a">[적용] 민감정보(키 등)는 기록에 남지 않도록 가림</text>
+  <text x="726" y="362" font-family="NanumSquareRound, sans-serif" font-size="12" font-weight="bold" fill="#b95752">[이슈] 단계를 그래프로 보는 화면은 상위 버전에만 있어, 하위 버전 프로젝트엔 안 보임</text>
+
+  <!-- Sessions y396 h60 -->
+  <g filter="url(#sk)">
+    <rect x="55" y="396" width="140" height="60" rx="8" fill="#fdf6ec" stroke="#d99a3a" stroke-width="2"/>
+    <rect x="201" y="396" width="290" height="60" rx="8" fill="#ffffff" stroke="#cfc7b3" stroke-width="1.5"/>
+    <rect x="497" y="396" width="208" height="60" rx="8" fill="#fdfbf5" stroke="#cfc7b3" stroke-width="1.5"/>
+    <rect x="711" y="396" width="540" height="60" rx="8" fill="#fbfdfb" stroke="#cfc7b3" stroke-width="1.5"/>
+  </g>
+  <text x="125" y="430" font-family="NanumSquareRound, sans-serif" font-size="14" font-weight="bold" fill="#b5701a" text-anchor="middle">Sessions</text>
+  <text x="216" y="420" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">여러 번 주고받은 대화를</text>
+  <text x="216" y="439" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">하나의 세션으로 묶음.</text>
+  <text x="512" y="430" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">Traces 를 묶는 상위 뷰.</text>
+  <text x="726" y="430" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#3a7a4a">[적용] 같은 대화를 하나의 세션으로 묶어 흐름을 따라가게 함</text>
+
+  <!-- Prompts y464 h128 -->
+  <g filter="url(#sk)">
+    <rect x="55" y="464" width="140" height="128" rx="8" fill="#fdf6ec" stroke="#d99a3a" stroke-width="2"/>
+    <rect x="201" y="464" width="290" height="128" rx="8" fill="#ffffff" stroke="#cfc7b3" stroke-width="1.5"/>
+    <rect x="497" y="464" width="208" height="128" rx="8" fill="#fdfbf5" stroke="#cfc7b3" stroke-width="1.5"/>
+    <rect x="711" y="464" width="540" height="128" rx="8" fill="#fbfdfb" stroke="#cfc7b3" stroke-width="1.5"/>
+  </g>
+  <text x="125" y="533" font-family="NanumSquareRound, sans-serif" font-size="14" font-weight="bold" fill="#b5701a" text-anchor="middle">Prompts</text>
+  <text x="216" y="494" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">프롬프트를 버전으로 관리</text>
+  <text x="216" y="513" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">하는 저장소. 코드 재배포</text>
+  <text x="216" y="532" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">없이 프롬프트만 수정해</text>
+  <text x="216" y="551" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">품질 개선.</text>
+  <text x="512" y="504" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">전역(global) 저장.</text>
+  <text x="512" y="523" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">빌더·플레이그라운드의</text>
+  <text x="512" y="542" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">입력으로 쓰여 Traces</text>
+  <text x="512" y="561" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">로 이어짐.</text>
+  <text x="726" y="490" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#3a7a4a">[적용] 프롬프트를 버전으로 관리하고, 사용할 프롬프트와 버전을 골라 쓰게 함</text>
+  <text x="726" y="514" font-family="NanumSquareRound, sans-serif" font-size="12" font-weight="bold" fill="#b95752">[이슈] 버전 목록을 한 번에 가져오는 기능이 우리 환경에선 안 돼,</text>
+  <text x="744" y="532" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#b95752">버전을 하나씩 확인해 목록을 만듦</text>
+  <text x="726" y="556" font-family="NanumSquareRound, sans-serif" font-size="12" font-weight="bold" fill="#b95752">[이슈] 전역 저장인데 특정 실험에서 들어가면 그 실험 안에서만 보여,</text>
+  <text x="744" y="574" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#b95752">전체를 보려면 주소를 직접 옮겨야 함</text>
+
+  <!-- Evaluations y600 h94 -->
+  <g filter="url(#sk)">
+    <rect x="55" y="600" width="140" height="94" rx="8" fill="#fdf6ec" stroke="#d99a3a" stroke-width="2"/>
+    <rect x="201" y="600" width="290" height="94" rx="8" fill="#ffffff" stroke="#cfc7b3" stroke-width="1.5"/>
+    <rect x="497" y="600" width="208" height="94" rx="8" fill="#fdfbf5" stroke="#cfc7b3" stroke-width="1.5"/>
+    <rect x="711" y="600" width="540" height="94" rx="8" fill="#fbfdfb" stroke="#cfc7b3" stroke-width="1.5"/>
+  </g>
+  <text x="125" y="652" font-family="NanumSquareRound, sans-serif" font-size="13" font-weight="bold" fill="#b5701a" text-anchor="middle">Evaluations</text>
+  <text x="216" y="630" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">쌓인 대화 품질을 자동으로</text>
+  <text x="216" y="649" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">채점하고 결과를 저장.</text>
+  <text x="216" y="668" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">품질·안전성·사실성 측정.</text>
+  <text x="512" y="640" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">대화(대상) + Judge</text>
+  <text x="512" y="659" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">(기준)를 입력으로 받는</text>
+  <text x="512" y="678" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">가장 후행 단계.</text>
+  <text x="726" y="634" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#3a7a4a">[적용] 쌓인 대화를 자동으로 채점해 점수를 매기고 결과를 저장함</text>
+  <text x="726" y="662" font-family="NanumSquareRound, sans-serif" font-size="12" font-weight="bold" fill="#b95752">[이슈] 채점에 쓰는 게이트웨이 모델이 인증을 요구해,</text>
+  <text x="744" y="680" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#b95752">인증 정보를 자동으로 실어 보내도록 처리함</text>
+
+  <!-- Datasets y702 h104 -->
+  <g filter="url(#sk)">
+    <rect x="55" y="702" width="140" height="104" rx="8" fill="#fdf6ec" stroke="#d99a3a" stroke-width="2"/>
+    <rect x="201" y="702" width="290" height="104" rx="8" fill="#ffffff" stroke="#cfc7b3" stroke-width="1.5"/>
+    <rect x="497" y="702" width="208" height="104" rx="8" fill="#fdfbf5" stroke="#cfc7b3" stroke-width="1.5"/>
+    <rect x="711" y="702" width="540" height="104" rx="8" fill="#fbfdfb" stroke="#cfc7b3" stroke-width="1.5"/>
+  </g>
+  <text x="125" y="758" font-family="NanumSquareRound, sans-serif" font-size="14" font-weight="bold" fill="#b5701a" text-anchor="middle">Datasets</text>
+  <text x="216" y="732" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">평가용 테스트케이스 모음.</text>
+  <text x="216" y="751" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">대화에서 추출하거나 직접</text>
+  <text x="216" y="770" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">등록해 평가에 사용.</text>
+  <text x="512" y="742" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">Traces 에서 추출</text>
+  <text x="512" y="761" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">→ Evaluations 입력.</text>
+  <text x="726" y="730" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#8a7a3a">[미사용] 현재 사용하지 않음</text>
+  <text x="726" y="755" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#5b7fb5">[활용방안] 잘 된/문제된 대화를 테스트케이스로 모아두면,</text>
+  <text x="744" y="773" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#5b7fb5">프롬프트·모델을 바꿔도 같은 케이스로 품질을 비교·검증 가능</text>
+  <text x="744" y="791" font-family="NanumSquareRound, sans-serif" font-size="11" fill="#7a7a80">(아래 "Datasets 실제 사용 예" 참고)</text>
+
+  <!-- Judges y814 h76 -->
+  <g filter="url(#sk)">
+    <rect x="55" y="814" width="140" height="76" rx="8" fill="#fdf6ec" stroke="#d99a3a" stroke-width="2"/>
+    <rect x="201" y="814" width="290" height="76" rx="8" fill="#ffffff" stroke="#cfc7b3" stroke-width="1.5"/>
+    <rect x="497" y="814" width="208" height="76" rx="8" fill="#fdfbf5" stroke="#cfc7b3" stroke-width="1.5"/>
+    <rect x="711" y="814" width="540" height="76" rx="8" fill="#fbfdfb" stroke="#cfc7b3" stroke-width="1.5"/>
+  </g>
+  <text x="125" y="857" font-family="NanumSquareRound, sans-serif" font-size="14" font-weight="bold" fill="#b5701a" text-anchor="middle">Judges</text>
+  <text x="216" y="847" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">채점을 수행하는 LLM</text>
+  <text x="216" y="866" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">심사관 설정·실행.(평가기준)</text>
+  <text x="512" y="857" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">Evaluations 의 채점</text>
+  <text x="512" y="876" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">기준(선행).</text>
+  <text x="726" y="847" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#3a7a4a">[적용] 게이트웨이에 등록된 LLM 을 채점 모델로 지정하고,</text>
+  <text x="744" y="865" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#3a7a4a">채점 기준을 정의해 심사관(judge)을 등록·실행함</text>
+
+  <!-- 표 범례 -->
+  <text x="58" y="922" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#3a7a4a">[적용] 적용 완료</text>
+  <text x="195" y="922" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#8a7a3a">[미사용] 안 씀</text>
+  <text x="325" y="922" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#5b7fb5">[활용방안] 향후 활용</text>
+  <text x="490" y="922" font-family="NanumSquareRound, sans-serif" font-size="12" font-weight="bold" fill="#b95752">[이슈] 주의/이슈</text>
+
+  <!-- 구분선 -->
+  <line x1="1290" y1="150" x2="1290" y2="895" stroke="#cfc7b3" stroke-width="2" stroke-dasharray="6 6"/>
+
+  <!-- ===================== 오른쪽: 관계도 ======================= -->
+  <text x="1330" y="184" font-family="NanumSquareRound, sans-serif" font-size="21" font-weight="bold" fill="#4b4b50">메뉴 간 흐름·선행관계</text>
+  <text x="1332" y="210" font-family="NanumSquareRound, sans-serif" font-size="13" fill="#7a7a80">노드=메뉴 · 화살표=흐름 방향 · 선 위 글씨=주고받는 정보/행동</text>
+
+  <!-- 노드: Overview(1880,360) Prompts(1630,560) Traces(1880,560) Sessions(1880,790) Datasets(1630,790) Evaluations(2210,560) Judges(2210,790) -->
+  <g filter="url(#skb)">
+    <line x1="1582" y1="560" x2="1688" y2="560" stroke="#6a6a70" stroke-width="2" marker-end="url(#arr)"/>
+  </g>
+  <text x="1635" y="546" font-family="NanumSquareRound, sans-serif" font-size="12.5" fill="#5b7fb5" text-anchor="middle" font-weight="bold">프롬프트 버전</text>
+  <text x="1635" y="580" font-family="NanumSquareRound, sans-serif" font-size="11" fill="#7a7a80" text-anchor="middle">선택해 실행 입력</text>
+
+  <g filter="url(#skb)">
+    <line x1="1760" y1="632" x2="1760" y2="718" stroke="#6a6a70" stroke-width="2" marker-end="url(#arr)"/>
+  </g>
+  <text x="1776" y="678" font-family="NanumSquareRound, sans-serif" font-size="12.5" fill="#4a9a6a" font-weight="bold">대화 묶기</text>
+  <text x="1776" y="696" font-family="NanumSquareRound, sans-serif" font-size="11" fill="#7a7a80">session_id</text>
+
+  <g filter="url(#skb)">
+    <line x1="1760" y1="488" x2="1760" y2="422" stroke="#6a6a70" stroke-width="2" marker-end="url(#arr)"/>
+  </g>
+  <text x="1776" y="446" font-family="NanumSquareRound, sans-serif" font-size="12.5" fill="#d99a3a" font-weight="bold">지표 집계</text>
+  <text x="1776" y="464" font-family="NanumSquareRound, sans-serif" font-size="11" fill="#7a7a80">비용·지연·품질</text>
+
+  <g filter="url(#skb)">
+    <line x1="1832" y1="560" x2="1998" y2="560" stroke="#6a6a70" stroke-width="2" marker-end="url(#arr)"/>
+  </g>
+  <text x="1915" y="546" font-family="NanumSquareRound, sans-serif" font-size="12.5" fill="#b95752" text-anchor="middle" font-weight="bold">채점 대상(대화)</text>
+
+  <g filter="url(#skb)">
+    <line x1="1700" y1="608" x2="1580" y2="740" stroke="#6a6a70" stroke-width="2" marker-end="url(#arr)"/>
+  </g>
+  <text x="1608" y="688" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#8a6fb5" font-weight="bold" text-anchor="middle">케이스 추출</text>
+
+  <g filter="url(#skb)">
+    <line x1="1572" y1="790" x2="1998" y2="595" stroke="#b0a8b8" stroke-width="1.8" stroke-dasharray="7 5" marker-end="url(#arr)"/>
+  </g>
+  <text x="1800" y="735" font-family="NanumSquareRound, sans-serif" font-size="11.5" fill="#9a8aa8" font-weight="bold" text-anchor="middle">평가셋 입력 (미사용)</text>
+
+  <g filter="url(#skb)">
+    <line x1="2090" y1="718" x2="2090" y2="632" stroke="#6a6a70" stroke-width="2" marker-end="url(#arr)"/>
+  </g>
+  <text x="2106" y="678" font-family="NanumSquareRound, sans-serif" font-size="12.5" fill="#b95752" font-weight="bold">채점 기준</text>
+  <text x="2106" y="696" font-family="NanumSquareRound, sans-serif" font-size="11" fill="#7a7a80">judge 제공</text>
+
+  <g filter="url(#skb)"><circle cx="1760" cy="360" r="60" fill="#fdf6ec" stroke="#d99a3a" stroke-width="2.5"/></g>
+  <text x="1760" y="355" font-family="NanumSquareRound, sans-serif" font-size="16" font-weight="bold" fill="#b5701a" text-anchor="middle">Overview</text>
+  <text x="1760" y="376" font-family="NanumSquareRound, sans-serif" font-size="11" fill="#7a7a80" text-anchor="middle">요약 대시보드</text>
+
+  <g filter="url(#skb)"><circle cx="1510" cy="560" r="60" fill="#eef3fa" stroke="#5b7fb5" stroke-width="2.5"/></g>
+  <text x="1510" y="550" font-family="NanumSquareRound, sans-serif" font-size="16" font-weight="bold" fill="#5b7fb5" text-anchor="middle">Prompts</text>
+  <text x="1510" y="570" font-family="NanumSquareRound, sans-serif" font-size="11" fill="#7a7a80" text-anchor="middle">프롬프트 버전</text>
+  <text x="1510" y="586" font-family="NanumSquareRound, sans-serif" font-size="11" fill="#7a7a80" text-anchor="middle">관리(전역)</text>
+
+  <g filter="url(#skb)"><circle cx="1760" cy="560" r="70" fill="#eefaf0" stroke="#4a9a6a" stroke-width="3"/></g>
+  <text x="1760" y="552" font-family="NanumSquareRound, sans-serif" font-size="18" font-weight="bold" fill="#4a9a6a" text-anchor="middle">Traces</text>
+  <text x="1760" y="574" font-family="NanumSquareRound, sans-serif" font-size="11" fill="#7a7a80" text-anchor="middle">실행 기록(원천)</text>
+
+  <g filter="url(#skb)"><circle cx="1760" cy="790" r="60" fill="#eefaf0" stroke="#4a9a6a" stroke-width="2.5"/></g>
+  <text x="1760" y="785" font-family="NanumSquareRound, sans-serif" font-size="15" font-weight="bold" fill="#4a9a6a" text-anchor="middle">Sessions</text>
+  <text x="1760" y="806" font-family="NanumSquareRound, sans-serif" font-size="11" fill="#7a7a80" text-anchor="middle">대화 묶음</text>
+
+  <g filter="url(#skb)"><circle cx="1510" cy="790" r="60" fill="#f3eefa" stroke="#8a6fb5" stroke-width="2.5"/></g>
+  <text x="1510" y="785" font-family="NanumSquareRound, sans-serif" font-size="15" font-weight="bold" fill="#8a6fb5" text-anchor="middle">Datasets</text>
+  <text x="1510" y="806" font-family="NanumSquareRound, sans-serif" font-size="10.5" fill="#9a8aa8" text-anchor="middle">평가셋(미사용)</text>
+
+  <g filter="url(#skb)"><circle cx="2090" cy="560" r="66" fill="#fdf1f1" stroke="#b95752" stroke-width="3"/></g>
+  <text x="2090" y="552" font-family="NanumSquareRound, sans-serif" font-size="15" font-weight="bold" fill="#b95752" text-anchor="middle">Evaluations</text>
+  <text x="2090" y="573" font-family="NanumSquareRound, sans-serif" font-size="11" fill="#7a7a80" text-anchor="middle">자동 채점(후행)</text>
+
+  <g filter="url(#skb)"><circle cx="2090" cy="790" r="60" fill="#fdf1f1" stroke="#b95752" stroke-width="2.5"/></g>
+  <text x="2090" y="785" font-family="NanumSquareRound, sans-serif" font-size="15" font-weight="bold" fill="#b95752" text-anchor="middle">Judges</text>
+  <text x="2090" y="806" font-family="NanumSquareRound, sans-serif" font-size="11" fill="#7a7a80" text-anchor="middle">채점 기준</text>
+
+  <!-- 관계도 흐름 요약 -->
+  <g filter="url(#sk)"><rect x="1330" y="858" width="860" height="32" rx="8" fill="#fbfdfb" stroke="#4a9a6a" stroke-width="1.5"/></g>
+  <text x="1346" y="879" font-family="NanumSquareRound, sans-serif" font-size="12" fill="#4b4b50">흐름: Prompts → Traces → 위 Overview · 아래 Sessions · 옆 Evaluations(+Judges/Datasets)  ·  실선=사용 / 점선=미사용</text>
+
+  <!-- ===================== 하단 좌: Datasets 실제 사용 예 ===================== -->
+  <g filter="url(#sk)"><rect x="55" y="950" width="1290" height="186" rx="10" fill="#f3eefa" stroke="#8a6fb5" stroke-width="2"/></g>
+  <text x="78" y="982" font-family="NanumSquareRound, sans-serif" font-size="16" font-weight="bold" fill="#8a6fb5">Datasets 실제 사용 예 — "바꿀 때마다 돌려보는 고정 시험지"</text>
+  <line x1="78" y1="992" x2="560" y2="992" stroke="#d990ab" stroke-width="2"/>
+
+  <text x="78" y="1020" font-family="NanumSquareRound, sans-serif" font-size="13" font-weight="bold" fill="#4b4b50">① 테스트케이스를 만들어 둠 (질문+기대답변)</text>
+  <text x="92" y="1041" font-family="NanumSquareRound, sans-serif" font-size="11.5" fill="#4b4b50">· "환불 정책이 어떻게 돼?" → "30일 이내, 영수증 필요" 포함</text>
+  <text x="92" y="1060" font-family="NanumSquareRound, sans-serif" font-size="11.5" fill="#4b4b50">· "배송 얼마나?" → "2~3일" 포함  (보통 50~100개)</text>
+  <text x="78" y="1086" font-family="NanumSquareRound, sans-serif" font-size="13" font-weight="bold" fill="#4b4b50">② 무언가 바꿈</text>
+  <text x="92" y="1107" font-family="NanumSquareRound, sans-serif" font-size="11.5" fill="#4b4b50">· 프롬프트 v3→v4 / LLM 교체 / RAG 문서 추가 등</text>
+
+  <text x="470" y="1020" font-family="NanumSquareRound, sans-serif" font-size="13" font-weight="bold" fill="#4b4b50">③ 같은 데이터셋으로 평가</text>
+  <text x="484" y="1041" font-family="NanumSquareRound, sans-serif" font-size="11.5" fill="#4b4b50">· 저장한 질문 100개를 새 버전에 모두 던짐</text>
+  <text x="484" y="1060" font-family="NanumSquareRound, sans-serif" font-size="11.5" fill="#4b4b50">· judge 채점 → "v3 92점, v4 87점" 비교</text>
+  <text x="470" y="1086" font-family="NanumSquareRound, sans-serif" font-size="13" font-weight="bold" fill="#4b4b50">④ 결과</text>
+  <text x="484" y="1107" font-family="NanumSquareRound, sans-serif" font-size="11.5" font-weight="bold" fill="#b95752">· "v4 로 환불 답이 틀려졌네?" 를 배포 전에 잡아냄</text>
+
+  <text x="870" y="1020" font-family="NanumSquareRound, sans-serif" font-size="13" font-weight="bold" fill="#8a6fb5">왜 필요한가</text>
+  <text x="884" y="1041" font-family="NanumSquareRound, sans-serif" font-size="11.5" fill="#4b4b50">· 없으면: 한두 개만 보고 "잘 되네" → 딴 데서</text>
+  <text x="896" y="1058" font-family="NanumSquareRound, sans-serif" font-size="11.5" fill="#4b4b50">망가져도 모름</text>
+  <text x="884" y="1077" font-family="NanumSquareRound, sans-serif" font-size="11.5" fill="#4b4b50">· 있으면: 고정 100개 자동 평가 → 점수 비교 →</text>
+  <text x="896" y="1094" font-family="NanumSquareRound, sans-serif" font-size="11.5" fill="#4b4b50">망가진 부분 즉시 발견</text>
+  <text x="884" y="1116" font-family="NanumSquareRound, sans-serif" font-size="11" fill="#7a7a80">비유: 기출문제집으로 매번 같은 시험. 우리는 아직 미사용(POC).</text>
+
+  <!-- ===================== 하단 우: 버전 주의 ===================== -->
+  <g filter="url(#sk)"><rect x="1360" y="950" width="800" height="186" rx="10" fill="#fdf1f1" stroke="#b95752" stroke-width="2"/></g>
+  <text x="1383" y="982" font-family="NanumSquareRound, sans-serif" font-size="16" font-weight="bold" fill="#b95752">버전 주의</text>
+  <line x1="1383" y1="992" x2="1440" y2="992" stroke="#d990ab" stroke-width="2"/>
+  <text x="1383" y="1024" font-family="NanumSquareRound, sans-serif" font-size="12.5" fill="#4b4b50">· 프로젝트마다 3.10.0 또는 3.13.0 에 연결돼 있음.</text>
+  <text x="1401" y="1046" font-family="NanumSquareRound, sans-serif" font-size="12.5" fill="#4b4b50">코드 동작은 같지만, 상위 버전에서 추가된 일부 화면</text>
+  <text x="1401" y="1068" font-family="NanumSquareRound, sans-serif" font-size="12.5" fill="#4b4b50">(단계 그래프 뷰 등)은 3.13.0 연결 프로젝트에서만 보임.</text>
+  <text x="1383" y="1098" font-family="NanumSquareRound, sans-serif" font-size="12.5" fill="#4b4b50">· 실제 사이드바의 메뉴 순서·유무는 연결된 버전 화면에서</text>
+  <text x="1401" y="1120" font-family="NanumSquareRound, sans-serif" font-size="12.5" fill="#4b4b50">확인하는 것이 가장 정확함.</text>
+</svg>
