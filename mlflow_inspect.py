@@ -84,6 +84,22 @@ def _setup():
         print(f"MLflow 버전: {mlflow.__version__}")
     except Exception:
         pass
+
+    # 연결 확인 (첫 요청은 몇 초 걸릴 수 있으므로 진행 상태를 보여준다)
+    print("MLflow 연결 확인 중 ...", end=" ", flush=True)
+    try:
+        # 가벼운 요청으로 실제 응답 오는지 확인 (experiment 목록 1건)
+        client = mlflow.MlflowClient()
+        client.search_experiments(max_results=1)
+        print("확인 완료 ✅", flush=True)
+    except Exception as e:
+        print("실패 ❌", flush=True)
+        _err("MLflow 연결 확인(search_experiments)", e)
+        ans = input("\n그래도 계속 진행할까요? (y/N): ").strip().lower()
+        if ans != "y":
+            print("중지합니다. 주소/인증을 확인하세요.")
+            sys.exit(1)
+
     return mlflow
 
 
@@ -110,11 +126,14 @@ def _pick(items, render):
 
 def inspect_gateway(mlflow):
     _sep("1) Gateway 엔드포인트 조회")
+    print("조회 중 ...", end=" ", flush=True)
     try:
         from mlflow.deployments import get_deploy_client
         client = get_deploy_client(MLFLOW_TRACKING_URI)
         endpoints = client.list_endpoints()
+        print("완료", flush=True)
     except Exception as e:
+        print("실패", flush=True)
         _err("gateway 엔드포인트 목록 조회(list_endpoints)", e)
         return
 
@@ -173,10 +192,13 @@ def _show_gateway_detail(ep, client):
 
 def inspect_prompt(mlflow):
     _sep("2) Prompt 조회")
+    print("조회 중 ...", end=" ", flush=True)
     try:
         prompts = mlflow.genai.search_prompts()
         prompts = list(prompts)
+        print("완료", flush=True)
     except Exception as e:
+        print("실패", flush=True)
         _err("프롬프트 목록 조회(search_prompts)", e)
         return
 
@@ -239,6 +261,7 @@ def _show_prompt_detail(p, mlflow):
 
 def inspect_judge(mlflow):
     _sep("3) Judge / Scorer 조회")
+    print("조회 중 ...", end=" ", flush=True)
     try:
         kwargs = {}
         if EXPERIMENT_NAME:
@@ -247,7 +270,9 @@ def inspect_judge(mlflow):
                 kwargs["experiment_id"] = exp.experiment_id
         scorers = mlflow.genai.list_scorers(**kwargs)
         scorers = list(scorers)
+        print("완료", flush=True)
     except Exception as e:
+        print("실패", flush=True)
         _err("judge/scorer 목록 조회(list_scorers)", e)
         print("  참고: 이 서버(OSS 버전)에서 scorer 조회를 지원하지 않을 수 있습니다.")
         return
