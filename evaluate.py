@@ -30,7 +30,11 @@ import mlflow
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _HERE)
 
+# MLflow 자동 태깅 403 경고 등 반복 경고 억제 (부가기능 실패라 평가엔 지장 없음).
 logging.getLogger("mlflow.tracking.client").setLevel(logging.ERROR)
+logging.getLogger("mlflow.tracking._model_registry.client").setLevel(logging.ERROR)
+logging.getLogger("mlflow.models.evaluation").setLevel(logging.ERROR)
+logging.getLogger("mlflow.genai").setLevel(logging.ERROR)
 
 
 # #############################################################################
