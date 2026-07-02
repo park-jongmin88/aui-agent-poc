@@ -113,11 +113,16 @@ def prompt_pick_endpoint(endpoints: list, prompt_label: str = "엔드포인트",
     print(f"\n  사용할 {prompt_label}를 선택하세요:")
     for i, ep in enumerate(endpoints, 1):
         name = ep.get("name", "?")
-        etype = ep.get("endpoint_type") or ep.get("task") or "?"
+        etype = ep.get("endpoint_type") or ep.get("task") or ""
         model = ep.get("model") or {}
         model_name = model.get("name", "") if isinstance(model, dict) else ""
-        extra = f" (model: {model_name})" if model_name else ""
-        print(f"    [{i}] {name}  [{etype}]{extra}")
+        parts = []
+        if etype:
+            parts.append(f"[{etype}]")
+        if model_name:
+            parts.append(f"(model: {model_name})")
+        suffix = ("  " + " ".join(parts)) if parts else ""
+        print(f"    [{i}] {name}{suffix}")
     if not required:
         print(f"    [0] 건너뛰기 (나중에 직접 입력)")
 
@@ -128,4 +133,5 @@ def prompt_pick_endpoint(endpoints: list, prompt_label: str = "엔드포인트",
         if sel.isdigit() and 1 <= int(sel) <= len(endpoints):
             return endpoints[int(sel) - 1]
         print("  올바른 번호를 입력하세요.")
+
 
