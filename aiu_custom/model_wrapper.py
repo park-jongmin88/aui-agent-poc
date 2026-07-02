@@ -18,7 +18,7 @@ import mlflow
 import mlflow.pyfunc
 
 from assets import new_ctx, load_asset
-from config import ENABLED_ASSETS, LLM_BASE_URL, LLM_MODEL, ASSET_CONN, MLFLOW_CONN
+from config import ENABLED_ASSETS, ASSET_CONN, MLFLOW_CONN
 
 
 _SENSITIVE_KEYS = ("api_key", "llm_api_key", "apikey", "password", "passwd", "token", "secret", "authorization")
@@ -116,21 +116,26 @@ class ModelWrapper(mlflow.pyfunc.PythonModel):
         self.assets = {name: load_asset(name) for name in ENABLED_ASSETS}
         self._artifacts = dict(getattr(context, "artifacts", {}) or {})
 
-        # llm 접속정보: agent.py 등록 시 만든 conn.json(Artifact) 을 읽는다.
-        # (등록 시점에 gateway 에서 선택한 엔드포인트가 여기 반영돼 있음.
-        #  conn.json 이 없거나 llm 정보가 비어 있으면 config.py 값으로 폴백.)
-        llm_base_url, llm_model = LLM_BASE_URL, LLM_MODEL
+        # llm 접속정보: agent.py 등록 시 만든 conn.json(Artifact) 에서 읽는다.
+        # (agent.py 가 등록 시 gateway 조회+선택을 필수로 강제하므로,
+        #  conn.json 에는 항상 gateway 엔드포인트 정보가 들어있어야 한다.
+        #  여기서 값이 비어있다면 등록 자체가 잘못된 것이므로 조용히 넘기지 않고 에러를 낸다.)
         conn_path = self._artifacts.get("conn", "")
-        if conn_path and os.path.exists(conn_path):
-            try:
-                import json
-                with open(conn_path, "r", encoding="utf-8") as f:
-                    conn_data = json.load(f)
-                llm_cfg = conn_data.get("llm", {}) or {}
-                llm_base_url = llm_cfg.get("base_url") or llm_base_url
-                llm_model = llm_cfg.get("model") or llm_model
-            except Exception:
-                pass  # 읽기 실패해도 config.py 값으로 계속 진행
+        if not conn_path or not os.path.exists(conn_path):
+            raise RuntimeError(
+                "conn.json(Artifact) 을 찾을 수 없습니다. agent.py 로 등록된 모델이 맞는지 확인하세요."
+            )
+        import json
+        with open(conn_path, "r", encoding="utf-8") as f:
+            conn_data = json.load(f)
+        llm_cfg = conn_data.get("llm", {}) or {}
+        llm_base_url = llm_cfg.get("base_url", "")
+        llm_model = llm_cfg.get("model", "")
+        if not llm_base_url or not llm_model:
+            raise RuntimeError(
+                "conn.json 에 llm gateway 정보(base_url/model)가 비어 있습니다. "
+                "agent.py 등록 시 gateway 엔드포인트를 선택했는지 확인하세요."
+            )
 
         # gateway 인증: MLflow 로그인 정보를 그대로 재사용 (judge_eval 과 동일 방식).
         # client 는 더 이상 llm_api_key 를 보낼 필요가 없다 (서버가 이미 인증정보를 가짐).
@@ -235,4 +240,5 @@ class ModelWrapper(mlflow.pyfunc.PythonModel):
                 pass
 
         return {"aiu_output": answer}
+
 
