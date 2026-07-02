@@ -84,7 +84,7 @@ ctx = { query, prompt_id, prompt_version, system_message, context, tools_result,
 
 ## 4. custom_server.py 계약 (고정, 수정 불가)
 
-- **입력**: `model_input["input"][0]` = `{query, system_message, llm_api_key, session_id, prompt_id, prompt_version, user_id, mode}`, 그리고 `trace_id` 등.
+- **입력**: `model_input["input"][0]` = `{query, system_message, session_id, prompt_id, prompt_version, user_id, mode}`, 그리고 `trace_id` 등. (LLM 인증은 gateway 가 처리하므로 llm_api_key 없음)
 - **출력**: 반드시 `{"aiu_output": ...}` 키를 포함해야 한다. 없으면 custom_server 측에서 `UnboundLocalError: log_data` 연쇄 오류가 난다 (서버 측 코드라 수정 불가).
 - 정상 응답 형태: `{...,"output":{"aiu_output":"답변"}}`.
 - 에러는 서버를 죽이지 않고 `{"aiu_output":"[AGENT ERROR]..."}`로 반환한다.
@@ -119,11 +119,18 @@ MLflow Prompt Registry에서 `prompt_id`로 텍스트를 로드한다.
 - **버전 선택**: 별칭(@production) 의존을 제거하고 버전 번호로 로드한다. client 가 `prompt_id` + `prompt_version` 을 보내면 `load_prompt(name, version=N)` 으로, 버전 생략 시 최신을 로드한다. "프롬프트 선택 → 버전 선택" 2단계. OSS MLflow 는 `search_prompt_versions`(Databricks 전용)가 없어 버전 목록을 load_prompt 순차탐색으로 조회한다. (→ PROMPT_VERSION.md)
 - 미선택/로드 실패 시 default_system 으로 폴백.
 
-### llm (구현됨)
+### llm (구현됨, Gateway 방식)
 LangChain 체인으로 답변 생성: `prompt | model | StrOutputParser()` (LCEL).
-- `ChatOpenAI` + `ChatPromptTemplate` + `StrOutputParser`.
+- **MLflow AI Gateway 로 호출** — LLM 접속정보(주소·키)는 client/config 에 두지 않는다. gateway 가 갖고 있다.
+  - `base_url`: `{MLFLOW_TRACKING_URI}/gateway/mlflow/v1` (OpenAI 호환 엔드포인트)
+  - `model`: gateway 에 등록된 엔드포인트 이름 (agent.py 등록 시 선택)
+  - 인증: `default_headers` 에 `Authorization: Basic base64(MLFLOW_USERNAME:MLFLOW_PASSWORD)` — judge_eval 과 동일한 방식으로 **MLflow 계정을 재사용**한다. `api_key` 필드는 "dummy" (gateway 가 무시).
+- **등록 시 필수 선택** — `agent.py` 실행 시 `assets/gateway_utils.py` 로 gateway 의 chat 엔드포인트 목록을 조회해 화면에서 고른다. 목록이 없거나 조회가 실패하면 **등록 자체가 중단**된다 (config.py 에 주소를 직접 적는 옛 방식은 이 브랜치에서 완전히 제거함 — 폴백 없음).
+- 선택한 엔드포인트 정보는 `conn.json`(Artifact)에 저장되고, 서빙 시작 시(`load_context`) 그 파일을 읽어 `ChatOpenAI` 를 구성한다. `conn.json` 이 없거나 llm 정보가 비면 서빙 시작이 명확한 에러로 실패한다 (조용히 넘어가지 않음).
+- **client 는 더 이상 `llm_api_key` 를 보내지 않는다.** 서버(agent)가 이미 gateway 인증정보를 갖고 있기 때문. (→ `assets/gateway_utils.py` 는 `mlflow_inspect.py`(단독 조회 스크립트)와도 같은 로직을 공유한다.)
 - **system 메시지 단일화**: context/tools_result를 하나의 system 메시지로 합친다. (system을 여러 개 보내면 Qwen 등 일부 모델이 400 BadRequest 반환)
 - surrogate 정화(`_safe_text`) 포함.
+- **리소스 빌드 시점 변경**: 예전엔 client 가 매번 다른 api_key 를 보낼 수 있어 요청마다 리소스를 재생성했지만, gateway 방식은 인증정보가 서버에 고정이므로 **서빙 시작 시 1회만 빌드**한다.
 
 ### rag (구현: Milvus + bge-m3)
 질문 키워드로 문서를 검색해 `ctx["context"]`를 채운다.
