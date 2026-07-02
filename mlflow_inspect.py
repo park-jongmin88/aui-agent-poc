@@ -222,14 +222,18 @@ def _show_gateway_detail(ep):
     name = ep.get("name", "?")
     _sep(f"[Gateway 상세] {name}")
 
-    # 상세 재조회 (endpoints/{name}). 실패하면 목록에서 받은 dict 를 그대로 사용.
+    # 상세 재조회를 시도한다. 이 서버가 상세 API 를 지원 안 하면(404 등)
+    # 시끄러운 오류 대신 조용히 폴백하고, 목록 조회 때 받은 정보로 보여준다.
+    # (목록 API 가 이미 name/endpoint_type/model 등 핵심 정보를 담고 있어
+    #  대부분의 경우 상세 재조회 없이도 확인 가능하다.)
     detail = ep
     try:
         data, _ = _gateway_get(f"endpoints/{name}")
         if isinstance(data, dict) and data:
             detail = data
     except Exception as e:
-        _err(f"엔드포인트 상세 조회(endpoints/{name})", e)
+        print(f"  (참고: 이 서버는 개별 상세 조회를 지원하지 않는 것 같습니다"
+              f" - {type(e).__name__}. 목록 조회 정보로 표시합니다.)")
 
     for key in ("name", "endpoint_type", "task", "endpoint_url", "limit"):
         if key in detail and detail[key] is not None:
