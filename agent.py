@@ -33,7 +33,7 @@ from config import (
 )
 from aiu_custom.predict import ModelWrapper
 from assets.gateway_utils import (
-    list_gateway_endpoints, filter_by_type, prompt_pick_endpoint,
+    list_gateway_endpoints, prompt_pick_endpoint,
 )
 
 
@@ -120,14 +120,16 @@ def register_agent():
         endpoints = list_gateway_endpoints(
             MLFLOW_CONN["tracking_uri"], MLFLOW_CONN["username"], MLFLOW_CONN["password"]
         )
-        chat_endpoints = filter_by_type(endpoints, "chat")
-        print(f"완료 ({len(chat_endpoints)}개 chat 엔드포인트)")
-        if not chat_endpoints:
+        print(f"완료 ({len(endpoints)}개 엔드포인트)")
+        if not endpoints:
             raise RuntimeError(
-                "gateway 에 등록된 chat 엔드포인트가 없습니다. "
+                "gateway 에 등록된 엔드포인트가 없습니다. "
                 "MLflow AI Gateway 에 LLM 엔드포인트를 먼저 등록하세요."
             )
-        chosen = prompt_pick_endpoint(chat_endpoints, "LLM gateway 엔드포인트", required=True)
+        # 타입 필터 없이 전체 목록에서 고른다.
+        # (gateway 응답의 타입 필드가 환경마다 달라 chat 필터가 신뢰할 수 없음.
+        #  사용자가 LLM 용 엔드포인트를 직접 고르는 것이 확실하다.)
+        chosen = prompt_pick_endpoint(endpoints, "LLM gateway 엔드포인트", required=True)
         ep_name = chosen.get("name")
         base_url = f"{MLFLOW_CONN['tracking_uri'].rstrip('/')}/gateway/mlflow/v1"
         print(f"  -> 선택됨: {ep_name}  (base_url={base_url})")
