@@ -83,6 +83,15 @@ def _require_litellm() -> bool:
         return False
 
 
+def _basic_auth_value() -> str:
+    """MLflow 아이디/비번으로 'Basic <base64>' 문자열을 만든다.
+    make_judge(extra_headers=...) 와 litellm 패치 양쪽에서 쓴다."""
+    basic = base64.b64encode(
+        f"{MLFLOW_USERNAME}:{MLFLOW_PASSWORD}".encode("utf-8")
+    ).decode("ascii")
+    return f"Basic {basic}"
+
+
 def _connect():
     """MLflow 접속 + gateway(litellm) 호출용 Basic 인증 헤더 주입."""
     if _is_set(MLFLOW_USERNAME):
@@ -93,11 +102,10 @@ def _connect():
 
     # gateway 는 HTTP Basic 인증을 요구한다. judge 가 gateway 모델을 호출할 때
     # (내부적으로 litellm.completion) 매번 Authorization 헤더가 실리도록 패치한다.
+    # (이것은 "이 스크립트로 수동 실행" 시의 경로. 자동 평가는 make_judge 의
+    #  extra_headers 로 judge 에 저장된 헤더를 서버가 사용한다 - 아래 register 참고.)
     if _is_set(MLFLOW_USERNAME) and _is_set(MLFLOW_PASSWORD):
-        basic = base64.b64encode(
-            f"{MLFLOW_USERNAME}:{MLFLOW_PASSWORD}".encode("utf-8")
-        ).decode("ascii")
-        _patch_litellm_basic_auth(f"Basic {basic}")
+        _patch_litellm_basic_auth(_basic_auth_value())
         os.environ.setdefault("OPENAI_API_KEY", "gateway-basic-auth")
 
 
@@ -214,11 +222,20 @@ def register():
     judge_model = _pick_llm()                # [2/3] gateway LLM
     sample_rate = _pick_auto_tracking()      # [3/3] 자동 트래킹 (+비율)
 
+    # judge 에 gateway 인증 헤더(Basic)를 저장한다.
+    #   이렇게 하면 자동 트래킹(서버가 judge 를 실행)에서도 서버가 이 헤더로
+    #   gateway 를 호출하므로 인증이 통과된다. (litellm 몽키패치는 이 스크립트
+    #   프로세스에서만 유효해 자동 평가에는 닿지 않으므로, extra_headers 가 정석.)
+    extra_headers = None
+    if _is_set(MLFLOW_USERNAME) and _is_set(MLFLOW_PASSWORD):
+        extra_headers = {"Authorization": _basic_auth_value()}
+
     judge = make_judge(
         name=tmpl["name"],
         instructions=tmpl["instructions"],
         model=judge_model,
         feedback_value_type=int,             # 1~5 정수
+        extra_headers=extra_headers,         # gateway Basic 인증 (자동 평가에도 저장됨)
     )
     registered = judge.register(experiment_id=exp.experiment_id)
 
