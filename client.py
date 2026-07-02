@@ -15,8 +15,9 @@
           client 는 어떤 프롬프트를 쓸지 prompt_id(이름)만 고른다.
 
  [전송 형식 - custom_server.py 계약]
-   목록 조회 : { "input":[{ "mode":"list_prompts", "llm_api_key":... }] }
-   대화      : { "input":[{ query, prompt_id, llm_api_key, session_id, user_id }] }
+   목록 조회 : { "input":[{ "mode":"list_prompts" }] }
+   대화      : { "input":[{ query, prompt_id, session_id, user_id }] }
+   [Gateway] LLM 인증은 서버(gateway)가 처리한다. client 는 키를 보내지 않는다.
  [응답 형식]  { ... "output": { "aiu_output": ... } }  중 aiu_output 추출
 ==============================================================================
 """
@@ -57,8 +58,7 @@ print = _safe_print
 # =============================================================================
 # 서빙 엔드포인트
 API_URL = TODO
-# LLM 인증 키 (비어있으면 서버가 에러 반환)
-LLM_API_KEY = TODO
+# LLM 인증은 서버(gateway)가 처리하므로 client 는 키를 보내지 않는다.
 # 응답 대기 최대 시간(초). 긴 답변 대비 넉넉히.
 REQUEST_TIMEOUT = 180
 
@@ -93,7 +93,7 @@ def fetch_prompts() -> list:
     """서버에서 등록된 프롬프트 목록을 받아온다.
     반환: [{"name": str, "versions": int}] 또는 ["이름", ...] (구버전 호환)
     """
-    out = _post({"mode": "list_prompts", "llm_api_key": LLM_API_KEY})
+    out = _post({"mode": "list_prompts"})
     if isinstance(out, dict) and "prompts" in out:
         return out["prompts"]
     return []
@@ -101,7 +101,7 @@ def fetch_prompts() -> list:
 
 def fetch_versions(prompt_id: str) -> list:
     """특정 프롬프트의 버전 번호 목록을 서버에서 받아온다. (예: [1, 2, 3])"""
-    out = _post({"mode": "list_versions", "prompt_id": prompt_id, "llm_api_key": LLM_API_KEY})
+    out = _post({"mode": "list_versions", "prompt_id": prompt_id})
     if isinstance(out, dict) and "versions" in out:
         return out["versions"]
     return []
@@ -112,7 +112,6 @@ def ask(query: str, prompt_id: str, session_id: str, prompt_version=None, user_i
     payload = {
         "query":       query,
         "prompt_id":   prompt_id,
-        "llm_api_key": LLM_API_KEY,
         "session_id":  session_id,
         "user_id":     user_id,
     }
@@ -338,3 +337,4 @@ def safe_main():
 
 if __name__ == "__main__":
     safe_main()
+
