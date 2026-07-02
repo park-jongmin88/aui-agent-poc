@@ -38,8 +38,10 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(_HERE, "assets"))
 from gateway_utils import list_gateway_endpoints, prompt_pick_endpoint  # noqa: E402
 
-# MLflow 자동 태깅 403 경고 억제 (부가기능 실패라 등록엔 지장 없음)
+# MLflow 자동 태깅 403 경고 등 반복 경고 억제 (부가기능 실패라 등록엔 지장 없음)
 logging.getLogger("mlflow.tracking.client").setLevel(logging.ERROR)
+logging.getLogger("mlflow.tracking._model_registry.client").setLevel(logging.ERROR)
+logging.getLogger("mlflow.genai").setLevel(logging.ERROR)
 
 
 # #############################################################################
