@@ -24,7 +24,7 @@ LangChain 기반 LLM 에이전트를 **MLflow pyfunc 모델**로 등록하고,
 | 에셋 | 상태 | 채우는 칸 | 설명 |
 |:--|:--:|:--|:--|
 | `prompt` | ✅ 구현 | `system_message` | **MLflow Prompts** 에서 버전 번호로 로드 (client 가 프롬프트+버전 선택) |
-| `llm` | ✅ 구현 | `answer` | LangChain `ChatOpenAI` + autolog |
+| `llm` | ✅ 구현 | `answer` | **MLflow AI Gateway** 로 호출 (LangChain `ChatOpenAI` + autolog). 등록 시 gateway 엔드포인트 선택 필수 |
 | `rag` | ✅ 구현 | `context` | 벡터DB 검색 동작 확인. Milvus(iflow_aiu_collection, 1024, L2/IVF_FLAT) + 임베딩 bge-m3(분리 서버). 기본 mode=milvus, mock 도 가능 |
 | `tool` | 🟡 목업 | `tools_result` | 가상 API 8종. 키워드 매칭→목업응답, 실제 연동 TODO |
 | `judge` | ⬜ 템플릿 | `score` | 응답 품질 평가 (보통 맨 뒤) |
@@ -222,12 +222,12 @@ llm 에셋이 답변 생성
     {
       "query": "파이썬이 뭐야?",
       "prompt_id": "it-tutor",
-      "llm_api_key": "사용자키",
       "session_id": "sess-abc123"
     }
   ]
 }
 ```
+> LLM 인증은 **MLflow AI Gateway** 가 처리한다. client 는 키를 보내지 않는다.
 
 
 ## 출력 — 반드시 `aiu_output` 키 포함
@@ -247,7 +247,6 @@ llm 에셋이 답변 생성
 | `query` | client | 사용자 질문 | 대화 시 필수 |
 | `prompt_id` | client | 쓸 프롬프트 이름 | 없으면 폴백 |
 | `prompt_version` | client | 쓸 프롬프트 버전 번호 | 없으면 최신 |
-| `llm_api_key` | client | LLM 인증 키 | 비면 에러 반환 |
 | `session_id` | client | 대화 세션 묶음 | 없으면 trace_id 폴백 |
 | `user_id` | client | 사용자 식별 | 선택 |
 | `mode` | client | `list_prompts`/`list_versions` 면 목록 조회 | 없으면 일반 대화 |
@@ -288,12 +287,15 @@ llm 에셋이 답변 생성
 > 로컬에서 등록/테스트만 한다면 kserve 는 빼고 설치해도 된다 (서빙 이미지에서만 필요).
 
 ```bash
-# 1) 등록  — config.py 의 TODO (MLFLOW_CONN, LLM_BASE_URL, LLM_MODEL) 채운 뒤
+# 1) 등록  — config.py 의 TODO(MLFLOW_CONN) 채운 뒤 실행.
+#    등록 중 MLflow AI Gateway 의 chat 엔드포인트 목록을 조회해 보여주며,
+#    화면에서 사용할 것을 선택한다 (필수 - 건너뛰기 없음).
 python agent.py
 
 # 2) 서빙  — 포탈/KServe 파이프라인에서 등록 모델을 서빙 (custom_server.py 가 감쌈)
 
-# 3) 테스트 — client.py 상단 TODO (API_URL, LLM_API_KEY) 채운 뒤
+# 3) 테스트 — client.py 상단 TODO(API_URL) 채운 뒤 실행.
+#    LLM 인증은 gateway 가 처리하므로 client 는 키를 보내지 않는다.
 python client.py
 ```
 
