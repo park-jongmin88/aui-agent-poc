@@ -54,6 +54,24 @@ def _is_set(v) -> bool:
     return isinstance(v, str) and bool(v) and v != "{TODO}"
 
 
+def _require_litellm() -> bool:
+    """litellm 설치 여부를 시작 시점에 확인한다.
+    gateway judge 는 litellm 을 통해 호출되므로 없으면 진행이 무의미하다.
+    없으면 설치 안내를 출력하고 False 를 반환한다 (호출부에서 즉시 종료)."""
+    try:
+        import litellm  # noqa: F401
+        return True
+    except ImportError:
+        print("=" * 60)
+        print(" [중지] litellm 이 설치돼 있지 않습니다.")
+        print(" gateway judge 로 평가하려면 litellm 이 필요합니다.")
+        print("")
+        print(" 아래 명령으로 설치한 뒤 다시 실행하세요:")
+        print("     pip install litellm")
+        print("=" * 60)
+        return False
+
+
 def _connect():
     """MLflow 접속 + gateway(litellm) 호출용 Basic 인증 헤더 주입.
     (judge 가 gateway 모델을 호출하므로 evaluate 에서도 동일 인증이 필요하다.)"""
@@ -135,6 +153,10 @@ def _pick_registered_judge(experiment_id: str):
 def evaluate():
     if not _is_set(MLFLOW_TRACKING_URI):
         print("[중지] MLFLOW_TRACKING_URI 를 먼저 채우세요 ([입력]).")
+        return
+
+    # judge 선택 전에 litellm 부터 확인 (고른 뒤 실패하는 것 방지).
+    if not _require_litellm():
         return
 
     _connect()
