@@ -18,7 +18,7 @@ import mlflow
 import mlflow.pyfunc
 
 from assets import new_ctx, load_asset
-from config import ENABLED_ASSETS, LLM_BASE_URL, LLM_MODEL, ASSET_CONN
+from config import ENABLED_ASSETS, LLM_BASE_URL, LLM_MODEL, ASSET_CONN, MLFLOW_CONN
 
 
 _SENSITIVE_KEYS = ("api_key", "llm_api_key", "apikey", "password", "passwd", "token", "secret", "authorization")
@@ -65,7 +65,7 @@ def _register_trace_masking():
         _TRACE_MASKING_REGISTERED = True
     except Exception:
         # 구버전 MLflow 에 span_processors 가 없으면 조용히 넘어간다.
-        # (이 경우에도 _run 에서 api_key 를 인자에서 뺐으므로 핵심 노출은 막혀 있다.)
+        # (mlflow_username/password 는 config.py 의 MLFLOW_CONN 값이며 코드에 노출되지 않음)
         pass
 
 
@@ -84,15 +84,13 @@ def _agent_error(stage: str, exc: Exception, query: str, session_id: str) -> str
     )
 
 
-def _build_asset_conn(name: str, api_key: str, artifacts: dict = None) -> dict:
-    """에셋별 build() 에 넘길 conn 을 만든다. llm 은 api_key, rag/tool(mock)은 mock_path 주입."""
+def _build_asset_conn(name: str, llm_conn: dict, artifacts: dict = None) -> dict:
+    """에셋별 build() 에 넘길 conn 을 만든다.
+    llm 은 gateway 접속정보(llm_conn, load_context 에서 conn.json 으로 준비됨),
+    rag/tool(mock)은 mock_path 를 주입한다.
+    """
     if name == "llm":
-        return {
-            "base_url":    LLM_BASE_URL,
-            "model":       LLM_MODEL,
-            "temperature": 0,
-            "api_key":     api_key,
-        }
+        return llm_conn
     conn = dict(ASSET_CONN.get(name, {}))
     if name == "rag" and conn.get("mode", "mock") == "mock" and artifacts:
         conn["mock_path"] = artifacts.get("rag_mock", "")
@@ -104,7 +102,7 @@ def _build_asset_conn(name: str, api_key: str, artifacts: dict = None) -> dict:
 class ModelWrapper(mlflow.pyfunc.PythonModel):
 
     def load_context(self, context):
-        """서빙 시작 시 1회. autolog 켜고, 켜진 에셋 모듈을 import 해둔다."""
+        """서빙 시작 시 1회. autolog 켜고, 켜진 에셋 모듈을 import + 리소스를 빌드해둔다."""
         mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", ""))
         exp = os.getenv("MLFLOW_EXPERIMENT_NAME", "")
         if exp:
@@ -116,9 +114,41 @@ class ModelWrapper(mlflow.pyfunc.PythonModel):
         _register_trace_masking()
 
         self.assets = {name: load_asset(name) for name in ENABLED_ASSETS}
-        self.resources = {}
-        self._api_key = None
         self._artifacts = dict(getattr(context, "artifacts", {}) or {})
+
+        # llm 접속정보: agent.py 등록 시 만든 conn.json(Artifact) 을 읽는다.
+        # (등록 시점에 gateway 에서 선택한 엔드포인트가 여기 반영돼 있음.
+        #  conn.json 이 없거나 llm 정보가 비어 있으면 config.py 값으로 폴백.)
+        llm_base_url, llm_model = LLM_BASE_URL, LLM_MODEL
+        conn_path = self._artifacts.get("conn", "")
+        if conn_path and os.path.exists(conn_path):
+            try:
+                import json
+                with open(conn_path, "r", encoding="utf-8") as f:
+                    conn_data = json.load(f)
+                llm_cfg = conn_data.get("llm", {}) or {}
+                llm_base_url = llm_cfg.get("base_url") or llm_base_url
+                llm_model = llm_cfg.get("model") or llm_model
+            except Exception:
+                pass  # 읽기 실패해도 config.py 값으로 계속 진행
+
+        # gateway 인증: MLflow 로그인 정보를 그대로 재사용 (judge_eval 과 동일 방식).
+        # client 는 더 이상 llm_api_key 를 보낼 필요가 없다 (서버가 이미 인증정보를 가짐).
+        self._llm_conn = {
+            "base_url":         llm_base_url,
+            "model":            llm_model,
+            "temperature":      0,
+            "mlflow_username":  MLFLOW_CONN.get("username", ""),
+            "mlflow_password":  MLFLOW_CONN.get("password", ""),
+        }
+
+        # 리소스는 서빙 시작 시 한 번만 빌드한다.
+        # (예전엔 client 가 매번 다른 api_key 를 보낼 수 있어 요청마다 재생성했지만,
+        #  gateway 방식은 인증정보가 서버에 고정이라 재생성할 이유가 없다.)
+        self.resources = {
+            name: self.assets[name].build(_build_asset_conn(name, self._llm_conn, self._artifacts))
+            for name in ENABLED_ASSETS
+        }
 
         # 워밍업: MLflow 첫 연결(콜드 스타트)을 서빙 시작 시점으로 옮겨 첫 질문 504 예방.
         try:
@@ -127,21 +157,8 @@ class ModelWrapper(mlflow.pyfunc.PythonModel):
         except Exception:
             pass
 
-    def _ensure_resources(self, api_key: str):
-        """api_key 가 바뀌면 에셋 resource 를 (재)생성한다. llm 만 api_key 영향."""
-        if api_key == self._api_key and self.resources:
-            return
-        self.resources = {
-            name: self.assets[name].build(_build_asset_conn(name, api_key, self._artifacts))
-            for name in ENABLED_ASSETS
-        }
-        self._api_key = api_key
-
-    def _run(self, query, system_message, api_key, session_id, user_id, trace_id, prompt_id="", prompt_version=None):
-        """api_key 가 trace 인자로 기록되지 않도록, 먼저 리소스를 준비한 뒤
-        api_key 를 제외한 인자만 traced 내부 함수로 넘긴다."""
-        # 리소스 준비(키 사용)는 trace 바깥에서 수행 → api_key 가 trace 에 안 남는다.
-        self._ensure_resources(api_key)
+    def _run(self, query, system_message, session_id, user_id, trace_id, prompt_id="", prompt_version=None):
+        """리소스는 load_context 에서 이미 준비돼 있다 (gateway 인증정보 고정, 서버 시작 시 1회)."""
         return self._run_traced(query, system_message, session_id, user_id, trace_id, prompt_id, prompt_version)
 
     @mlflow.trace(name="agent_pipeline")
@@ -181,9 +198,10 @@ class ModelWrapper(mlflow.pyfunc.PythonModel):
         system_message = info.get("system_message", "")
         prompt_id      = info.get("prompt_id", "")
         prompt_version = info.get("prompt_version", None)
-        api_key        = info.get("llm_api_key", "")
         session_id     = info.get("session_id") or trace_id or "sess-" + uuid.uuid4().hex[:8]
         user_id        = info.get("user_id")
+        # llm_api_key 는 더 이상 받지 않는다. LLM 인증은 gateway 가 처리하며,
+        # 서버(config.py 의 MLflow 계정)가 이미 인증정보를 갖고 있다.
 
         # 모드: 프롬프트 목록 조회 (대화 시작 전 client 가 고르도록)
         if mode == "list_prompts":
@@ -204,11 +222,8 @@ class ModelWrapper(mlflow.pyfunc.PythonModel):
                 return {"aiu_output": _agent_error("LIST_VERSIONS", e, "", session_id)}
             return {"aiu_output": {"versions": versions}}
 
-        if not api_key:
-            return {"aiu_output": "[AGENT ERROR] llm_api_key 가 비어있습니다. 키를 입력하세요."}
-
         try:
-            answer = self._run(query, system_message, api_key, session_id, user_id, trace_id, prompt_id, prompt_version)
+            answer = self._run(query, system_message, session_id, user_id, trace_id, prompt_id, prompt_version)
         except Exception as e:
             answer = _agent_error("PIPELINE", e, query, session_id)
 
@@ -220,3 +235,4 @@ class ModelWrapper(mlflow.pyfunc.PythonModel):
                 pass
 
         return {"aiu_output": answer}
+
