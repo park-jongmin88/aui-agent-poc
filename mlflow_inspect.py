@@ -123,18 +123,72 @@ def _pick(items, render):
 # #############################################################################
 # 1) Gateway 엔드포인트 조회
 # #############################################################################
+#
+#  [중요] mlflow 의 get_deploy_client().list_endpoints() 는 옛 경로
+#         (/api/2.0/endpoints/) 를 호출해서 3.x 서버에서는 404 가 난다.
+#         3.x gateway 의 실제 경로는 아래와 같다 (MLflow UI 가 쓰는 경로):
+#             /api/3.0/mlflow/gateway/endpoints/list          (목록)
+#             /api/3.0/mlflow/gateway/endpoints/{name}        (상세)
+#         (브라우저 UI 는 ajax-api 를 쓰지만 프로그램 접근은 api 가 표준.
+#          환경에 따라 ajax-api 만 열려 있을 수 있어 두 경로를 폴백한다.)
+#
+#  [인증] 이 조회는 MLflow 로그인 권한이 필요하다. judge_eval 에서 gateway 에
+#         Basic 인증(base64(아이디:비번)) 헤더를 실어보낸 것과 동일하게,
+#         Authorization: Basic <base64(USERNAME:PASSWORD)> 헤더를 붙인다.
+# #############################################################################
+
+def _gateway_headers():
+    """MLflow 아이디/비번으로 Basic 인증 헤더를 만든다. (judge_eval 방식과 동일)
+
+    Authorization: Basic base64(USERNAME:PASSWORD)
+    """
+    import base64
+    user = MLFLOW_USERNAME if isinstance(MLFLOW_USERNAME, str) else ""
+    pw = MLFLOW_PASSWORD if isinstance(MLFLOW_PASSWORD, str) else ""
+    token = base64.b64encode(f"{user}:{pw}".encode("utf-8")).decode("utf-8")
+    return {"Authorization": f"Basic {token}"}
+
+
+def _gateway_get(path_suffix):
+    """3.x gateway REST 경로를 Basic 인증 헤더로 호출한다.
+    api / ajax-api 두 prefix 를 순서대로 시도(폴백)한다.
+    반환: (json dict, 사용된 url)  /  실패 시 예외 raise.
+    """
+    import requests
+
+    base = MLFLOW_TRACKING_URI.rstrip("/")
+    headers = _gateway_headers()
+    last_exc = None
+    for prefix in ("api", "ajax-api"):
+        url = f"{base}/{prefix}/3.0/mlflow/gateway/{path_suffix}"
+        try:
+            r = requests.get(url, headers=headers, timeout=15)
+            if r.status_code == 200:
+                return r.json(), url
+            # 404 면 다음 prefix 시도, 그 외(401/403 등)는 바로 알린다.
+            if r.status_code in (401, 403):
+                raise PermissionError(
+                    f"{r.status_code} 인증/권한 거부 (MLflow 아이디/비번 확인). url={url}"
+                )
+            last_exc = RuntimeError(f"HTTP {r.status_code} at {url} - {r.text[:200]}")
+        except PermissionError:
+            raise
+        except Exception as e:
+            last_exc = e
+    # 두 경로 모두 실패
+    raise last_exc if last_exc else RuntimeError("gateway 조회 실패 (원인 불명)")
+
 
 def inspect_gateway(mlflow):
     _sep("1) Gateway 엔드포인트 조회")
     print("조회 중 ...", end=" ", flush=True)
     try:
-        from mlflow.deployments import get_deploy_client
-        client = get_deploy_client(MLFLOW_TRACKING_URI)
-        endpoints = client.list_endpoints()
-        print("완료", flush=True)
+        data, used_url = _gateway_get("endpoints/list")
+        endpoints = data.get("endpoints", [])
+        print(f"완료  (경로: {used_url})", flush=True)
     except Exception as e:
         print("실패", flush=True)
-        _err("gateway 엔드포인트 목록 조회(list_endpoints)", e)
+        _err("gateway 엔드포인트 목록 조회(endpoints/list)", e)
         return
 
     if not endpoints:
@@ -142,8 +196,9 @@ def inspect_gateway(mlflow):
         return
 
     def render(ep):
-        name = getattr(ep, "name", "?")
-        etype = getattr(ep, "endpoint_type", None) or getattr(ep, "task", "?")
+        # REST 응답은 dict. 이름/타입 키를 꺼낸다.
+        name = ep.get("name", "?")
+        etype = ep.get("endpoint_type") or ep.get("task") or "?"
         # 타입을 알아보기 쉽게 표시 (chat / embeddings / completions)
         tag = ""
         t = str(etype).lower()
@@ -160,30 +215,31 @@ def inspect_gateway(mlflow):
         chosen = _pick(endpoints, render)
         if chosen is None:
             return
-        _show_gateway_detail(chosen, client)
+        _show_gateway_detail(chosen)
 
 
-def _show_gateway_detail(ep, client):
-    name = getattr(ep, "name", "?")
+def _show_gateway_detail(ep):
+    name = ep.get("name", "?")
     _sep(f"[Gateway 상세] {name}")
-    try:
-        # 상세 재조회 (get_endpoint 로 더 자세히)
-        detail = client.get_endpoint(name)
-    except Exception as e:
-        _err(f"엔드포인트 상세 조회(get_endpoint: {name})", e)
-        detail = ep
 
-    for attr in ("name", "endpoint_type", "task", "model", "endpoint_url", "limit"):
-        val = getattr(detail, attr, None)
-        if val is not None:
-            print(f"  {attr:15s}: {val}")
+    # 상세 재조회 (endpoints/{name}). 실패하면 목록에서 받은 dict 를 그대로 사용.
+    detail = ep
+    try:
+        data, _ = _gateway_get(f"endpoints/{name}")
+        if isinstance(data, dict) and data:
+            detail = data
+    except Exception as e:
+        _err(f"엔드포인트 상세 조회(endpoints/{name})", e)
+
+    for key in ("name", "endpoint_type", "task", "endpoint_url", "limit"):
+        if key in detail and detail[key] is not None:
+            print(f"  {key:15s}: {detail[key]}")
     # model 안쪽(provider/name)까지
-    model = getattr(detail, "model", None)
-    if model is not None:
+    model = detail.get("model")
+    if isinstance(model, dict):
         for a in ("name", "provider"):
-            v = getattr(model, a, None)
-            if v is not None:
-                print(f"    model.{a:11s}: {v}")
+            if model.get(a) is not None:
+                print(f"    model.{a:11s}: {model[a]}")
 
 
 # #############################################################################
