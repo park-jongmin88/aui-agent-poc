@@ -93,13 +93,20 @@ def filter_by_type(endpoints: list, type_keyword: str) -> list:
     return out
 
 
-def prompt_pick_endpoint(endpoints: list, prompt_label: str = "엔드포인트"):
+def prompt_pick_endpoint(endpoints: list, prompt_label: str = "엔드포인트", required: bool = False):
     """엔드포인트 목록을 번호로 보여주고 사용자가 고르게 한다. (CLI 대화형)
     나중에 UI 로 옮길 때는 이 함수의 '선택 로직'만 폼 제출로 바꾸면 된다.
 
-    Returns: 선택한 endpoint dict, 또는 None(취소/목록없음)
+    Args:
+        required: True 면 "건너뛰기" 선택지를 없애고 반드시 하나를 고르게 한다.
+                  (이 프로젝트는 gateway 사용이 필수이므로 LLM 선택 시 True 로 사용)
+
+    Returns: 선택한 endpoint dict.
+             required=False 이고 목록이 없거나 사용자가 건너뛰면 None.
     """
     if not endpoints:
+        if required:
+            raise RuntimeError(f"사용 가능한 {prompt_label}가 없습니다.")
         print(f"  [경고] 사용 가능한 {prompt_label}가 없습니다.")
         return None
 
@@ -111,12 +118,14 @@ def prompt_pick_endpoint(endpoints: list, prompt_label: str = "엔드포인트")
         model_name = model.get("name", "") if isinstance(model, dict) else ""
         extra = f" (model: {model_name})" if model_name else ""
         print(f"    [{i}] {name}  [{etype}]{extra}")
-    print(f"    [0] 건너뛰기 (나중에 직접 입력)")
+    if not required:
+        print(f"    [0] 건너뛰기 (나중에 직접 입력)")
 
     while True:
         sel = input(f"  번호 선택: ").strip()
-        if sel == "0":
+        if not required and sel == "0":
             return None
         if sel.isdigit() and 1 <= int(sel) <= len(endpoints):
             return endpoints[int(sel) - 1]
         print("  올바른 번호를 입력하세요.")
+
