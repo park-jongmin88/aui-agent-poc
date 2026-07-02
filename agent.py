@@ -29,7 +29,7 @@ import mlflow
 import mlflow.pyfunc
 
 from config import (
-    ENABLED_ASSETS, MLFLOW_CONN, LLM_BASE_URL, LLM_MODEL, ASSET_CONN,
+    ENABLED_ASSETS, MLFLOW_CONN, ASSET_CONN,
 )
 from aiu_custom.predict import ModelWrapper
 from assets.gateway_utils import (
@@ -109,32 +109,36 @@ def register_agent():
         "config.py 의 MLFLOW_CONN['experiment_name'] 이름과 접근 권한을 확인하세요.",
     )
 
-    # ── Gateway LLM 선택 ─────────────────────────────────────────────
-    # config.py 에 엔드포인트 이름을 미리 적어두지 않고, 등록 시점에
-    # 이미 연결된 MLflow(위에서 접속 완료)의 gateway 목록을 조회해 고른다.
-    # (여기서 조회/선택하는 로직은 assets/gateway_utils.py 에 공통화돼 있어
+    # ── Gateway LLM 선택 (필수) ──────────────────────────────────────
+    # 이 프로젝트는 LLM 을 항상 MLflow AI Gateway 를 통해 사용한다.
+    # (LLM_BASE_URL/LLM_MODEL 을 config.py 에 직접 적는 방식은 쓰지 않는다.)
+    # 등록 시점에 gateway 의 chat 엔드포인트 목록을 조회해 화면에서 고른다.
+    # (이 조회/선택 로직은 assets/gateway_utils.py 에 공통화돼 있어
     #  나중에 UI 로 agent 를 구성하게 되면 그 백엔드 로직으로 그대로 쓸 수 있다.)
-    llm_base_url, llm_model = LLM_BASE_URL, LLM_MODEL
-    try:
+    def _select_llm_gateway():
         print("\nGateway 엔드포인트 조회 중 ...", end=" ", flush=True)
         endpoints = list_gateway_endpoints(
             MLFLOW_CONN["tracking_uri"], MLFLOW_CONN["username"], MLFLOW_CONN["password"]
         )
         chat_endpoints = filter_by_type(endpoints, "chat")
         print(f"완료 ({len(chat_endpoints)}개 chat 엔드포인트)")
-        chosen = prompt_pick_endpoint(chat_endpoints, "LLM gateway 엔드포인트")
-        if chosen is not None:
-            ep_name = chosen.get("name")
-            llm_base_url = f"{MLFLOW_CONN['tracking_uri'].rstrip('/')}/gateway/mlflow/v1"
-            llm_model = ep_name
-            print(f"  -> 선택됨: {ep_name}  (base_url={llm_base_url})")
-        else:
-            print("  -> gateway 선택을 건너뜀. config.py 의 LLM_BASE_URL/LLM_MODEL 을 그대로 사용합니다.")
-    except Exception as e:
-        # gateway 조회가 안 되더라도 등록 자체를 막지 않는다 (config.py 값으로 계속 진행).
-        print("실패")
-        print(f"  [참고] gateway 조회를 건너뜁니다: {type(e).__name__}: {e}")
-        print("  config.py 의 LLM_BASE_URL/LLM_MODEL 을 그대로 사용합니다.")
+        if not chat_endpoints:
+            raise RuntimeError(
+                "gateway 에 등록된 chat 엔드포인트가 없습니다. "
+                "MLflow AI Gateway 에 LLM 엔드포인트를 먼저 등록하세요."
+            )
+        chosen = prompt_pick_endpoint(chat_endpoints, "LLM gateway 엔드포인트", required=True)
+        ep_name = chosen.get("name")
+        base_url = f"{MLFLOW_CONN['tracking_uri'].rstrip('/')}/gateway/mlflow/v1"
+        print(f"  -> 선택됨: {ep_name}  (base_url={base_url})")
+        return base_url, ep_name
+
+    llm_base_url, llm_model = _step(
+        "Gateway LLM 엔드포인트 선택",
+        _select_llm_gateway,
+        "MLflow AI Gateway 에 chat 엔드포인트가 등록돼 있는지, "
+        "MLFLOW_CONN 의 접속정보(아이디/비번)가 gateway 조회 권한이 있는지 확인하세요.",
+    )
 
     # 에셋 구성 정보를 Artifact 로 남긴다 (추적/재현용)
     conn_file = "conn.json"
@@ -158,7 +162,6 @@ def register_agent():
             "input": [{
                 "query":          "안녕하세요",
                 "system_message": "당신은 친절한 Agent 입니다.",
-                "llm_api_key":    "test-key",
                 "session_id":     "sess-example",
             }]
         }
@@ -229,4 +232,5 @@ def safe_main():
 
 if __name__ == "__main__":
     safe_main()
+
 
