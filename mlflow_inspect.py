@@ -137,27 +137,52 @@ def _pick(items, render):
 #         Authorization: Basic <base64(USERNAME:PASSWORD)> 헤더를 붙인다.
 # #############################################################################
 
-def _gateway_headers():
-    """MLflow 아이디/비번으로 Basic 인증 헤더를 만든다. (judge_eval 방식과 동일)
+# #############################################################################
+# 1) Gateway 엔드포인트 조회
+# #############################################################################
+#
+#  [중요] mlflow 의 get_deploy_client().list_endpoints() 는 옛 경로
+#         (/api/2.0/endpoints/) 를 호출해서 3.x 서버에서는 404 가 난다.
+#         3.x gateway 의 실제 경로는 아래와 같다 (MLflow UI 가 쓰는 경로):
+#             /api/3.0/mlflow/gateway/endpoints/list          (목록)
+#             /api/3.0/mlflow/gateway/endpoints/{name}        (상세)
+#         (브라우저 UI 는 ajax-api 를 쓰지만 프로그램 접근은 api 가 표준.
+#          환경에 따라 ajax-api 만 열려 있을 수 있어 두 경로를 폴백한다.)
+#
+#  [인증] 이 조회는 MLflow 로그인 권한이 필요하다. judge_eval 에서 gateway 에
+#         Basic 인증(base64(아이디:비번)) 헤더를 실어보낸 것과 동일하게,
+#         Authorization: Basic <base64(USERNAME:PASSWORD)> 헤더를 붙인다.
+#
+#  실제 호출 로직은 assets/gateway_utils.py 와 공통화될 수 있다
+#  (agent.py 등록 시 대화형 선택에서도 같은 로직 사용).
+#  단, 이 파일은 "단독 확인용" 이므로 assets/gateway_utils.py 가 없어도
+#  동작해야 한다 - 있으면 그걸 쓰고, 없으면 이 파일에 내장된 버전을 쓴다.
+# #############################################################################
 
-    Authorization: Basic base64(USERNAME:PASSWORD)
-    """
+import os as _os
+import sys as _sys
+
+_gateway_get_raw = None
+try:
+    _assets_dir = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "assets")
+    if _os.path.isdir(_assets_dir):
+        _sys.path.insert(0, _assets_dir)
+    from gateway_utils import gateway_get as _gateway_get_raw  # noqa: E402
+except ImportError:
+    pass  # 아래 내장 폴백을 사용한다 (단독 실행 지원).
+
+
+def _gateway_get_builtin(tracking_uri, username, password, path_suffix):
+    """assets/gateway_utils.py 가 없을 때 쓰는 내장 폴백 (동일 로직)."""
     import base64
-    user = MLFLOW_USERNAME if isinstance(MLFLOW_USERNAME, str) else ""
-    pw = MLFLOW_PASSWORD if isinstance(MLFLOW_PASSWORD, str) else ""
-    token = base64.b64encode(f"{user}:{pw}".encode("utf-8")).decode("utf-8")
-    return {"Authorization": f"Basic {token}"}
-
-
-def _gateway_get(path_suffix):
-    """3.x gateway REST 경로를 Basic 인증 헤더로 호출한다.
-    api / ajax-api 두 prefix 를 순서대로 시도(폴백)한다.
-    반환: (json dict, 사용된 url)  /  실패 시 예외 raise.
-    """
     import requests
 
-    base = MLFLOW_TRACKING_URI.rstrip("/")
-    headers = _gateway_headers()
+    user = username if isinstance(username, str) else ""
+    pw = password if isinstance(password, str) else ""
+    token = base64.b64encode(f"{user}:{pw}".encode("utf-8")).decode("utf-8")
+    headers = {"Authorization": f"Basic {token}"}
+
+    base = tracking_uri.rstrip("/")
     last_exc = None
     for prefix in ("api", "ajax-api"):
         url = f"{base}/{prefix}/3.0/mlflow/gateway/{path_suffix}"
@@ -165,7 +190,6 @@ def _gateway_get(path_suffix):
             r = requests.get(url, headers=headers, timeout=15)
             if r.status_code == 200:
                 return r.json(), url
-            # 404 면 다음 prefix 시도, 그 외(401/403 등)는 바로 알린다.
             if r.status_code in (401, 403):
                 raise PermissionError(
                     f"{r.status_code} 인증/권한 거부 (MLflow 아이디/비번 확인). url={url}"
@@ -175,8 +199,13 @@ def _gateway_get(path_suffix):
             raise
         except Exception as e:
             last_exc = e
-    # 두 경로 모두 실패
     raise last_exc if last_exc else RuntimeError("gateway 조회 실패 (원인 불명)")
+
+
+def _gateway_get(path_suffix):
+    """gateway_utils(있으면) 또는 내장 폴백(없으면)을 이 파일의 [입력] 값으로 호출."""
+    fn = _gateway_get_raw or _gateway_get_builtin
+    return fn(MLFLOW_TRACKING_URI, MLFLOW_USERNAME, MLFLOW_PASSWORD, path_suffix)
 
 
 def inspect_gateway(mlflow):
