@@ -68,7 +68,9 @@ README.md
 config.py            설정 (ENABLED_ASSETS, MLFLOW_CONN, LLM_*, ASSET_CONN)
 agent.py             등록 진입점 (register_agent + 단계별 한국어 진단)
 client.py            서빙 엔드포인트 호출 테스트용 (프롬프트+버전 2단계 선택)
-judge_eval.py        평가 (make_judge, 서빙과 분리. gateway Basic 인증 처리)
+judge_register.py    judge 등록 (평가지+gateway LLM 선택, 자동 트래킹 on/off)
+evaluate.py          평가 실행 (등록된 judge 로 trace 채점)
+mlflow_inspect.py    조회 헬퍼 (gateway/prompt/judge 확인용, 단독 실행)
 requirements.txt     서빙 의존성 (버전 고정). agent.py 가 이 파일을 참조 — 의존성은 여기서만 관리
 aiu_custom/          서빙되는 모델 본체
 ├── __init__.py
