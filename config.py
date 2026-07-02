@@ -27,10 +27,12 @@ MLFLOW_PASSWORD     = TODO
 MLFLOW_EXPERIMENT   = TODO   # 예: "aiu-agent"
 MLFLOW_MODEL_NAME   = TODO   # 등록 모델명. 예: "aiu-agent-model"
 
-# ── 2. LLM 정보 (필수) ──────────────────────────────────────────────────────
-#   api_key 는 호출 시 client 가 보낸 값으로 채워지므로 여기 두지 않습니다.
-LLM_BASE_URL = TODO          # 예: "http://llm.도메인.com/v1"
-LLM_MODEL    = TODO          # 예: "gpt-4o" 또는 사내 등록 모델명
+# ── 2. LLM 정보 ────────────────────────────────────────────────────────────
+#   이 프로젝트는 LLM 을 항상 MLflow AI Gateway 로 사용한다.
+#   여기에 주소/모델을 직접 입력하지 않는다 - agent.py 실행(등록) 시
+#   위 1번 MLflow 접속정보로 gateway 의 chat 엔드포인트 목록을 조회해
+#   화면에서 선택하면 자동으로 채워진다. (client 도 llm_api_key 를 보내지
+#   않는다 - 인증은 gateway 가 MLflow 계정으로 처리한다.)
 
 # ── 3. 사용할 에셋 (실행 순서대로) ──────────────────────────────────────────
 #   여기 적은 에셋만 동작합니다. 빼면 그 에셋 정보는 채워져 있어도 무시됩니다.
@@ -98,3 +100,4 @@ ASSET_CONN = {
     },
     # judge 는 서빙에서 분리됨. 평가는 judge_eval.py (make_judge) 로 별도 실행.
 }
+
