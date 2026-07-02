@@ -32,6 +32,9 @@ from config import (
     ENABLED_ASSETS, MLFLOW_CONN, LLM_BASE_URL, LLM_MODEL, ASSET_CONN,
 )
 from aiu_custom.predict import ModelWrapper
+from assets.gateway_utils import (
+    list_gateway_endpoints, filter_by_type, prompt_pick_endpoint,
+)
 
 
 # 의존성 파일 경로 (이 파일 기준 절대경로 → 실행 위치와 무관하게 찾음)
@@ -106,12 +109,39 @@ def register_agent():
         "config.py 의 MLFLOW_CONN['experiment_name'] 이름과 접근 권한을 확인하세요.",
     )
 
+    # ── Gateway LLM 선택 ─────────────────────────────────────────────
+    # config.py 에 엔드포인트 이름을 미리 적어두지 않고, 등록 시점에
+    # 이미 연결된 MLflow(위에서 접속 완료)의 gateway 목록을 조회해 고른다.
+    # (여기서 조회/선택하는 로직은 assets/gateway_utils.py 에 공통화돼 있어
+    #  나중에 UI 로 agent 를 구성하게 되면 그 백엔드 로직으로 그대로 쓸 수 있다.)
+    llm_base_url, llm_model = LLM_BASE_URL, LLM_MODEL
+    try:
+        print("\nGateway 엔드포인트 조회 중 ...", end=" ", flush=True)
+        endpoints = list_gateway_endpoints(
+            MLFLOW_CONN["tracking_uri"], MLFLOW_CONN["username"], MLFLOW_CONN["password"]
+        )
+        chat_endpoints = filter_by_type(endpoints, "chat")
+        print(f"완료 ({len(chat_endpoints)}개 chat 엔드포인트)")
+        chosen = prompt_pick_endpoint(chat_endpoints, "LLM gateway 엔드포인트")
+        if chosen is not None:
+            ep_name = chosen.get("name")
+            llm_base_url = f"{MLFLOW_CONN['tracking_uri'].rstrip('/')}/gateway/mlflow/v1"
+            llm_model = ep_name
+            print(f"  -> 선택됨: {ep_name}  (base_url={llm_base_url})")
+        else:
+            print("  -> gateway 선택을 건너뜀. config.py 의 LLM_BASE_URL/LLM_MODEL 을 그대로 사용합니다.")
+    except Exception as e:
+        # gateway 조회가 안 되더라도 등록 자체를 막지 않는다 (config.py 값으로 계속 진행).
+        print("실패")
+        print(f"  [참고] gateway 조회를 건너뜁니다: {type(e).__name__}: {e}")
+        print("  config.py 의 LLM_BASE_URL/LLM_MODEL 을 그대로 사용합니다.")
+
     # 에셋 구성 정보를 Artifact 로 남긴다 (추적/재현용)
     conn_file = "conn.json"
     with open(conn_file, "w", encoding="utf-8") as f:
         json.dump({
             "enabled_assets": ENABLED_ASSETS,
-            "llm":  {"base_url": LLM_BASE_URL, "model": LLM_MODEL},
+            "llm":  {"base_url": llm_base_url, "model": llm_model},
             "asset_conn": ASSET_CONN,
         }, f, ensure_ascii=False, indent=2)
 
@@ -121,7 +151,7 @@ def register_agent():
     print("=" * 60)
 
     with mlflow.start_run(run_name="agent-register") as run:
-        mlflow.log_params({"llm_model": LLM_MODEL, "assets": ",".join(ENABLED_ASSETS)})
+        mlflow.log_params({"llm_model": llm_model, "assets": ",".join(ENABLED_ASSETS)})
         mlflow.set_tags({"app_type": "genai", "stage": "register"})
 
         input_example = {
