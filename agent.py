@@ -25,6 +25,7 @@
 
 import os
 import json
+import logging
 import mlflow
 import mlflow.pyfunc
 
@@ -35,6 +36,13 @@ from aiu_custom.predict import ModelWrapper
 from assets.gateway_utils import (
     list_gateway_endpoints, prompt_pick_endpoint,
 )
+
+
+# MLflow 가 프롬프트에 태그를 달려다 권한(403) 으로 실패할 때 나오는 경고를 숨긴다.
+# ("Failed to tag prompt ... Permission denied" — 태그는 부가 기능이라 실패해도
+#  등록/서빙에는 지장 없으므로, 반복되는 경고 소음만 억제한다.)
+logging.getLogger("mlflow.tracking.client").setLevel(logging.ERROR)
+logging.getLogger("mlflow.tracking._model_registry.client").setLevel(logging.ERROR)
 
 
 # 의존성 파일 경로 (이 파일 기준 절대경로 → 실행 위치와 무관하게 찾음)
@@ -75,11 +83,15 @@ def _step(name, fn, hint):
     try:
         return fn()
     except Exception as e:
+        import traceback
         print("\n" + "-" * 60)
         print(f"[등록 실패] {name}")
         print(f"  원본 오류 : {type(e).__name__}: {e}")
         print(f"  확인 사항 : {hint}")
         print(f"  추정 원인 : {_diagnose(e)}")
+        print("  ---- 상세 traceback ----")
+        traceback.print_exc()
+        print("  ------------------------")
         print("-" * 60 + "\n")
         raise
 
@@ -160,13 +172,12 @@ def register_agent():
         mlflow.log_params({"llm_model": llm_model, "assets": ",".join(ENABLED_ASSETS)})
         mlflow.set_tags({"app_type": "genai", "stage": "register"})
 
-        input_example = {
-            "input": [{
-                "query":          "안녕하세요",
-                "system_message": "당신은 친절한 Agent 입니다.",
-                "session_id":     "sess-example",
-            }]
-        }
+        # [주의] input_example 은 넣지 않는다.
+        #   input_example 이 있으면 MLflow 가 log_model 중에 그 예시로 모델을
+        #   실제 로드(load_context)+예측(predict)해 시그니처를 추론하는데,
+        #   이 과정에서 gateway/MLflow 연결·프롬프트 조회·직렬화가 등록 시점에
+        #   일어나 불필요한 경고(403 태그)·로그·직렬화 오류를 유발한다.
+        #   서빙엔 필요 없으므로 생략한다. (모델은 서빙 시점에만 실행되면 된다.)
 
         # Artifact 구성: conn.json + (rag/tool 목업이면) 각 json
         artifacts = {"conn": conn_file}
@@ -186,7 +197,6 @@ def register_agent():
         log_kwargs = dict(
             python_model     = ModelWrapper(),
             artifacts        = artifacts,
-            input_example    = input_example,
             code_paths       = ["aiu_custom", "config.py", "assets", "mocks"],
             # 의존성은 requirements.txt 파일 한 곳에서 관리한다 (이중 관리 방지).
             # MLflow 가 이 파일을 읽어 모델에 박는다. 의존성 추가 시 requirements.txt 만 수정.
