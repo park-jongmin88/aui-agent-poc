@@ -12,7 +12,7 @@
    4. make_judge + register()      - Judges 탭에 등록
    5. 자동 트래킹 on/off 선택       - on 이면 sample_rate 도 선택
         on  → judge.register().start(ScorerSamplingConfig(sample_rate=...))
-              새로 들어오는 trace 를 judge 가 자동 채점 (1시간 내 trace 대상)
+              지금부터 들어오는 trace 를 계속 자동 채점 (켠 시점 기준 과거 1시간 이내 trace 포함)
         off → 등록만 (평가는 evaluate.py 로 수동 실행)
 
  [사용]
@@ -249,7 +249,8 @@ def register():
         try:
             registered.start(sampling_config=ScorerSamplingConfig(sample_rate=sample_rate))
             print(f"  자동 트래킹: 켜짐 (sample_rate={sample_rate:.1f}, {int(sample_rate*100)}%)")
-            print("    → 새로 들어오는 trace 를 judge 가 자동 채점합니다 (1시간 내 trace 대상).")
+            print("    → 지금부터 새로 들어오는 trace 를 계속 자동 채점합니다.")
+            print("       (켠 시점 기준 과거 1시간 이내의 trace 도 함께 채점됩니다.)")
         except Exception as e:
             print(f"  자동 트래킹: 시작 실패 - {type(e).__name__}: {e}")
             print("    (등록 자체는 완료됨. 이 서버/버전이 자동 채점을 지원하지 않을 수 있음.)")
