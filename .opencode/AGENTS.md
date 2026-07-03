@@ -23,7 +23,32 @@ mode: primary
 
 ---
 
-## 2. 첫 응답 규칙
+## 2. 시작 전 필수 규칙 (rules/always/)
+
+7단계 흐름보다 **먼저** 통과해야 하는 무조건 발동 규칙이 있다.
+이 규칙들은 순서가 아니라 **`rules/always/` 폴더**로 관리한다.
+새 항목이 생기면 `rules/always/NN-<이름>.md` 로 추가한다.
+
+**시작 시 항상:** `rules/always/` 안의 모든 규칙을 먼저 확인하고, 통과하지 못하면 7단계로 진입하지 않는다.
+
+### 현재 규칙
+- **`rules/always/01-env-check.md`** — 시작 시 `.env`(MLflow 연결 정보) 확인.
+  - `.env` 가 없으면 생성해주고 작성하라고 안내한다.
+  - `MLFLOW_TRACKING_URI` 가 비어 있으면 입력될 때까지 진행하지 않는다.
+  - 실행: `python .opencode/scripts/00-setup/check_env.py --project .`
+
+### 의존성 / MLflow 버전
+- 강제 의존성은 **`config/dependencies.md`** 에서 관리한다 (사람이 수정).
+  - 필수: `mlflow=={version}`, `kserve==0.15.0` (버전/항목은 이 파일에서 변경 가능)
+- MLflow 버전은 트래킹 URL 에서 조회한다.
+  - 실행: `python .opencode/scripts/00-setup/fetch_mlflow_version.py --project .`
+  - 조회 실패 시 URL 재확인 안내 + 기본값 `3.10.0`.
+- 폴더 생성 후 requirements 는 **`config/dependencies.md` 를 기준으로** 채운다.
+  - 실행: `python .opencode/scripts/00-setup/build_requirements.py --project . --target <폴더> --execute`
+
+---
+
+## 3. 첫 응답 규칙
 
 이번 채팅 세션의 **첫 어시스턴트 응답**에서는 항상 아래 안내를 먼저 출력합니다.
 (사용자의 첫 메시지가 `하이`, `안녕`, `분석해줘`, `sklearn 샘플 생성해줘` 등 무엇이든 동일)
@@ -61,7 +86,7 @@ Ai Studio - 7단계
 
 ---
 
-## 3. 7단계 프로세스
+## 4. 7단계 프로세스
 
 프로세스는 **고정 7단계**입니다. (스크립트 `scripts/ai_studio_process.py` 와 일치)
 
@@ -83,7 +108,7 @@ Ai Studio - 7단계
 
 ---
 
-## 4. 단계별 스킬 / 스크립트 매핑
+## 5. 단계별 스킬 / 스크립트 매핑
 
 각 단계는 `skills/` 의 단계별 스킬과 `scripts/` 의 실행 스크립트로 처리된다.
 (전체 매핑은 `scripts/skill_script_map.json` 참고)
@@ -118,7 +143,7 @@ python .opencode/scripts/04-train-model/run_training.py --project . --entrypoint
 
 ---
 
-## 5. 숫자 입력 우선순위
+## 6. 숫자 입력 우선순위
 
 사용자가 숫자만 입력하면 **직전 화면 맥락**으로 판단한다:
 
@@ -134,7 +159,7 @@ python .opencode/scripts/04-train-model/run_training.py --project . --entrypoint
 
 ---
 
-## 6. 스킬 라우팅
+## 7. 스킬 라우팅
 
 구체적인 MLflow 작업은 이 프롬프트에서 직접 처리하지 말고 해당 스킬로 라우팅한다.
 
@@ -152,7 +177,7 @@ agent-mlflow-skill-inference-test    input_example.json/predict.py 추론 테스
 
 ---
 
-## 7. 작업 규칙 (보안 / 경로 / 권한)
+## 8. 작업 규칙 (보안 / 경로 / 권한)
 
 - API 키, 비밀번호, 토큰, 시크릿 값을 절대 출력하지 않는다. 필요 시 `set` / `empty` / `missing` 로만 보고한다.
 - 별도 요청이 없으면 로컬·폐쇄망 환경을 가정한다.
@@ -165,11 +190,16 @@ agent-mlflow-skill-inference-test    input_example.json/predict.py 추론 테스
 
 ---
 
-## 8. 폴더 구조
+## 9. 폴더 구조
 
 ```
 .opencode/
   AGENTS.md              ← 이 파일 (최상위 진입점, 흐름 총괄)
+  rules/
+    always/              무조건 발동 규칙 (시작 전 필수)
+      01-env-check.md    .env 체크
+  config/
+    dependencies.md      강제/추가 의존성 (사람이 수정)
   samples/               샘플 3종 (sklearn/pytorch/tensorflow)
     <sample>/
       aiu_custom/predict.py     ModelWrapper (pyfunc)
@@ -179,6 +209,7 @@ agent-mlflow-skill-inference-test    input_example.json/predict.py 추론 테스
       input_example.json        추론 입력 예시
       requirements.txt
   scripts/               단계별 실행 스크립트
+    00-setup/            env 체크, 버전 조회, requirements 생성
     01-project-analyze/  분석
     02-model-select/     모델 선택 (래퍼)
     02-sample-bootstrap/ 샘플 복사
@@ -194,7 +225,7 @@ agent-mlflow-skill-inference-test    input_example.json/predict.py 추론 테스
 
 ---
 
-## 9. 이 파일 수정 안내 (사람용)
+## 10. 이 파일 수정 안내 (사람용)
 
 - **단계를 바꾸려면**: 3번(7단계 표) + `scripts/ai_studio_process.py` 의 `AI_STUDIO_PROCESS_STEPS` 를 함께 수정한다.
 - **스킬/스크립트 매핑을 바꾸려면**: 4번 표 + `scripts/skill_script_map.json` 을 함께 수정한다.

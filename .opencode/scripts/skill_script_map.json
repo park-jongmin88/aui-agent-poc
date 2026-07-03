@@ -1,4 +1,19 @@
 {
+  "00-setup": {
+    "process_steps": [
+      "0. 시작 전 필수 체크 (무조건 발동)"
+    ],
+    "primary_scripts": [
+      "00-setup/check_env.py",
+      "00-setup/fetch_mlflow_version.py",
+      "00-setup/build_requirements.py"
+    ],
+    "reads": [
+      "rules/always/",
+      "config/dependencies.md"
+    ],
+    "purpose": "env check, mlflow version fetch, and requirements build from config/dependencies.md before the 7-step flow"
+  },
   "01-project-analyze": {
     "skill_folder": "01-agent-mlflow-skill-project-analyze",
     "process_steps": [
