@@ -1,0 +1,18 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "default_agent": "aistudio",
+  "agent": {
+    "aistudio": {
+      "description": "Ai Studio 모드: guide, workspace analysis, and build actions",
+      "mode": "primary"
+    }
+  },
+  "instructions": [
+    ".opencode/AGENTS.md"
+  ],
+  "skills": {
+    "paths": [
+      ".opencode/skills"
+    ]
+  }
+}
