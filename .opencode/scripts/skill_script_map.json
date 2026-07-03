@@ -1,0 +1,79 @@
+{
+  "01-project-analyze": {
+    "skill_folder": "01-agent-mlflow-skill-project-analyze",
+    "process_steps": [
+      "1. 모델 목록 확인"
+    ],
+    "primary_scripts": [
+      "01-project-analyze/validate_mlflow_project.py",
+      "launch_workspace_summary.py",
+      "04-train-model/prepare_selected_model.py"
+    ],
+    "purpose": "workspace analysis, model_found decision, and model list"
+  },
+  "02-sample-bootstrap": {
+    "skill_folder": "02-agent-mlflow-skill-sample-bootstrap",
+    "primary_scripts": [
+      "02-sample-bootstrap/bootstrap_sample_project.py"
+    ],
+    "purpose": "copy sklearn, pytorch, or tensorflow sample when no model exists"
+  },
+  "02-model-select": {
+    "skill_folder": "04-agent-mlflow-skill-train-model",
+    "process_steps": [
+      "2. 모델 선택"
+    ],
+    "primary_scripts": [
+      "02-model-select/select_model.py"
+    ],
+    "delegates_to": [
+      "04-train-model/prepare_selected_model.py"
+    ],
+    "purpose": "PowerShell-safe step 2 wrapper that locks the selected model only"
+  },
+  "03-environment-check": {
+    "skill_folder": "03-agent-mlflow-skill-environment-check",
+    "process_steps": [
+      "3. 환경 검증"
+    ],
+    "primary_scripts": [
+      "03-environment-check/check_environment.py"
+    ],
+    "support_scripts": [
+      "03-environment-check/response_speed_check.py",
+      "03-environment-check/apply_index_ignore.py"
+    ],
+    "required_files": [
+      "03-environment-check/requirements.required.txt"
+    ],
+    "purpose": "check Python, requirements.txt, MLflow settings, and closed-network speed"
+  },
+  "04-train-model": {
+    "skill_folder": "04-agent-mlflow-skill-train-model",
+    "process_steps": [
+      "4. 템플릿 변환",
+      "5. 원격 MLflow 등록 실행"
+    ],
+    "primary_scripts": [
+      "04-train-model/prepare_selected_model.py",
+      "04-train-model/run_training.py"
+    ],
+    "support_scripts": [
+      "04-train-model/adapt_ai_studio.py"
+    ],
+    "purpose": "lock selected model, transform templates on step 4, and run confirmed entrypoint on step 5"
+  },
+  "06-inference-test": {
+    "skill_folder": "06-agent-mlflow-skill-inference-test",
+    "process_steps": [
+      "6. 추론 테스트"
+    ],
+    "primary_scripts": [
+      "06-inference-test/test_inference.py"
+    ],
+    "generated_entrypoints": [
+      "inferencetest.py"
+    ],
+    "purpose": "run selected-model local serving smoke test and inference contract checks"
+  }
+}
