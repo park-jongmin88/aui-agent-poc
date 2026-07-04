@@ -814,12 +814,29 @@ def build_selectable_entries(project: Path) -> list[dict]:
             continue
         # 대표 대상: 모델 우선, 없으면 학습 코드
         target = g["models"][0] if has_model else g["code"][0]
+        # 종류(프레임워크) 감지: 모델 파일이 있으면 그 kind, 없으면 폴더명/코드로 추정
+        kind = None
+        if has_model:
+            kind = model_kind(g["models"][0])
+        folder_name = g["folder"].name.lower()
+        framework = "unknown"
+        for fw in ("pytorch", "sklearn", "tensorflow", "keras", "xgboost", "onnx"):
+            if fw in folder_name or (kind and fw in str(kind).lower()):
+                framework = fw
+                break
+        # 내용 요약: 모델 파일명 또는 학습 코드명
+        if has_model:
+            content = f"모델({g['models'][0].name})"
+        else:
+            content = f"학습코드({g['code'][0].name})"
         entries.append({
             "index": i,
             "folder": g["folder"],
             "target": target,
             "case": case,
             "label": rel(g["folder"], project),
+            "framework": framework,
+            "content": content,
         })
     return entries
 
@@ -3996,7 +4013,8 @@ def build_report(args: argparse.Namespace) -> PreparedModelReport:
     # 폴더 단위 통합 선택 목록 (표시 번호 = 선택 번호 일치 보장)
     selectable_entries = build_selectable_entries(project)
     selectable_list = [
-        f"{e['index']}. {e['label']} [{e['case']}]" for e in selectable_entries
+        f"{e['index']}. {e['label'].replace('data/', '')}  |  {e['framework']}  |  {e['content']}  |  {e['case']}"
+        for e in selectable_entries
     ]
     requested_model = requested_model_path_from_raw(project, models, args.model)
     locked_model = current_selected_model_path(project)
@@ -4362,7 +4380,7 @@ def print_report(report: PreparedModelReport, verbose: bool = False) -> None:
                 print("- 아래 목록은 확인용입니다. 모델 변경은 2번 모델 선택 스크립트로만 진행합니다.")
             else:
                 print("- 숫자를 입력해 아래 폴더를 선택하세요. 표시 번호 = 선택 번호입니다.")
-            print("  선택 가능 목록 (번호. 폴더 [케이스]):")
+            print("  모델 목록 (번호 | 이름 | 종류 | 내용 | 케이스):")
             for line in report.selectable_list:
                 path_part = line.split(". ", 1)[1].split(" [", 1)[0] if ". " in line else line
                 marker = " <선택됨>" if normalize_path_text(path_part) == selected_model_path else ""
