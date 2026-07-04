@@ -1107,7 +1107,7 @@ def ensure_runtime_directories(project: Path, execute: bool) -> tuple[list[str],
     changed: list[str] = []
     skipped: list[str] = []
     failures: list[str] = []
-    runtime_dirs = ["config", "saved_model", "local_serving"]
+    runtime_dirs = ["source", "config", "saved_model", "local_serving"]
     if not execute:
         skipped.extend(f"{name}/:dry_run" for name in runtime_dirs)
         return changed, skipped, failures
@@ -1161,7 +1161,116 @@ def write_saved_model(project: Path, selected_model: Path, execute: bool) -> tup
     return changed, skipped, failures
 
 
-def split_inline_comment(value: str) -> tuple[str, str]:
+# ── 입력 케이스 감지 + source/ 복사 + README 생성 ──────────────────
+MODEL_FILE_EXTS = {".pkl", ".joblib", ".pt", ".pth", ".h5", ".keras",
+                   ".onnx", ".bst", ".ubj", ".safetensors", ".pb"}
+DATA_FILE_EXTS = {".csv", ".tsv", ".json", ".npy", ".npz", ".parquet",
+                  ".txt", ".xlsx"}
+
+
+def detect_source_case(source_dir: Path) -> str:
+    """선택한 원본 폴더에 무엇이 있는지로 케이스를 판별한다.
+    - 'model_only'  : 학습된 모델 파일만
+    - 'data_only'   : 학습 코드/데이터만 (모델 파일 없음)
+    - 'both'        : 모델 + 자료 둘 다
+    - 'unknown'     : 판별 불가
+    """
+    if not source_dir.exists() or not source_dir.is_dir():
+        return "unknown"
+    has_model = False
+    has_data = False
+    for p in source_dir.rglob("*"):
+        if not p.is_file():
+            continue
+        ext = p.suffix.lower()
+        if ext in MODEL_FILE_EXTS:
+            has_model = True
+        elif ext in DATA_FILE_EXTS or ext == ".py":
+            has_data = True
+    if has_model and has_data:
+        return "both"
+    if has_model:
+        return "model_only"
+    if has_data:
+        return "data_only"
+    return "unknown"
+
+
+def write_source_files(project: Path, origin: Path, execute: bool) -> tuple[list[str], list[str], list[str]]:
+    """선택한 원본(data/<폴더> 또는 파일)을 source/ 로 복사한다. (입력 전용)"""
+    changed: list[str] = []
+    skipped: list[str] = []
+    failures: list[str] = []
+    source_dir = project / "source"
+    if not execute:
+        skipped.append("source/:dry_run")
+        return changed, skipped, failures
+    try:
+        source_dir.mkdir(parents=True, exist_ok=True)
+        if origin.is_dir():
+            for item in origin.iterdir():
+                dest = source_dir / item.name
+                if item.is_dir():
+                    if dest.exists():
+                        shutil.rmtree(dest)
+                    shutil.copytree(item, dest)
+                else:
+                    shutil.copy2(item, dest)
+        else:
+            shutil.copy2(origin, source_dir / origin.name)
+    except OSError as exc:
+        failures.append(f"source_copy_failed:{exc}")
+        return changed, skipped, failures
+    changed.append("source/ (original input copied)")
+    return changed, skipped, failures
+
+
+def write_readme(project: Path, selected_model: Path, kind: str, execute: bool) -> tuple[list[str], list[str], list[str]]:
+    """생성된 폴더 루트에 README.md 를 만든다 (모델 설명 + 폴더 안내)."""
+    changed: list[str] = []
+    skipped: list[str] = []
+    failures: list[str] = []
+    if not execute:
+        skipped.append("README.md:dry_run")
+        return changed, skipped, failures
+
+    case = detect_source_case(project / "source")
+    case_desc = {
+        "model_only": "학습된 모델을 등록 (학습 없음)",
+        "data_only": "자료로 학습 후 등록",
+        "both": "모델 등록 또는 자료 학습 (선택)",
+        "unknown": "미판별",
+    }.get(case, case)
+
+    readme = f"""# {project.name}
+
+## 모델 정보
+- 종류(kind): {kind}
+- 방식: {case_desc}
+- 등록 대상: MLflow (등록 후 서버 inference run)
+
+## 폴더 구성
+- `source/`        입력 원본 (모델/자료) — 읽기 전용
+- `saved_model/`   MLflow에 등록될 모델 (결과물)
+- `aiu_custom/`    추론 로직 (ModelWrapper: 로드 + 예측)
+- `config/`        모델 메타데이터 (config.json)
+- `local_serving/` 로컬 추론 검증 (input_example)
+
+## 실행 순서 (7단계 중)
+1. 환경 검증 (.env, 의존성)
+2. 템플릿 변환 (source → saved_model, 스크립트 작성)
+3. MLflow 등록 실행
+4. 추론 테스트 (로컬 + 엔드포인트)
+
+> 이 파일은 자동 생성되었습니다. 자유롭게 수정할 수 있습니다.
+"""
+    try:
+        (project / "README.md").write_text(readme, encoding="utf-8")
+    except OSError as exc:
+        failures.append(f"readme_write_failed:{exc}")
+        return changed, skipped, failures
+    changed.append(f"README.md ({case})")
+    return changed, skipped, failures
     in_single = False
     in_double = False
     escaped = False
@@ -3591,6 +3700,7 @@ def sync_selected_model_runtime(
         ensure_aiu_custom_template_copied(project, execute),
         read_copied_template_files(project, execute),
         ensure_runtime_directories(project, execute),
+        write_source_files(project, selected_model.parent if selected_model.parent != project else selected_model, execute),
         write_requirements(project, kind, execute),
         write_input_example(project, selected_model, kind, execute),
         write_config_json(project, selected_model, kind, execute),
@@ -3598,6 +3708,7 @@ def sync_selected_model_runtime(
         write_inferencetest(project, selected_model, kind, runtime_reference, execute),
         write_aiu_model(project, selected_model, kind, execute),
         write_aiu_predict(project, selected_model, kind, execute),
+        write_readme(project, selected_model, kind, execute),
     ]
     if copy_template:
         runtime_steps.insert(0, copy_template_sample_folder(project, execute))
