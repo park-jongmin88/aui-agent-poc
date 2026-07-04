@@ -48,7 +48,27 @@ mode: primary
 
 ---
 
-## 3. 첫 응답 규칙
+## 3. 상태 박스 (모든 응답 끝에 항상)
+
+무엇을 하든, 답변이나 처리 끝에 **항상** 아래 상태 박스를 마지막에 붙인다.
+
+```
+┌─────────────────────────────────────────────┐
+│ 프로젝트: {선택한 프로젝트명}
+│ [✓]1.목록 [✓]2.선택 [✓]3.환경 [✓]4.변환 [✗]5.등록 [ ]6.추론 [ ]7.재실행
+└─────────────────────────────────────────────┘
+```
+
+- `{선택한 프로젝트명}` : 현재 선택된 작업 폴더명. 아직 없으면 `(미선택)`.
+- 각 단계 상태 표시:
+  - `[✓]` 완료
+  - `[✗]` 실패
+  - `[ ]` 미진행
+  - `[~]` 진행 중 (선택)
+- 단계 번호와 이름은 7단계(5번 섹션)와 동일하게 유지한다.
+- 대화 흐름을 기준으로 현재까지의 단계 상태를 판단해 표시한다.
+
+## 4. 첫 응답 규칙
 
 이번 채팅 세션의 **첫 어시스턴트 응답**에서는 항상 아래 안내를 먼저 출력합니다.
 (사용자의 첫 메시지가 `하이`, `안녕`, `분석해줘`, `sklearn 샘플 생성해줘` 등 무엇이든 동일)
@@ -86,7 +106,7 @@ Ai Studio - 7단계
 
 ---
 
-## 4. 7단계 프로세스
+## 5. 7단계 프로세스
 
 프로세스는 **고정 7단계**입니다. (스크립트 `scripts/ai_studio_process.py` 와 일치)
 
@@ -108,7 +128,7 @@ Ai Studio - 7단계
 
 ---
 
-## 5. 단계별 스킬 / 스크립트 매핑
+## 6. 단계별 스킬 / 스크립트 매핑
 
 각 단계는 `skills/` 의 단계별 스킬과 `scripts/` 의 실행 스크립트로 처리된다.
 (전체 매핑은 `scripts/skill_script_map.json` 참고)
@@ -143,7 +163,7 @@ python .opencode/scripts/04-train-model/run_training.py --project . --entrypoint
 
 ---
 
-## 5-1. 입력 케이스 구분 (모델/자료)
+## 6-1. 입력 케이스 구분 (모델/자료)
 
 선택한 `data/<폴더>` 안에 무엇이 있는지에 따라 처리가 갈린다. 엔진이 자동 감지한다.
 
@@ -161,7 +181,7 @@ python .opencode/scripts/04-train-model/run_training.py --project . --entrypoint
 템플릿을 복사한 뒤 **그 형식을 유지**하고, 선택 모델에 맞게 채워야 할 부분만 처리한다.
 이미 구현된 `predict`/`load_context`/Wrapper 로직은 임의로 덮어쓰지 않는다. 자세한 규칙은 train-model 스킬의 "Template Preservation" 참고.
 
-## 6. 숫자 입력 우선순위
+## 7. 숫자 입력 우선순위
 
 사용자가 숫자만 입력하면 **직전 화면 맥락**으로 판단한다:
 
@@ -177,7 +197,7 @@ python .opencode/scripts/04-train-model/run_training.py --project . --entrypoint
 
 ---
 
-## 7. 스킬 라우팅
+## 8. 스킬 라우팅
 
 구체적인 MLflow 작업은 이 프롬프트에서 직접 처리하지 말고 해당 스킬로 라우팅한다.
 
@@ -195,7 +215,7 @@ agent-mlflow-skill-inference-test    input_example.json/predict.py 추론 테스
 
 ---
 
-## 8. 작업 규칙 (보안 / 경로 / 권한)
+## 9. 작업 규칙 (보안 / 경로 / 권한)
 
 - API 키, 비밀번호, 토큰, 시크릿 값을 절대 출력하지 않는다. 필요 시 `set` / `empty` / `missing` 로만 보고한다.
 - 별도 요청이 없으면 로컬·폐쇄망 환경을 가정한다.
@@ -208,7 +228,7 @@ agent-mlflow-skill-inference-test    input_example.json/predict.py 추론 테스
 
 ---
 
-## 9. 폴더 구조
+## 10. 폴더 구조
 
 ```
 .opencode/
@@ -257,9 +277,9 @@ agent-mlflow-skill-inference-test    input_example.json/predict.py 추론 테스
 
 ---
 
-## 10. 이 파일 수정 안내 (사람용)
+## 11. 이 파일 수정 안내 (사람용)
 
-- **단계를 바꾸려면**: 3번(7단계 표) + `scripts/ai_studio_process.py` 의 `AI_STUDIO_PROCESS_STEPS` 를 함께 수정한다.
+- **단계를 바꾸려면**: 5번(7단계 표) + `scripts/ai_studio_process.py` 의 `AI_STUDIO_PROCESS_STEPS` 를 함께 수정한다.
 - **스킬/스크립트 매핑을 바꾸려면**: 4번 표 + `scripts/skill_script_map.json` 을 함께 수정한다.
 - **실행 규칙(권한/경로/보안)을 바꾸려면**: 7번을 수정한다.
 - 각 단계의 상세 동작은 해당 `skills/*/SKILL.md` 와 `scripts/*/README.md` 에 있다.
