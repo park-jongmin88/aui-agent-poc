@@ -1,2 +1,14 @@
 __pycache__/
 *.pyc
+
+# 루트에 생성되는 작업 산출물 (작업폴더는 data/ 안에 생겨야 함)
+/config/
+/saved_model/
+/source/
+/aiu_custom/
+/local_serving/
+/inference/
+/requirements.txt
+/runtest_2.py
+/inferencetest.py
+/input_example.json

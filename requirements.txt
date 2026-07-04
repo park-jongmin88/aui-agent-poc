@@ -1,5 +1,0 @@
-mlflow==3.10.0
-torch==2.12.1
-numpy==1.26.4
-kserve==0.15.0
-pandas==2.2.3
