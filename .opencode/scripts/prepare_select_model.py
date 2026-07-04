@@ -10,7 +10,23 @@ The canonical implementation lives at:
 
     .opencode/scripts/04-train-model/prepare_selected_model.py
 """
+
+
 from __future__ import annotations
+
+# --- Windows/CP949 콘솔에서도 한글이 깨지지 않도록 stdout/stderr를 UTF-8로 강제 ---
+import io as _io
+import sys as _sys
+for _stream_name in ("stdout", "stderr"):
+    _stream = getattr(_sys, _stream_name, None)
+    try:
+        if _stream is not None and hasattr(_stream, "buffer"):
+            setattr(_sys, _stream_name,
+                    _io.TextIOWrapper(_stream.buffer, encoding="utf-8", errors="replace"))
+    except Exception:
+        pass
+# --- end UTF-8 guard ---
+
 
 import importlib.util
 import re
