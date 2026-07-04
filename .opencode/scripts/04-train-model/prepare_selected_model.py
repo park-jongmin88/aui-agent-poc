@@ -2,21 +2,6 @@
 
 
 from __future__ import annotations
-
-# --- Windows/CP949 콘솔에서도 한글이 깨지지 않도록 stdout/stderr를 UTF-8로 강제 ---
-import io as _io
-import sys as _sys
-for _stream_name in ("stdout", "stderr"):
-    _stream = getattr(_sys, _stream_name, None)
-    try:
-        if _stream is not None and hasattr(_stream, "buffer"):
-            setattr(_sys, _stream_name,
-                    _io.TextIOWrapper(_stream.buffer, encoding="utf-8", errors="replace"))
-    except Exception:
-        pass
-# --- end UTF-8 guard ---
-
-
 import argparse
 import ast
 import hashlib
@@ -433,6 +418,7 @@ class PreparedModelReport:
     model_selection_locked: bool = False
     locked_model_path: str | None = None
     required_requirements: list[str] = field(default_factory=list)
+    selectable_list: list[str] = field(default_factory=list)
     additional_requirements: list[str] = field(default_factory=list)
     prepared_paths: list[str] = field(default_factory=list)
     skipped: list[str] = field(default_factory=list)
@@ -765,6 +751,79 @@ def is_selected_model_alias(value: str | None) -> bool:
     return value.strip().lower() in {"selected", "current", "last", "기존", "현재", "선택"}
 
 
+def build_selectable_entries(project: Path) -> list[dict]:
+    """폴더 단위 통합 선택 목록을 만든다.
+
+    표시 번호와 선택 인덱스를 일치시키기 위해, 모델 파일과 학습 코드를
+    개별로 나열하지 않고 **data/<폴더> 단위로 하나의 항목**으로 묶는다.
+
+    각 항목: {
+        "index": 1-based 번호,
+        "folder": 폴더 경로(Path),
+        "target": 대표 선택 대상(Path) - 모델 파일 우선, 없으면 학습 코드,
+        "case": model_only | data_only | both,
+        "label": 표시용 상대경로 문자열,
+    }
+    선택 시 target 을 반환한다.
+    """
+    models = scan_model_artifacts(project)
+    training = scan_training_code(project)
+
+    # 폴더별로 모델/코드 수집 (data/<top> 기준으로 그룹핑)
+    def top_folder(path: Path) -> Path:
+        try:
+            parts = path.resolve().relative_to((project / "data").resolve()).parts
+            if parts:
+                return (project / "data" / parts[0])
+        except ValueError:
+            pass
+        # data/ 밖이면 자기 부모
+        return path.parent if path.is_file() else path
+
+    groups: dict[str, dict] = {}
+    order: list[str] = []
+
+    def ensure_group(folder: Path):
+        key = model_sort_key(folder, project)
+        if key not in groups:
+            groups[key] = {"folder": folder, "models": [], "code": []}
+            order.append(key)
+        return groups[key]
+
+    for m in models:
+        g = ensure_group(top_folder(m))
+        g["models"].append(m)
+    for c in training:
+        g = ensure_group(top_folder(c))
+        g["code"].append(c)
+
+    order.sort()  # 폴더 경로 알파벳 순 (표시=선택 동일 보장)
+
+    entries: list[dict] = []
+    for i, key in enumerate(order, 1):
+        g = groups[key]
+        has_model = bool(g["models"])
+        has_code = bool(g["code"])
+        if has_model and has_code:
+            case = "both"
+        elif has_model:
+            case = "model_only"
+        elif has_code:
+            case = "data_only"
+        else:
+            continue
+        # 대표 대상: 모델 우선, 없으면 학습 코드
+        target = g["models"][0] if has_model else g["code"][0]
+        entries.append({
+            "index": i,
+            "folder": g["folder"],
+            "target": target,
+            "case": case,
+            "label": rel(g["folder"], project),
+        })
+    return entries
+
+
 def resolve_model_selection(project: Path, models: list[Path], raw: str | None) -> tuple[Path | None, str | None]:
     current_selected = current_selected_model_path(project)
     if not raw:
@@ -781,6 +840,13 @@ def resolve_model_selection(project: Path, models: list[Path], raw: str | None) 
     # to selected/current.
     if value.isdigit():
         index = int(value)
+        # 폴더 단위 통합 목록 기준으로 선택 (표시 번호 = 선택 번호 일치)
+        entries = build_selectable_entries(project)
+        if entries:
+            if 1 <= index <= len(entries):
+                return entries[index - 1]["target"], None
+            return None, f"model_index_out_of_range:{value}"
+        # 통합 목록이 비면 기존 모델 리스트로 폴백
         if 1 <= index <= len(models):
             return models[index - 1], None
         return None, f"model_index_out_of_range:{value}"
@@ -3924,6 +3990,11 @@ def build_report(args: argparse.Namespace) -> PreparedModelReport:
     training_code_paths = [rel(path, project) for path in training_code]
     data_paths = [rel(path, project) for path in data_files]
     entrypoint_paths = [rel(path, project) for path in entrypoints]
+    # 폴더 단위 통합 선택 목록 (표시 번호 = 선택 번호 일치 보장)
+    selectable_entries = build_selectable_entries(project)
+    selectable_list = [
+        f"{e['index']}. {e['label']} [{e['case']}]" for e in selectable_entries
+    ]
     requested_model = requested_model_path_from_raw(project, models, args.model)
     locked_model = current_selected_model_path(project)
     selected_model, selection_error = resolve_model_selection(project, models, args.model)
@@ -3955,6 +4026,7 @@ def build_report(args: argparse.Namespace) -> PreparedModelReport:
         requested_model_path=rel(requested_model, project) if requested_model else None,
         model_selection_locked=model_selection_locked,
         locked_model_path=rel(locked_model, project) if locked_model else None,
+        selectable_list=selectable_list,
     )
     if selected_kind:
         required_requirements, additional_requirements, _packages = requirements_packages_for_kind(selected_kind)
@@ -4281,26 +4353,23 @@ def print_report(report: PreparedModelReport, verbose: bool = False) -> None:
                     print(f"- 프로젝트에 {total_model_count}개 모델이 있습니다. data 폴더 {data_model_count}개 포함, 선택해주세요.")
                 else:
                     print(f"- 현재 프로젝트 루트 바로 아래에 {total_model_count}개 모델이 있습니다. 선택해주세요.")
-        if report.model_artifact_paths:
-            print("- 목록은 선택한 워크스페이스 기준 상대경로 알파벳 순서입니다.")
+        if report.selectable_list:
+            print("- 목록은 선택한 워크스페이스 기준 상대경로 알파벳 순서입니다. (폴더 단위)")
             if report.selected_model_path:
                 print("- 아래 목록은 확인용입니다. 모델 변경은 2번 모델 선택 스크립트로만 진행합니다.")
             else:
-                print("- 숫자키는 TODO 단계가 아니라 아래 모델 artifact 번호 선택입니다.")
-            print("  모델 artifact 후보:")
-            for index, path in enumerate(report.model_artifact_paths, start=1):
-                marker = " <선택됨>" if normalize_path_text(path) == selected_model_path else ""
-                print(f"  {index}. {path}{marker}")
+                print("- 숫자를 입력해 아래 폴더를 선택하세요. 표시 번호 = 선택 번호입니다.")
+            print("  선택 가능 목록 (번호. 폴더 [케이스]):")
+            for line in report.selectable_list:
+                path_part = line.split(". ", 1)[1].split(" [", 1)[0] if ". " in line else line
+                marker = " <선택됨>" if normalize_path_text(path_part) == selected_model_path else ""
+                print(f"  {line}{marker}")
+            print("  케이스: model_only=모델만 / data_only=자료만 / both=둘다(등록 또는 학습 선택)")
         else:
-            print("- 학습 코드는 아래 번호로 확인하고, 실행 시 --entrypoint 경로를 사용합니다.")
+            print("- 선택 가능한 모델/자료 폴더가 없습니다. data/ 에 폴더를 추가하세요.")
         if not report.selected_model_path:
-            if report.model_artifact_paths:
-                print(f"- 모델 artifact 선택 실행 예: {PS_PREPARE_MODEL_COMMAND}")
-            if report.training_code_paths:
-                print("  학습 코드 후보:")
-                for index, path in enumerate(report.training_code_paths, start=1):
-                    print(f"  {index}. {path}")
-                print(f"- 학습 코드 실행 안내: {training_code_run_hint(Path(report.project_path), report.training_code_paths)}")
+            if report.selectable_list:
+                print(f"- 선택 실행 예: {PS_PREPARE_MODEL_COMMAND}")
             print("- 선택 후 진행: 3번 환경 검증")
             print("- 4번 템플릿 변환은 사용자가 선택했을 때만 실행")
 
