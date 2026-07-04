@@ -814,36 +814,19 @@ def build_selectable_entries(project: Path) -> list[dict]:
             continue
         # 대표 대상: 모델 우선, 없으면 학습 코드
         target = g["models"][0] if has_model else g["code"][0]
-        # 종류(프레임워크) 감지: 모델 파일이 있으면 그 kind, 없으면 폴더명/코드로 추정
-        kind = None
-        if has_model:
-            kind = model_kind(g["models"][0])
-        folder_name = g["folder"].name.lower()
-        framework = "unknown"
-        for fw in ("pytorch", "sklearn", "tensorflow", "keras", "xgboost", "onnx"):
-            if fw in folder_name or (kind and fw in str(kind).lower()):
-                framework = fw
-                break
-        # 구분(kind_label): 모델/자료/둘다
-        if case == "both":
-            kind_label = "둘다"
-        elif case == "model_only":
-            kind_label = "모델"
-        else:
-            kind_label = "자료"
-        # 파일 요약: 대표 파일 + 여러 개면 "외 N"
-        all_files = g["models"] + g["code"]
-        primary = (g["models"][0] if has_model else g["code"][0]).name
-        extra = len(all_files) - 1
-        content = primary if extra <= 0 else f"{primary} 외 {extra}"
+        # 내용: 폴더에서 등록된 확장자(.pkl/.py/.pth/.h5 등)에 걸리는 파일들을 직접 나열
+        LISTED_EXTS = MODEL_FILE_EXTS | {".py"} | DATA_FILE_EXTS
+        listed_files = sorted(
+            p.name for p in g["folder"].rglob("*")
+            if p.is_file() and p.suffix.lower() in LISTED_EXTS
+        )
+        content = ", ".join(listed_files)
         entries.append({
             "index": i,
             "folder": g["folder"],
             "target": target,
             "case": case,
             "label": rel(g["folder"], project),
-            "framework": framework,
-            "kind_label": kind_label,
             "content": content,
         })
     return entries
@@ -4022,24 +4005,17 @@ def build_report(args: argparse.Namespace) -> PreparedModelReport:
     selectable_entries = build_selectable_entries(project)
 
     def _fit(text: str, width: int) -> str:
-        # 고정 폭에 맞춘다. 넘치면 ... 로 자르고, 짧으면 오른쪽 공백 채움.
         if len(text) > width:
             return text[: max(0, width - 3)] + "..."
         return text.ljust(width)
 
-    NAME_W, FW_W, KIND_W, FILE_W = 26, 10, 4, 18
-    header = f" No  {_fit('이름', NAME_W)}  {_fit('종류', FW_W)}  {_fit('구분', KIND_W)}  파일"
-    divider = f" {'─'*2}  {'─'*NAME_W}  {'─'*FW_W}  {'─'*KIND_W}  {'─'*FILE_W}"
+    NAME_W, FILE_W = 40, 34
+    header = f" No  {_fit('폴더명', NAME_W)}  내용"
+    divider = f" {'─'*2}  {'─'*NAME_W}  {'─'*FILE_W}"
     selectable_list = [header, divider]
     for e in selectable_entries:
         name = e["label"].replace("data/", "").replace("data\\", "")
-        row = (
-            f" {e['index']:>2}  "
-            f"{_fit(name, NAME_W)}  "
-            f"{_fit(e['framework'], FW_W)}  "
-            f"{_fit(e['kind_label'], KIND_W)}  "
-            f"{_fit(e['content'], FILE_W)}"
-        )
+        row = f" {e['index']:>2}  {_fit(name, NAME_W)}  {_fit(e['content'], FILE_W)}"
         selectable_list.append(row)
     requested_model = requested_model_path_from_raw(project, models, args.model)
     locked_model = current_selected_model_path(project)
@@ -4406,7 +4382,6 @@ def print_report(report: PreparedModelReport, verbose: bool = False) -> None:
                 print("- 숫자를 입력해 모델을 선택하세요. 표시 번호 = 선택 번호입니다.")
             for line in report.selectable_list:
                 print(line)
-            print(" (구분: 모델=학습된 모델 / 자료=학습코드 / 둘다=모델+자료)")
         else:
             print("- 선택 가능한 모델/자료 폴더가 없습니다. data/ 에 폴더를 추가하세요.")
         if not report.selected_model_path:
