@@ -1,7 +1,7 @@
 {
   "model": {
     "model_name": "cnn_weights.pth",
-    "selected_model_name": "cnn_weights",
+    "selected_model_name": "pytorch_cnn_saved",
     "model_suffix": ".pth",
     "model_kind": "pytorch",
     "url": "saved_model/cnn_weights.pth",
@@ -42,8 +42,8 @@
   },
   "mlflow": {
     "artifact_path": "ai_studio",
-    "experiment_name": "cnn_weights",
-    "registered_model_name": "cnn_weights_model"
+    "experiment_name": "pytorch_cnn_saved",
+    "registered_model_name": "pytorch_cnn_saved_model"
   },
   "runtime": {
     "entrypoint": "runtest_2.py",

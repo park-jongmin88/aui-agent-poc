@@ -66,7 +66,7 @@ SCRIPT_ROOT = ROOT / "scripts"
 if str(SCRIPT_ROOT) not in sys.path:
     sys.path.insert(0, str(SCRIPT_ROOT))
 
-from ai_studio_process import format_model_selection_hint, format_todo_guide
+from ai_studio_process import format_model_selection_hint, format_todo_guide, AI_STUDIO_PROCESS_STEPS
 
 TEMPLATE_SAMPLE_DIR_NAME = "pytorch_sample"
 TRAIN_MODEL_TEMPLATE_ROOT = ROOT / "samples"
@@ -783,8 +783,20 @@ def build_selectable_entries(project: Path) -> list[dict]:
         if not files:
             continue  # 등록 확장자 파일이 하나도 없으면 제외
         model_files = [p for p in files if p.suffix.lower() in MODEL_FILE_EXTS]
-        # 대표 대상: 모델 파일 우선, 없으면 첫 파일(학습코드 등)
-        target = model_files[0] if model_files else files[0]
+        code_files = [p for p in files if p.suffix.lower() == ".py"]
+        # 부속 파일(requirements/readme/config 등)은 대표 대상에서 제외
+        AUX_NAMES = {"requirements.txt", "readme.md", "config.json", "setup.py", "__init__.py"}
+        real_code = [p for p in code_files if p.name.lower() not in AUX_NAMES]
+        data_files_only = [p for p in files if p.suffix.lower() in DATA_FILE_EXTS]
+        # 대표 대상: 모델 파일 > 실제 코드 > 데이터 > (그래도 없으면) 첫 파일
+        if model_files:
+            target = model_files[0]
+        elif real_code:
+            target = real_code[0]
+        elif data_files_only:
+            target = data_files_only[0]
+        else:
+            target = files[0]
         case = "model_only" if model_files and len(files) == len(model_files) else (
             "both" if model_files else "data_only"
         )
@@ -951,10 +963,13 @@ def selected_model_display_name(project: Path, selected_model: Path) -> str:
         relative_parts = selected_model.relative_to(project).parts
     except ValueError:
         relative_parts = selected_model.parts
-    if stem.lower() in GENERIC_MODEL_STEMS and parent_name not in {"", ".", "data"}:
-        return parent_name
-    if len(relative_parts) >= 3 and relative_parts[0] == "data" and stem.lower() in GENERIC_MODEL_STEMS:
+    # data/<폴더>/<파일> 구조면 항상 그 <폴더>명을 작업 이름으로 사용한다.
+    # (파일명 stem 대신 폴더명을 써서 작업 폴더가 원본 모델 폴더와 일치하도록 함)
+    if len(relative_parts) >= 3 and relative_parts[0] == "data":
         return relative_parts[-2]
+    # data 바로 아래 폴더가 부모인 일반적인 경우
+    if parent_name not in {"", ".", "data"}:
+        return parent_name
     return stem
 
 
@@ -4283,7 +4298,34 @@ def todo_statuses(report: PreparedModelReport) -> list[str]:
 
 
 def print_todo_guide(report: PreparedModelReport) -> None:
-    print(format_todo_guide(todo_statuses(report)))
+    # 7단계를 세로로 나열하는 대신, 자연어 한두 문장으로 요약한다.
+    # (전체 진행 상황은 응답 하단의 가로 상태 표시가 담당한다.)
+    steps = list(AI_STUDIO_PROCESS_STEPS)
+    statuses = todo_statuses(report)
+    done_idx = -1
+    current_idx = -1
+    for i, st in enumerate(statuses):
+        s = str(st)
+        if "완료" in s:
+            done_idx = i
+        if "진행" in s or "선택됨" in s:
+            current_idx = i
+    if current_idx == -1:
+        current_idx = done_idx + 1 if done_idx + 1 < len(steps) else done_idx
+    just = steps[done_idx] if 0 <= done_idx < len(steps) else None
+    now = steps[current_idx] if 0 <= current_idx < len(steps) else None
+    nxt = steps[current_idx + 1] if 0 <= current_idx + 1 < len(steps) else None
+
+    parts = []
+    if just:
+        parts.append(f"{just}까지 마쳤습니다.")
+    if now:
+        parts.append(f"이제 **{now}**을(를) 진행할 차례입니다.")
+    if nxt:
+        parts.append(f"그 다음은 {nxt}입니다.")
+    else:
+        parts.append("모든 단계가 끝나면 완료됩니다.")
+    print("  " + " ".join(parts))
 
 
 def print_report(report: PreparedModelReport, verbose: bool = False) -> None:
