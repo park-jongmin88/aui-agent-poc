@@ -1253,7 +1253,9 @@ def build_report(project: Path, entrypoint_name: str | None = None) -> Environme
     requirements_updated = update_requirements_from_imports(project, effective_expected_package_versions)
     deps = dependency_files(project)
     packages = []
-    package_names = list(CORE_PACKAGES)
+    # 로컬에는 mlflow 정도만 확인한다. 프레임워크(torch/tensorflow 등)는
+    # 선택한 모델의 kind 에 해당하는 것만, 그것도 "로컬 서빙/추론 시 필요" 안내용으로 본다.
+    package_names = ["mlflow"]
     if selected_required_package and selected_required_package not in {normalize_package_name(name) for name in package_names}:
         package_names.append(selected_required_package)
     for package in package_names:
@@ -1305,13 +1307,10 @@ def build_report(project: Path, entrypoint_name: str | None = None) -> Environme
         ]
     python_version_status = "set" if python_version == EXPECTED_PYTHON_VERSION else "version_mismatch"
 
+    # Python 버전 차이는 차단(failure)하지 않고 안내만 한다. 필요 시 사용자가 맞춘다.
     if python_version_status == "version_mismatch":
-        blocked_summary.append(f"Python 버전 차이 ({python_version} vs 기대 {EXPECTED_PYTHON_VERSION}) → 호환성 확인 필요")
-        failures.append(f"version_mismatch:python expected {EXPECTED_PYTHON_VERSION} got {python_version}")
-        next_steps.append(f"Use Python {EXPECTED_PYTHON_VERSION} for this MLflow workflow.")
-    if not deps:
-        failures.append("missing_dependency_file")
-        next_steps.append("Add or confirm requirements.txt, pyproject.toml, or environment.yml.")
+        next_steps.append(f"참고: 로컬에서 직접 실행하려면 Python {EXPECTED_PYTHON_VERSION} 권장 (현재 {python_version}). 등록만 할 경우 필수 아님.")
+    # 의존성 파일 없음도 이 시점(복사 전)에는 차단하지 않는다. 템플릿 변환(4번) 후 생성된다.
     blocking_requirements = [
         item
         for item in requirements
@@ -1319,18 +1318,15 @@ def build_report(project: Path, entrypoint_name: str | None = None) -> Environme
     ]
     missing_requirements = [item.name for item in blocking_requirements if item.status == "missing"]
     mismatched_requirements = [item.name for item in blocking_requirements if item.status == "version_mismatch"]
+    # 패키지 미설치/버전차이는 로컬 서빙·추론 시에만 필요하므로 안내만 한다 (차단 아님).
     if missing_requirements:
-        failures.append("missing_requirements:" + ",".join(missing_requirements))
-        next_steps.append("requirements.txt 기준 누락 패키지가 있습니다. 로컬 자동 설치는 하지 않으며, 필요 시 사용자가 직접 설치하세요.")
+        next_steps.append("참고: 로컬 서빙/추론 시 필요한 패키지: " + ", ".join(missing_requirements) + " (서버 등록에는 불필요). 필요 시 직접 설치하세요.")
     if mismatched_requirements:
-        failures.append("version_mismatch_requirements:" + ",".join(mismatched_requirements))
-        next_steps.append("requirements.txt 기준 버전 불일치가 있습니다. 로컬 자동 설치는 하지 않으며, 필요 시 사용자가 직접 설치하세요.")
+        next_steps.append("참고: 로컬 패키지 버전이 다릅니다: " + ", ".join(mismatched_requirements) + ". 로컬 실행 시에만 영향.")
     if package_version("mlflow") is None:
-        failures.append("missing_dependency:mlflow")
-        next_steps.append("Install or activate an environment that includes mlflow.")
+        next_steps.append("참고: mlflow 가 로컬에 없습니다. 등록/추론을 로컬에서 직접 실행하려면 설치하세요.")
     if existing_model_flow and selected_required_package and selected_package_status == "missing":
-        failures.append(f"missing_dependency:selected_model:{selected_required_package}")
-        next_steps.append(f"선택 모델 실행에 필요한 패키지가 없습니다. 로컬 자동 설치는 하지 않습니다: {selected_required_package}")
+        next_steps.append(f"참고: 이 모델을 로컬에서 서빙/추론하려면 {selected_required_package} 가 필요합니다 (서버 등록에는 불필요).")
     if remote_mlflow.status == "version_mismatch" and remote_mlflow.server_version:
         failures.append(
             f"version_mismatch:mlflow remote {remote_mlflow.server_version} local {remote_mlflow.local_version or 'missing'}"
