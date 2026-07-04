@@ -2244,6 +2244,7 @@ def generated_constant_free_runtest_text(project: Path, selected_model: Path, ki
     return f'''{reference_header}import io
 import inspect
 import json
+import re
 import logging
 import os
 import sys
@@ -2347,16 +2348,29 @@ def first_existing_file(label, candidates):
 
 
 def mlflow_artifact_uri(path):
-    # MLmodel artifacts.*.uri에는 절대경로가 아니라 프로젝트 기준 상대경로를 기록합니다.
+    # MLmodel artifacts.*.uri에는 절대경로가 아니라 프로젝트 기준 상대경로(POSIX /)를 기록합니다.
+    # uri는 KServe/Linux 컨테이너가 읽으므로 항상 forward slash(/)를 사용합니다.
     absolute_path = normalize_local_path(path)
-    relative_path = os.path.relpath(absolute_path, project_dir)
-    return os.path.normpath(relative_path)
+    try:
+        relative_path = os.path.relpath(absolute_path, project_dir)
+    except ValueError:
+        # 다른 드라이브 등으로 상대경로 계산이 불가하면 파일명만 사용 (절대경로 누출 방지)
+        relative_path = os.path.basename(absolute_path)
+    # 절대경로가 남아있으면(예: C:\ 또는 /로 시작) 파일명으로 축소
+    if os.path.isabs(relative_path) or re.match(r"^[A-Za-z]:", relative_path):
+        relative_path = os.path.basename(relative_path)
+    return relative_path.replace(chr(92), "/")
 
 
 def mlflow_config_artifact_uri(path):
-    # config uri는 MLflow/KServe 서버 해석과 문서 기준을 맞추기 위해 POSIX 상대경로를 사용합니다.
+    # config uri는 MLflow/KServe 서버 해석과 문서 기준을 맞추기 위해 POSIX 상대경로(/)를 사용합니다.
     absolute_path = normalize_local_path(path)
-    relative_path = os.path.relpath(absolute_path, project_dir)
+    try:
+        relative_path = os.path.relpath(absolute_path, project_dir)
+    except ValueError:
+        relative_path = os.path.basename(absolute_path)
+    if os.path.isabs(relative_path) or re.match(r"^[A-Za-z]:", relative_path):
+        relative_path = os.path.basename(relative_path)
     return relative_path.replace(chr(92), "/")
 
 
