@@ -1250,19 +1250,12 @@ def build_report(project: Path, entrypoint_name: str | None = None) -> Environme
     effective_expected_package_versions = dict(EXPECTED_PACKAGE_VERSIONS)
     if remote_mlflow.server_version:
         effective_expected_package_versions["mlflow"] = f"=={remote_mlflow.server_version}"
-    requirements_updated = update_requirements_from_imports(project, effective_expected_package_versions)
+    # 환경검증 단계에서는 requirements.txt 를 생성/수정하지 않는다.
+    # requirements 는 템플릿 변환(4단계)에서 모델과 합친 뒤 작업 폴더에 생성된다.
+    requirements_updated: list[str] = []
     deps = dependency_files(project)
-    packages = []
-    # 로컬에는 mlflow 정도만 확인한다. 프레임워크(torch/tensorflow 등)는
-    # 선택한 모델의 kind 에 해당하는 것만, 그것도 "로컬 서빙/추론 시 필요" 안내용으로 본다.
-    package_names = ["mlflow"]
-    if selected_required_package and selected_required_package not in {normalize_package_name(name) for name in package_names}:
-        package_names.append(selected_required_package)
-    for package in package_names:
-        version = package_version(package)
-        required_spec = effective_expected_package_versions.get(normalize_package_name(package), "any")
-        status = "missing" if version is None else ("set" if required_spec == "any" else version_constraint_status(version, required_spec))
-        packages.append(PackageStatus(package, status, version, required_spec))
+    # 환경검증에서는 패키지 설치 여부를 따지지 않는다 (로컬 서빙 시에나 필요).
+    packages: list[PackageStatus] = []
     requirements = requirement_statuses(project, effective_expected_package_versions)
     blocked_summary: list[str] = []
     failures: list[str] = []
@@ -1412,57 +1405,20 @@ def print_text(report: EnvironmentReport):
     print("Project: .")
     print("Scope: 선택한 워크스페이스 루트 기준")
     print(f"OS: {report.os}")
-    print(f"Python: {report.python_version}")
-    print(f"Expected Python: {report.expected_python_version} ({report.python_version_status})")
+    # Python 버전은 강제하지 않는다. 설치된 버전 + 괄호로 권장 버전만 안내.
+    print(f"Python: {report.python_version} (권장 {report.expected_python_version})")
     print(f"Virtual env: {report.virtual_env}")
-    print(f"Dependency files: {', '.join(report.dependency_files) if report.dependency_files else 'missing'}")
-    install_file = "requirements.txt" if "requirements.txt" in report.dependency_files else "missing"
-    print(f"설치 기준 파일: {install_file}")
-    if report.requirements_updated:
-        print("\nrequirements.txt generated/updated:")
-        for item in report.requirements_updated:
-            print(f"- {item}")
-        print("- local install: skipped (사용자가 필요 시 직접 설치)")
-    if report.selected_model_path or report.selected_model_kind or report.selected_required_package:
+    if report.selected_model_path or report.selected_model_kind:
         print("\nSelected model:")
         print(f"- path: {report.selected_model_path or 'missing'}")
         print(f"- MODEL_KIND: {report.selected_model_kind or 'missing'}")
-        print(f"- required package: {report.selected_required_package or 'missing'}")
-        print(f"- package status: {report.selected_package_status or 'missing'}")
-    print("\nPackages:")
-    for package in report.packages:
-        suffix = f" {package.version}" if package.version else ""
-        expected = f" (expected: {package.required_version})" if package.required_version != "any" else ""
-        print(f"- {package.name}: {package.status}{suffix}{expected}")
     if report.remote_mlflow:
         print("\nRemote MLflow server:")
         print(f"- tracking URI: {report.remote_mlflow.tracking_uri_status}")
         print(f"- status: {report.remote_mlflow.status}")
         print(f"- server version: {report.remote_mlflow.server_version or 'unchecked'}")
-        print(f"- local version: {report.remote_mlflow.local_version or 'missing'}")
-        print(f"- required version: {report.remote_mlflow.required_version or 'unchecked'}")
-        if report.remote_mlflow.endpoint:
-            print(f"- version endpoint: {report.remote_mlflow.endpoint}")
         if report.remote_mlflow.detail:
             print(f"- detail: {report.remote_mlflow.detail}")
-    if report.package_auto_fix_attempted:
-        status = "success" if report.package_auto_fix_return_code == 0 else "failed"
-        print("\nPackage check:")
-        print(f"- status: {status}")
-        print("- local install: skipped")
-        if report.package_auto_fix_return_code not in {None, 0}:
-            print(f"- return_code: {report.package_auto_fix_return_code}")
-    if report.requirements:
-        print("\nDependency check from requirements.txt:")
-        for item in report.requirements:
-            installed = item.installed_version if item.installed_version else "missing"
-            selected_note = ""
-            if is_unselected_framework_requirement(item, report.selected_required_package):
-                selected_note = ", ignored for selected model"
-            print(
-                f"- {item.name}: {item.status} "
-                f"(required: {item.required_version}, installed: {installed}{selected_note})"
-            )
     print("\nEnvironment variables:")
     for item in report.env_vars:
         print(f"- {item.name}: {item.status}")
@@ -1538,55 +1494,21 @@ def print_action_items(report: EnvironmentReport) -> None:
     if needs_mlflow_input:
         actionable_count += 1
 
-    if actionable_count == 0:
-        print("\n처리해야 할 항목: 없음")
-        print("\n처리 완료 후 실행:")
-        print(f"- 4번 템플릿 변환은 사용자가 선택: {PS_PREPARE_SELECTED_COMMAND}")
-        print(f"- 원격 MLflow 등록 실행: {PS_RUN_TRAINING_COMMAND}")
-        print(f"- 추론 테스트는 사용자가 선택할 때만 실행: {PS_INFERENCE_COMMAND}")
+    # 필수는 .env(MLflow) 뿐이다. Python 버전/패키지 설치는 환경검증에서 다루지 않는다.
+    if not needs_mlflow_input:
+        print("\n.env(MLflow) 확인됨. 다음은 템플릿 변환(4번)입니다.")
         return
 
-    print("\n처리해야 할 항목:")
-    if python_issue:
-        print("- 직접 확인 필요: Python 버전")
-        print(f"  요구 버전: {report.expected_python_version}")
-        print(f"  현재 버전: {report.python_version}")
-        print("  조치: Python 3.11.9 환경에서 다시 실행하세요.")
-    if package_issues:
-        title = "직접 확인 대상"
-        print(f"- {title}: 패키지 불일치/미설치")
-        if report.package_auto_fix_attempted:
-            if report.package_auto_fix_return_code == 0:
-                print("  로컬 자동 설치는 실행하지 않습니다.")
-                print("  조치: 내부 Nexus/버전 고정값을 확인하세요.")
-            else:
-                print("  로컬 자동 설치는 실행하지 않습니다.")
-                print("  조치: 내부 Nexus/네트워크/패키지 버전을 확인하세요.")
-        else:
-            print("  로컬 자동 설치: 실행하지 않음")
-            print("  필요 시 사용자 직접 설치: python -m pip install -r requirements.txt")
-        for item in package_issues:
-            label = "미설치" if item.status == "missing" else "버전 불일치"
-            installed = item.installed_version or "missing"
-            print(f"  - {item.name}: {label}")
-            print(f"    요구 버전: {item.required_version}")
-            print(f"    설치 버전: {installed}")
-    if needs_mlflow_input:
-        source_path = ".env"
-        if report.ai_studio_env:
-            try:
-                source_path = Path(report.ai_studio_env.path).resolve().relative_to(project_root).as_posix()
-            except ValueError:
-                source_path = Path(report.ai_studio_env.path).name
-        print(f"- 직접 입력 필요: {source_path}")
-        print("  mlflow_tracking_uri — 원격 MLflow 서버 URI (http://... 또는 https://...)")
-        print("  mlflow_tracking_username")
-        print("  mlflow_tracking_password (secret — 출력하지 않음)")
-
-    print("\n처리 완료 후 실행:")
-    print(f"- 4번 템플릿 변환은 사용자가 선택: {PS_PREPARE_SELECTED_COMMAND}")
-    print(f"- 원격 MLflow 등록 실행: {PS_RUN_TRAINING_COMMAND}")
-    print(f"- 추론 테스트는 사용자가 선택할 때만 실행: {PS_INFERENCE_COMMAND}")
+    source_path = ".env"
+    if report.ai_studio_env:
+        try:
+            source_path = Path(report.ai_studio_env.path).resolve().relative_to(project_root).as_posix()
+        except ValueError:
+            source_path = Path(report.ai_studio_env.path).name
+    print(f"\n원격 등록을 위해 {source_path} 에 값을 채워주세요:")
+    print("  MLFLOW_TRACKING_URI — 원격 MLflow 서버 주소 (http://... 또는 https://...)")
+    print("  MLFLOW_TRACKING_USERNAME")
+    print("  MLFLOW_TRACKING_PASSWORD (값은 출력하지 않음)")
 
 
 def main():
