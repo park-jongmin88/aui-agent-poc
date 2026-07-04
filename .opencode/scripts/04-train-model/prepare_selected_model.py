@@ -824,11 +824,18 @@ def build_selectable_entries(project: Path) -> list[dict]:
             if fw in folder_name or (kind and fw in str(kind).lower()):
                 framework = fw
                 break
-        # 내용 요약: 모델 파일명 또는 학습 코드명
-        if has_model:
-            content = f"모델({g['models'][0].name})"
+        # 구분(kind_label): 모델/자료/둘다
+        if case == "both":
+            kind_label = "둘다"
+        elif case == "model_only":
+            kind_label = "모델"
         else:
-            content = f"학습코드({g['code'][0].name})"
+            kind_label = "자료"
+        # 파일 요약: 대표 파일 + 여러 개면 "외 N"
+        all_files = g["models"] + g["code"]
+        primary = (g["models"][0] if has_model else g["code"][0]).name
+        extra = len(all_files) - 1
+        content = primary if extra <= 0 else f"{primary} 외 {extra}"
         entries.append({
             "index": i,
             "folder": g["folder"],
@@ -836,6 +843,7 @@ def build_selectable_entries(project: Path) -> list[dict]:
             "case": case,
             "label": rel(g["folder"], project),
             "framework": framework,
+            "kind_label": kind_label,
             "content": content,
         })
     return entries
@@ -4012,10 +4020,27 @@ def build_report(args: argparse.Namespace) -> PreparedModelReport:
     entrypoint_paths = [rel(path, project) for path in entrypoints]
     # 폴더 단위 통합 선택 목록 (표시 번호 = 선택 번호 일치 보장)
     selectable_entries = build_selectable_entries(project)
-    selectable_list = [
-        f"{e['index']}. {e['label'].replace('data/', '')}  |  {e['framework']}  |  {e['content']}  |  {e['case']}"
-        for e in selectable_entries
-    ]
+
+    def _fit(text: str, width: int) -> str:
+        # 고정 폭에 맞춘다. 넘치면 ... 로 자르고, 짧으면 오른쪽 공백 채움.
+        if len(text) > width:
+            return text[: max(0, width - 3)] + "..."
+        return text.ljust(width)
+
+    NAME_W, FW_W, KIND_W, FILE_W = 26, 10, 4, 18
+    header = f" No  {_fit('이름', NAME_W)}  {_fit('종류', FW_W)}  {_fit('구분', KIND_W)}  파일"
+    divider = f" {'─'*2}  {'─'*NAME_W}  {'─'*FW_W}  {'─'*KIND_W}  {'─'*FILE_W}"
+    selectable_list = [header, divider]
+    for e in selectable_entries:
+        name = e["label"].replace("data/", "").replace("data\\", "")
+        row = (
+            f" {e['index']:>2}  "
+            f"{_fit(name, NAME_W)}  "
+            f"{_fit(e['framework'], FW_W)}  "
+            f"{_fit(e['kind_label'], KIND_W)}  "
+            f"{_fit(e['content'], FILE_W)}"
+        )
+        selectable_list.append(row)
     requested_model = requested_model_path_from_raw(project, models, args.model)
     locked_model = current_selected_model_path(project)
     selected_model, selection_error = resolve_model_selection(project, models, args.model)
@@ -4375,17 +4400,13 @@ def print_report(report: PreparedModelReport, verbose: bool = False) -> None:
                 else:
                     print(f"- 현재 프로젝트 루트 바로 아래에 {total_model_count}개 모델이 있습니다. 선택해주세요.")
         if report.selectable_list:
-            print("- 목록은 선택한 워크스페이스 기준 상대경로 알파벳 순서입니다. (폴더 단위)")
             if report.selected_model_path:
                 print("- 아래 목록은 확인용입니다. 모델 변경은 2번 모델 선택 스크립트로만 진행합니다.")
             else:
-                print("- 숫자를 입력해 아래 폴더를 선택하세요. 표시 번호 = 선택 번호입니다.")
-            print("  모델 목록 (번호 | 이름 | 종류 | 내용 | 케이스):")
+                print("- 숫자를 입력해 모델을 선택하세요. 표시 번호 = 선택 번호입니다.")
             for line in report.selectable_list:
-                path_part = line.split(". ", 1)[1].split(" [", 1)[0] if ". " in line else line
-                marker = " <선택됨>" if normalize_path_text(path_part) == selected_model_path else ""
-                print(f"  {line}{marker}")
-            print("  케이스: model_only=모델만 / data_only=자료만 / both=둘다(등록 또는 학습 선택)")
+                print(line)
+            print(" (구분: 모델=학습된 모델 / 자료=학습코드 / 둘다=모델+자료)")
         else:
             print("- 선택 가능한 모델/자료 폴더가 없습니다. data/ 에 폴더를 추가하세요.")
         if not report.selected_model_path:
