@@ -65,6 +65,18 @@ def main():
 
     project = Path(args.project).resolve()
     values = parse_env(project / ".env")
+
+    # [최우선] .env 에 MLFLOW_VERSION 이 있으면 그 값을 그대로 사용한다.
+    # (옵셔널. 조회/기본값보다 우선하므로, 사내에서 버전을 고정하고 싶을 때 편리)
+    env_version = values.get("MLFLOW_VERSION", "").strip()
+    if env_version:
+        print(json.dumps({
+            "status": "env",
+            "version": env_version,
+            "message": f".env 의 MLFLOW_VERSION 사용: {env_version}",
+        }, ensure_ascii=False))
+        return
+
     tracking_uri = values.get("MLFLOW_TRACKING_URI", "").strip()
 
     if not tracking_uri:

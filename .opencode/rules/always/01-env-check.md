@@ -13,11 +13,14 @@
 MLFLOW_TRACKING_URI=
 MLFLOW_TRACKING_USERNAME=
 MLFLOW_TRACKING_PASSWORD=
+MLFLOW_VERSION=
 ```
 
 ## 필수 / 선택
 - 필수: `MLFLOW_TRACKING_URI`
 - 선택: `MLFLOW_TRACKING_USERNAME`, `MLFLOW_TRACKING_PASSWORD`
+- 선택: `MLFLOW_VERSION` — 값이 있으면 requirements 의 mlflow 버전으로 **최우선** 사용한다.
+  (없으면 트래킹 URL 조회 → 실패 시 기본값 3.10.0)
 
 ## 실행
 ```
