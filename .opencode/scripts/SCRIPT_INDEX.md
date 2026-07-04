@@ -73,7 +73,6 @@ Primary scripts:
 
 Support scripts:
 
-- `04-train-model/adapt_ai_studio.py` - 사용자 임의 `run.py` 보강용 보조 스크립트
 
 ## 06 Inference Test
 

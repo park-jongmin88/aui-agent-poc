@@ -5,7 +5,6 @@
 ## Design Rule
 
 - 핵심 엔진 `04-train-model/prepare_selected_model.py` 하나가 분석/선택/변환 로직을 담당한다.
-- `select_model.py`, `prepare_select_model.py`, `launch_workspace_summary.py` 는 PowerShell 경로·오타를 정규화해 엔진에 위임하는 **얇은 래퍼**다. 엔진을 직접 수정하고, 래퍼는 손대지 않는 것을 원칙으로 한다.
 - 무조건 발동 규칙은 `rules/always/`, 강제 의존성은 `config/dependencies.md` 로 관리한다 (코드 하드코딩 금지).
 
 ## 스크립트별 책임
@@ -33,7 +32,6 @@
 ### 04-train-model/run_training.py
 확정 entrypoint(`runtest_2.py`) 실행. 필수 디렉토리 점검 후 학습·MLflow 등록.
 
-### 04-train-model/adapt_ai_studio.py
 사용자 임의 `run.py` 보강용 보조 스크립트.
 
 ### 01-project-analyze/validate_mlflow_project.py

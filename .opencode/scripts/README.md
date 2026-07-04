@@ -23,7 +23,6 @@
                      03-environment-check/response_speed_check.py, apply_index_ignore.py
 04 Train Model       04-train-model/prepare_selected_model.py (핵심 엔진)
                      04-train-model/run_training.py (확정 entrypoint 실행)
-                     04-train-model/adapt_ai_studio.py (보조)
 06 Inference Test    06-inference-test/test_inference.py
 ```
 

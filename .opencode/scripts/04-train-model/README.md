@@ -7,7 +7,6 @@ Scripts:
 
 - `prepare_selected_model.py`
 - `run_training.py`
-- `adapt_ai_studio.py`
 
 Responsibility:
 

@@ -128,12 +128,6 @@ python .opencode/scripts/04-train-model/prepare_selected_model.py --project .
 python .opencode/scripts/02-model-select/select_model.py --project . --model 1
 python .opencode/scripts/02-model-select/select_model.py --project . --model 'data\torch\model.pt'
 python .opencode/scripts/04-train-model/prepare_selected_model.py --project . --model selected --execute
-
-AI Studio/MLflow 연결부 보강 dry-run:
-python .opencode/scripts/04-train-model/adapt_ai_studio.py --project . --entrypoint <file>
-
-AI Studio/MLflow 연결부 실제 보강:
-python .opencode/scripts/04-train-model/adapt_ai_studio.py --project . --entrypoint <file> --execute
 ```
 
 ## Artifact Map

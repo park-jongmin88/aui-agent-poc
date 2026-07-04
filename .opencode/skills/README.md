@@ -141,7 +141,6 @@ python .opencode/scripts/02-model-select/select_model.py --project . --model 1
 04 Train Model / Selected Model Build
    04-train-model/prepare_selected_model.py
    04-train-model/run_training.py
-   04-train-model/adapt_ai_studio.py
 
 05 Inference Test
    06-inference-test/test_inference.py
@@ -160,8 +159,6 @@ QA / Maintenance
 AI Studio/MLflow 연결부를 실제로 보강해야 하면 먼저 dry-run 을 실행합니다.
 
 ```text
-python .opencode/scripts/04-train-model/adapt_ai_studio.py --project . --entrypoint <file>
-python .opencode/scripts/04-train-model/adapt_ai_studio.py --project . --entrypoint <file> --execute
 ```
 
 ## Common UI Pattern

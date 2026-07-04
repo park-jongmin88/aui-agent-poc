@@ -73,9 +73,6 @@
       "04-train-model/prepare_selected_model.py",
       "04-train-model/run_training.py"
     ],
-    "support_scripts": [
-      "04-train-model/adapt_ai_studio.py"
-    ],
     "purpose": "lock selected model, transform templates on step 4, and run confirmed entrypoint on step 5"
   },
   "06-inference-test": {
