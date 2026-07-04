@@ -2577,7 +2577,7 @@ def mlflow_artifact_uri(path):
     except ValueError:
         # 다른 드라이브 등으로 상대경로 계산이 불가하면 파일명만 사용 (절대경로 누출 방지)
         relative_path = os.path.basename(absolute_path)
-    # 절대경로가 남아있으면(예: C:\ 또는 /로 시작) 파일명으로 축소
+    # 절대경로가 남아있으면(예: 드라이브문자 또는 /로 시작) 파일명으로 축소
     if os.path.isabs(relative_path) or re.match(r"^[A-Za-z]:", relative_path):
         relative_path = os.path.basename(relative_path)
     return relative_path.replace(chr(92), "/")
