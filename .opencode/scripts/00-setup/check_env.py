@@ -23,8 +23,6 @@ import sys
 from pathlib import Path
 
 ENV_TEMPLATE = (
-    "# MLflow 연결 정보 (Ai Studio 에이전트가 시작 시 확인)\n"
-    "# 값을 채운 뒤 저장하세요. TRACKING_URI 는 필수입니다.\n"
     "MLFLOW_TRACKING_URI=\n"
     "MLFLOW_TRACKING_USERNAME=\n"
     "MLFLOW_TRACKING_PASSWORD=\n"
