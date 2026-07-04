@@ -43,6 +43,10 @@ mode: primary
 - MLflow 버전은 트래킹 URL 에서 조회한다.
   - 실행: `python .opencode/scripts/00-setup/fetch_mlflow_version.py --project .`
   - 조회 실패 시 URL 재확인 안내 + 기본값 `3.10.0`.
+- **[중요] mlflow 버전은 반드시 트래킹 URL 조회 결과를 requirements 에 반영한다.**
+  - `fetch_mlflow_version.py` 로 실제 서버 버전을 조회해 `mlflow=={version}` 에 사용한다.
+  - 조회 실패 시에만 `config/dependencies.md` 의 기본값(`3.10.0`)을 쓴다.
+  - 서버 버전과 등록 버전이 다르면 등록/서빙이 실패할 수 있으므로 이 단계를 건너뛰지 않는다.
 - 폴더 생성 후 requirements 는 **`config/dependencies.md` 를 기준으로** 채운다.
   - 실행: `python .opencode/scripts/00-setup/build_requirements.py --project . --target <폴더> --execute`
 

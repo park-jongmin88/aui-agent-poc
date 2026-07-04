@@ -10,6 +10,7 @@ import os
 import re
 import shutil
 import sys
+import subprocess
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from pprint import pformat
@@ -2466,6 +2467,7 @@ import re
 import logging
 import os
 import sys
+import subprocess
 from urllib.parse import quote
 
 import mlflow
@@ -3579,6 +3581,30 @@ def _predict_loaded_model(model, model_kind: str, payload):
     return text.rstrip() + "\n"
 
 
+def _resolve_mlflow_version_for_requirements() -> str | None:
+    """트래킹 URL 로 MLflow 서버 버전을 조회한다.
+    fetch_mlflow_version.py 를 실행해 결과를 받고, 실패하면 None 을 반환한다
+    (호출 측에서 기존/기본 버전을 유지).
+    """
+    try:
+        here = Path(__file__).resolve()
+        # .opencode/scripts/00-setup/fetch_mlflow_version.py 경로
+        fetch = here.parent.parent / "00-setup" / "fetch_mlflow_version.py"
+        if not fetch.exists():
+            return None
+        proc = subprocess.run(
+            [sys.executable, str(fetch), "--project", "."],
+            capture_output=True, text=True, timeout=15,
+        )
+        data = json.loads(proc.stdout.strip() or "{}")
+        version = data.get("version")
+        # 조회 성공/기본값 모두 version 을 반환하지만,
+        # 서버에서 실제로 확인된 경우에만 덮어쓰도록 status 를 참고한다.
+        return version if version else None
+    except Exception:
+        return None
+
+
 def requirements_packages_for_kind(kind: str) -> tuple[list[str], list[str], list[str]]:
     # 기본 의존성: 프레임워크 중립 공통만. 무거운 프레임워크(torch/tensorflow)는 포함하지 않는다.
     # required.txt 가 있으면 거기서 '프레임워크가 아닌' 공통 패키지만 취한다.
@@ -3607,6 +3633,15 @@ def requirements_packages_for_kind(kind: str) -> tuple[list[str], list[str], lis
         ]
     # 기본에서 프레임워크 패키지는 제외 (kind별로만 넣는다)
     required = [spec for spec in raw_required if _pkg_name(spec) not in FRAMEWORK_PKGS]
+
+    # mlflow 버전은 트래킹 URL 에서 조회한 실제 서버 버전으로 맞춘다.
+    # (조회 실패 시 기존 값/기본값 유지). 서버 버전과 등록 버전을 일치시키기 위함.
+    resolved_mlflow_version = _resolve_mlflow_version_for_requirements()
+    if resolved_mlflow_version:
+        required = [
+            f"mlflow=={resolved_mlflow_version}" if _pkg_name(spec) == "mlflow" else spec
+            for spec in required
+        ]
 
     # kind 별 필요한 프레임워크만 (서버가 CPU 이므로 CPU 경량 버전 사용)
     extras_by_kind = {
