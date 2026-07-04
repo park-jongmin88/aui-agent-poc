@@ -51,8 +51,6 @@ scripts      -> 폐쇄망에서도 동작하도록 표준 라이브러리 중심
   06-inference-test/test_inference.py                수동 추론 계약 점검
 
 QA / Maintenance
-  qa-maintenance/doctor.py                           전체 워크플로우 상태 1페이지 점검
-  qa-maintenance/test_local_sample.py                번들 샘플 QA
   SCRIPT_INDEX.md                 스킬 목록 기준 스크립트 정리표
 ```
 
@@ -357,9 +355,6 @@ main()                     1~7단계 실행 순서
 사용 예:
 
 ```text
-python .opencode/scripts/qa-maintenance/test_7_step_flow.py --project . --model 3
-python .opencode/scripts/qa-maintenance/test_7_step_flow.py --project . --model data/pytorch_cnn/cnn_model.pt
-python .opencode/scripts/qa-maintenance/test_7_step_flow.py --project . --model 3 --run-remote
 ```
 
 ## Change Checklist
@@ -369,7 +364,6 @@ python .opencode/scripts/qa-maintenance/test_7_step_flow.py --project . --model 
 ```text
 python -m py_compile .opencode/scripts/*.py
 python -m json.tool .opencode/opencode.json
-python .opencode/scripts/qa-maintenance/doctor.py --workspace . --project .opencode/samples/pytorch_sample --entrypoint run_model.py
 python .opencode/scripts/03-environment-check/response_speed_check.py --project .
 ```
 

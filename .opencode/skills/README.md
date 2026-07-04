@@ -148,8 +148,6 @@ python .opencode/scripts/02-model-select/select_model.py --project . --model 1
    generated: inferencetest.py
 
 QA / Maintenance
-   qa-maintenance/doctor.py
-   qa-maintenance/test_local_sample.py
    SCRIPT_INDEX.md
    MAINTENANCE.md
 ```
@@ -159,8 +157,6 @@ QA / Maintenance
 전체 흐름을 한 번에 점검할 때는 doctor를 먼저 실행합니다.
 
 ```text
-python .opencode/scripts/qa-maintenance/doctor.py --workspace . --project .
-python .opencode/scripts/qa-maintenance/doctor.py --workspace . --project . --entrypoint runtest.py
 ```
 
 doctor는 실행 파일 확정, 샘플 규격, `.env` MLflow 5개 값, 산출물 상태를 한 화면에 보여줍니다.

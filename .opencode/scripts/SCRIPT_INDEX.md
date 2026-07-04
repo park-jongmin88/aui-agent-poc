@@ -4,6 +4,16 @@
 
 실제 구현 파일은 스킬 목록 기준 폴더에 둡니다.
 
+## 00 Setup (무조건 발동 · 시작 전 필수)
+
+시작 시 `.env` 확인과 MLflow 버전 조회, requirements 생성을 담당합니다.
+
+Primary scripts:
+
+- `00-setup/check_env.py` - `.env` 존재/필수값 확인 (없으면 생성 후 안내)
+- `00-setup/fetch_mlflow_version.py` - 트래킹 URL 로 MLflow 버전 조회 (실패 시 3.10.0)
+- `00-setup/build_requirements.py` - `config/dependencies.md` 기준으로 requirements 생성
+
 ## 01 Project Analyze
 
 Skill folder:
@@ -90,15 +100,7 @@ Generated runtime entrypoint:
 7. 오류 재실행                     -> 실패 단계 스크립트 재실행
 ```
 
-## QA / Maintenance
-
-Scripts:
-
-- `qa-maintenance/doctor.py` - 전체 상태 1페이지 점검
-- `qa-maintenance/test_local_sample.py` - 번들 샘플 QA
-- `qa-maintenance/test_7_step_flow.py` - 모델 있음 기준 AI Studio 7단계 흐름 QA
-
-Documents:
+## Documents
 
 - `README.md` - 사용자/운영용 스크립트 가이드
 - `MAINTENANCE.md` - 유지보수 상세 문서
