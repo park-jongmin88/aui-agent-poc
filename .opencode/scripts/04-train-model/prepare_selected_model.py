@@ -1165,11 +1165,29 @@ def write_saved_model(project: Path, selected_model: Path, execute: bool) -> tup
 # runtest 변환 시 참조되는 현재 소스 케이스 (model_only/data_only/both).
 # write_runtest_2 실행 직전에 set_active_source_case() 로 설정된다.
 _ACTIVE_SOURCE_CASE = "model_only"
+_FORCE_TRAIN = False
+_FORCE_REGISTER = False
 
 
 def set_active_source_case(case: str) -> None:
     global _ACTIVE_SOURCE_CASE
     _ACTIVE_SOURCE_CASE = case or "model_only"
+
+
+def resolve_source_case(origin_dir: Path, force_train: bool = False, force_register: bool = False) -> str:
+    """원본 케이스를 감지하고, both 인 경우 플래그로 등록/학습을 결정한다.
+    - model_only -> 항상 등록(로드)
+    - data_only  -> 항상 학습
+    - both       -> --train 이면 학습, --register 이면 등록, 없으면 기본 등록(model_only 취급)
+    """
+    detected = detect_source_case(origin_dir)
+    if detected == "both":
+        if force_train:
+            return "data_only"      # 학습 경로
+        if force_register:
+            return "model_only"     # 등록 경로
+        return "model_only"         # 기본: 기존 모델 등록
+    return detected
 
 
 MODEL_FILE_EXTS = {".pkl", ".joblib", ".pt", ".pth", ".h5", ".keras",
@@ -3591,9 +3609,11 @@ def write_runtest_2(project: Path, selected_model: Path, kind: str, reference: P
     existed_before = target.exists()
     if execute:
         target.parent.mkdir(parents=True, exist_ok=True)
-        # runtest 변환(학습 유지/제거)에 반영할 소스 케이스를 원본 위치 기준으로 감지한다.
+        # runtest 변환(학습 유지/제거)에 반영할 소스 케이스를 원본 위치 기준으로 결정한다.
         origin_dir = selected_model.parent if selected_model.is_file() else selected_model
-        set_active_source_case(detect_source_case(origin_dir))
+        set_active_source_case(
+            resolve_source_case(origin_dir, _FORCE_TRAIN, _FORCE_REGISTER)
+        )
         preserved_settings = existing_mlflow_settings(target)
         generated_text = generated_runtest_text(project, selected_model, kind, reference)
         target.write_text(apply_existing_mlflow_settings(generated_text, preserved_settings), encoding="utf-8")
@@ -4408,8 +4428,13 @@ def main() -> int:
     parser.add_argument("--select-only", action="store_true", help="step 2 only: lock the selected model; do not copy or transform templates")
     parser.add_argument("--sync-runtime", action="store_true", help="reuse the selected model and transform runtime folders/files for that model")
     parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
+    parser.add_argument("--train", action="store_true", help="both 케이스에서 자료로 학습을 강제 (원본 학습 호출 유지)")
+    parser.add_argument("--register", action="store_true", help="both 케이스에서 기존 모델 등록을 강제 (학습 없이 로드)")
     parser.add_argument("--verbose", action="store_true", help="print detailed model lists, prepared files, warnings, and next steps")
     args = parser.parse_args(normalize_argv(sys.argv[1:]))
+    global _FORCE_TRAIN, _FORCE_REGISTER
+    _FORCE_TRAIN = bool(getattr(args, "train", False))
+    _FORCE_REGISTER = bool(getattr(args, "register", False))
 
     report = build_report(args)
     if args.json:
