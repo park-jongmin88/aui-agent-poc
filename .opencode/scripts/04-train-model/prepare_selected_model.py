@@ -1162,6 +1162,16 @@ def write_saved_model(project: Path, selected_model: Path, execute: bool) -> tup
 
 
 # ── 입력 케이스 감지 + source/ 복사 + README 생성 ──────────────────
+# runtest 변환 시 참조되는 현재 소스 케이스 (model_only/data_only/both).
+# write_runtest_2 실행 직전에 set_active_source_case() 로 설정된다.
+_ACTIVE_SOURCE_CASE = "model_only"
+
+
+def set_active_source_case(case: str) -> None:
+    global _ACTIVE_SOURCE_CASE
+    _ACTIVE_SOURCE_CASE = case or "model_only"
+
+
 MODEL_FILE_EXTS = {".pkl", ".joblib", ".pt", ".pth", ".h5", ".keras",
                    ".onnx", ".bst", ".ubj", ".safetensors", ".pb"}
 DATA_FILE_EXTS = {".csv", ".tsv", ".json", ".npy", ".npz", ".parquet",
@@ -1500,6 +1510,13 @@ def rewrite_model_prep_line(line: str, kind: str) -> str:
     stripped_code = code.strip()
 
     if MODEL_TRAIN_CALL_PATTERN.search(code):
+        # data_only(자료만) 케이스에서는 학습이 반드시 필요하므로 원본 학습 호출을 유지한다.
+        if _ACTIVE_SOURCE_CASE == "data_only":
+            return (
+                f"{indent}# Ai Studio 변환: 자료 기반 학습(data_only) 케이스 — 원본 학습 호출을 유지합니다.{suffix}"
+                f"{line if line.endswith(chr(10)) else line + suffix}"
+            )
+        # 그 외(model_only/both=모델선택)에서는 이미 학습된 모델을 로드하므로 학습을 실행하지 않는다.
         return (
             f"{indent}# Ai Studio 변환: 선택 모델 {kind}은 이미 학습된 모델을 로드하므로 원본 학습 호출을 실행하지 않습니다.{suffix}"
             f"{indent}# {stripped_code}{suffix}"
@@ -3574,6 +3591,9 @@ def write_runtest_2(project: Path, selected_model: Path, kind: str, reference: P
     existed_before = target.exists()
     if execute:
         target.parent.mkdir(parents=True, exist_ok=True)
+        # runtest 변환(학습 유지/제거)에 반영할 소스 케이스를 원본 위치 기준으로 감지한다.
+        origin_dir = selected_model.parent if selected_model.is_file() else selected_model
+        set_active_source_case(detect_source_case(origin_dir))
         preserved_settings = existing_mlflow_settings(target)
         generated_text = generated_runtest_text(project, selected_model, kind, reference)
         target.write_text(apply_existing_mlflow_settings(generated_text, preserved_settings), encoding="utf-8")
