@@ -2485,10 +2485,13 @@ logging.getLogger("mlflow").setLevel(logging.ERROR)
 
 
 # ------------------------------------------------------------
-# Windows 인코딩 문제 해결
+# Windows 인코딩 문제 해결 (buffer detach 없이 안전하게)
 # ------------------------------------------------------------
-if hasattr(sys.stdout, "buffer"):
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+for _s in (sys.stdout, sys.stderr):
+    try:
+        _s.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 
 # ------------------------------------------------------------

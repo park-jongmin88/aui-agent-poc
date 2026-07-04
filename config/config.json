@@ -1,0 +1,60 @@
+{
+  "model": {
+    "model_name": "cnn_weights.pth",
+    "selected_model_name": "cnn_weights",
+    "model_suffix": ".pth",
+    "model_kind": "pytorch",
+    "url": "saved_model/cnn_weights.pth",
+    "path": "saved_model\\cnn_weights.pth",
+    "model_relative_path": "saved_model\\cnn_weights.pth",
+    "runtime_model_path": "saved_model\\cnn_weights.pth",
+    "saved_model_url": "saved_model/cnn_weights.pth",
+    "saved_model_path": "saved_model\\cnn_weights.pth",
+    "source_url": "data/pytorch_cnn_saved/cnn_weights.pth",
+    "source_path": "data\\pytorch_cnn_saved\\cnn_weights.pth",
+    "linux_path": "data/pytorch_cnn_saved/cnn_weights.pth",
+    "linux_saved_model_path": "saved_model/cnn_weights.pth",
+    "linux_source_path": "data/pytorch_cnn_saved/cnn_weights.pth",
+    "model_parent": "data/pytorch_cnn_saved",
+    "required_package": "torch",
+    "load_hint": "torch.load(MODEL_PATH, map_location='cpu', weights_only=False)"
+  },
+  "data": {
+    "training_data_source": "not_embedded",
+    "training_data_note": "실제 학습 데이터 원본은 config.json에 저장하지 않습니다.",
+    "dataset_path": null,
+    "input_example": "input_example.json",
+    "input_schema": {
+      "name": "selected_pytorch_tensor",
+      "shape": [
+        1,
+        1,
+        28,
+        28
+      ],
+      "datatype": "FP32"
+    },
+    "model_kind": "pytorch",
+    "url": "saved_model/cnn_weights.pth",
+    "path": "saved_model\\cnn_weights.pth",
+    "model_path": "saved_model\\cnn_weights.pth",
+    "source_path": "data\\pytorch_cnn_saved\\cnn_weights.pth"
+  },
+  "mlflow": {
+    "artifact_path": "ai_studio",
+    "experiment_name": "cnn_weights",
+    "registered_model_name": "cnn_weights_model"
+  },
+  "runtime": {
+    "entrypoint": "runtest_2.py",
+    "model_entrypoint": "aiu_custom/model.py",
+    "predict_entrypoint": "aiu_custom/predict.py",
+    "input_example": "input_example.json",
+    "inference_test": "inferencetest.py"
+  },
+  "policy": {
+    "copy_model_to_ai_studio": false,
+    "model_source": "selected_project_model_path",
+    "secret_output": "masked"
+  }
+}
