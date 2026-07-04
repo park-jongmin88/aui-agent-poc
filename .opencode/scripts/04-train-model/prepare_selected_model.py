@@ -3359,26 +3359,45 @@ def _predict_loaded_model(model, model_kind: str, payload):
 
 
 def requirements_packages_for_kind(kind: str) -> tuple[list[str], list[str], list[str]]:
+    # 기본 의존성: 프레임워크 중립 공통만. 무거운 프레임워크(torch/tensorflow)는 포함하지 않는다.
+    # required.txt 가 있으면 거기서 '프레임워크가 아닌' 공통 패키지만 취한다.
+    FRAMEWORK_PKGS = {
+        "torch", "torchvision", "torchaudio",
+        "tensorflow", "tensorflow-cpu", "tensorflow-gpu",
+        "scikit-learn", "sklearn", "joblib",
+        "xgboost", "onnxruntime", "onnxruntime-gpu", "safetensors",
+    }
+
+    def _pkg_name(spec: str) -> str:
+        return spec.split("==", 1)[0].strip().lower()
+
     if REQUIRED_REQUIREMENTS_FILE.exists():
-        required = [
+        raw_required = [
             line.strip()
             for line in REQUIRED_REQUIREMENTS_FILE.read_text(encoding="utf-8", errors="ignore").splitlines()
             if line.strip() and not line.strip().startswith("#")
         ]
     else:
-        required = [
+        raw_required = [
             "mlflow==3.10.0",
-            "torch==2.12.1",
-            "numpy==1.26.4",
             "kserve==0.15.0",
+            "numpy==1.26.4",
             "pandas==2.2.3",
         ]
+    # 기본에서 프레임워크 패키지는 제외 (kind별로만 넣는다)
+    required = [spec for spec in raw_required if _pkg_name(spec) not in FRAMEWORK_PKGS]
+
+    # kind 별 필요한 프레임워크만 (서버가 CPU 이므로 CPU 경량 버전 사용)
     extras_by_kind = {
         "sklearn_pickle": ["scikit-learn==1.7.0", "joblib==1.5.1"],
         "sklearn_joblib": ["scikit-learn==1.7.0", "joblib==1.5.1"],
-        "safetensors": ["safetensors==0.5.3"],
-        "xgboost_bst": ["xgboost==3.0.2"],
-        "xgboost_ubj": ["xgboost==3.0.2"],
+        "pytorch":        ["torch==2.12.1+cpu"],
+        "safetensors":    ["torch==2.12.1+cpu", "safetensors==0.5.3"],
+        "tensorflow_keras": ["tensorflow-cpu==2.21.0"],
+        "tensorflow_h5":    ["tensorflow-cpu==2.21.0"],
+        "onnx":           ["onnxruntime==1.20.1"],
+        "xgboost_bst":    ["xgboost==3.0.2"],
+        "xgboost_ubj":    ["xgboost==3.0.2"],
     }
     inference_requirements = ["requests==2.32.4"]
     additional = inference_requirements + extras_by_kind.get(kind, [])
@@ -3386,7 +3405,7 @@ def requirements_packages_for_kind(kind: str) -> tuple[list[str], list[str], lis
     unique_packages: list[str] = []
     seen: set[str] = set()
     for package in packages:
-        key = package.split("==", 1)[0].lower()
+        key = _pkg_name(package)
         if key in seen:
             continue
         seen.add(key)
