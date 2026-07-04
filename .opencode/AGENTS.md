@@ -156,6 +156,11 @@ python .opencode/scripts/04-train-model/run_training.py --project . --entrypoint
 
 즉 '둘 다' 인 경우에만 선택을 받고, 나머지는 자동으로 결정된다.
 
+### 템플릿 형식 유지
+샘플 템플릿에는 프레임워크별(sklearn/pytorch/tensorflow)로 서버에 맞춘 `predict`/Wrapper 형식이 이미 들어 있다.
+템플릿을 복사한 뒤 **그 형식을 유지**하고, 선택 모델에 맞게 채워야 할 부분만 처리한다.
+이미 구현된 `predict`/`load_context`/Wrapper 로직은 임의로 덮어쓰지 않는다. 자세한 규칙은 train-model 스킬의 "Template Preservation" 참고.
+
 ## 6. 숫자 입력 우선순위
 
 사용자가 숫자만 입력하면 **직전 화면 맥락**으로 판단한다:

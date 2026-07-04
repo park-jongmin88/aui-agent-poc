@@ -89,6 +89,26 @@ MLflow artifact:
 - path는 MLflow 모델 패키지 내부 Linux 경로 artifacts/... 기준
 ```
 
+## Template Preservation (템플릿 형식 유지)
+
+샘플 템플릿(`.opencode/samples/<sklearn|pytorch|tensorflow>_sample`)에는
+서버 배포에 맞춘 `aiu_custom/predict.py`(ModelWrapper), `local_serving/serve.py` 등
+**완성된 함수 형식**이 프레임워크별로 이미 들어 있다.
+
+규칙:
+- 템플릿을 **복사한 뒤 그 형식(클래스/함수 구조, 시그니처)을 유지**한다.
+- 선택한 모델에 **맞게 채워야 하는 부분만** 처리한다 (예: 모델 종류/경로, 입력 예시).
+- 이미 템플릿에 구현된 `predict` / `load_context` / Wrapper 로직은 **임의로 덮어쓰지 않는다.**
+- 서버용 로직(trace_id, 로깅, 출력 포맷 등)이 템플릿에 있으면 **보존한다.**
+- 무엇을 채우고 무엇을 유지할지 애매하면 **사용자에게 확인**한다.
+
+지켜야 할 인터페이스(인/아웃):
+- 입력: `input_example.json` 형식 `{"inputs": [{"data": ...}]}`
+- 출력: JSON 직렬화 가능한 값
+- `ModelWrapper(mlflow.pyfunc.PythonModel)` + `load_context(self, context)` + `predict(self, context, model_input, params=None)`
+- 로컬 추론 진입점 `def predict(payload)`
+- 모델/설정은 `context.artifacts["model"]`, `["config"]` 로 접근
+
 ## Commands
 
 ```text
