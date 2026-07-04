@@ -1273,12 +1273,11 @@ def build_report(project: Path, entrypoint_name: str | None = None) -> Environme
         entrypoint_display = entrypoint or "사용자가 실제 사용하는 파일명"
         tod_guide = [
             f"1. {AI_STUDIO_PROCESS_STEPS[0]}: 현재 프로젝트 루트와 data/**에서 사용할 모델 후보를 확인한다.",
-            f"2. {AI_STUDIO_PROCESS_STEPS[1]}: Windows PowerShell에서 현재 워크스페이스 루트로 이동한 뒤 select_model.py --model <번호 또는 경로> 로 사용할 모델을 선택한다.",
-            f"3. {AI_STUDIO_PROCESS_STEPS[2]}: .env의 MLflow 5개 값과 Python/MLflow 버전 기준 requirements.txt 필수/추가 패키지를 확인한다.",
-            f"4. {AI_STUDIO_PROCESS_STEPS[3]}: .opencode/scripts/04-train-model/templates/pytorch_sample/ 템플릿 복사 후, 복사된 템플릿 기준으로 선택 모델 경로와 모델 형식 연결부를 수정한다.",
-            f"5. {AI_STUDIO_PROCESS_STEPS[4]}: python {entrypoint_display} 로 원격 MLflow 서버에 기록/등록한다.",
-            f"6. {AI_STUDIO_PROCESS_STEPS[5]}: 자동 실행하지 않고 사용자가 6번을 선택했을 때 inferencetest.py 로 원격 추론 URL을 호출한다.",
-            f"7. {AI_STUDIO_PROCESS_STEPS[6]}: 오류가 있으면 실패 단계부터 수정 후 다시 실행한다.",
+            f"2. {AI_STUDIO_PROCESS_STEPS[1]}: select_model.py --model <번호 또는 경로> 로 사용할 모델을 선택한다.",
+            f"3. {AI_STUDIO_PROCESS_STEPS[2]}: 템플릿을 복사해 선택 모델과 합치고(생성), 생성된 파일을 검증한다.",
+            f"4. {AI_STUDIO_PROCESS_STEPS[3]}: python {entrypoint_display} 로 원격 MLflow 서버에 등록(학습)한다.",
+            f"5. {AI_STUDIO_PROCESS_STEPS[4]}: 사용자가 선택했을 때 inferencetest.py 로 추론 URL을 호출한다.",
+            f"6. {AI_STUDIO_PROCESS_STEPS[5]}: 오류가 있으면 실패 단계부터 수정 후 다시 실행한다.",
         ]
         if entrypoint is None:
             if entrypoint_candidates:
@@ -1287,7 +1286,7 @@ def build_report(project: Path, entrypoint_name: str | None = None) -> Environme
             source_input_required = []
         if selected_path is None:
             failures.append("selected_model_config_missing")
-            next_steps.append("3번 환경검증은 2번에서 고정한 선택 모델 기준으로 진행합니다. 먼저 2번 모델 선택을 실행하세요.")
+            next_steps.append("3번 생성은 2번에서 고정한 선택 모델 기준으로 진행합니다. 먼저 2번 모델 선택을 실행하세요.")
     else:
         entrypoint_display = setting_file or "run_model.py, runtest.py 또는 run_test.py"
         tod_guide = [
@@ -1357,7 +1356,7 @@ def build_report(project: Path, entrypoint_name: str | None = None) -> Environme
         failures.append(f"entrypoint_not_found:{entrypoint_name}")
         next_steps.append(f"지정한 실행 파일 경로를 찾지 못했습니다: {entrypoint_name}")
     elif entrypoint_pending_until_step4:
-        next_steps.append("runtest_2.py는 4번 템플릿 변환에서 생성됩니다.")
+        next_steps.append("runtest_2.py는 3번 생성 단계에서 만들어집니다.")
     if not Path(ai_env.path).exists():
         failures.append("missing_model_settings_file:.env")
         if existing_model_flow and entrypoint is None:
@@ -1496,7 +1495,7 @@ def print_action_items(report: EnvironmentReport) -> None:
 
     # 필수는 .env(MLflow) 뿐이다. Python 버전/패키지 설치는 환경검증에서 다루지 않는다.
     if not needs_mlflow_input:
-        print("\n.env(MLflow) 확인됨. 다음은 템플릿 변환(4번)입니다.")
+        print("\n.env(MLflow) 확인됨. 다음은 3번 생성(템플릿 변환 + 검증)입니다.")
         return
 
     source_path = ".env"

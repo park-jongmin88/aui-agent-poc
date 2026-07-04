@@ -4321,11 +4321,12 @@ def todo_statuses(report: PreparedModelReport) -> list[str]:
         model_list_status = "데이터만 있음"
     else:
         model_list_status = "모델 없음"
+    # 6단계: 목록 / 선택 / 생성 / 등록 / 추론 / 재실행
+    generation_status = "완료" if (auto_ready and runtime_ready) else ("진행" if model_selected else "대기")
     return [
         model_list_status,
         "완료" if model_selected else "대기",
-        "사용자 선택" if model_selected else "2번 완료 후",
-        "사용자 선택",
+        generation_status,
         "사용자 선택",
         "사용자 선택",
         "사용자 선택",
@@ -4381,7 +4382,7 @@ def print_report(report: PreparedModelReport, verbose: bool = False) -> None:
         print(f"- 작업 폴더: {work_project}")
         print_todo_guide(report)
         print("- 완료: 선택 모델 고정")
-        print("- 다음: 3번 환경 검증")
+        print("- 다음: 3번 생성")
         print("- 4번 템플릿 변환은 사용자가 선택했을 때만 실행")
         return
 
@@ -4433,7 +4434,7 @@ def print_report(report: PreparedModelReport, verbose: bool = False) -> None:
         if not report.selected_model_path:
             if report.selectable_list:
                 print(f"- 선택 실행 예: {PS_PREPARE_MODEL_COMMAND}")
-            print("- 선택 후 진행: 3번 환경 검증")
+            print("- 선택 후 진행: 3번 생성 (템플릿 변환 + 검증)")
             print("- 4번 템플릿 변환은 사용자가 선택했을 때만 실행")
 
     print_todo_guide(report)

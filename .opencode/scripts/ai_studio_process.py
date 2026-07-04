@@ -17,15 +17,14 @@ for _s in (_sys.stdout, _sys.stderr):
 AI_STUDIO_PROCESS_STEPS = (
     "모델 목록 확인",
     "모델 선택",
-    "환경 검증",
-    "템플릿 변환",
-    "원격 MLflow 등록 실행",
+    "생성",
+    "등록",
     "추론 테스트",
     "오류 재실행",
 )
 
-if len(AI_STUDIO_PROCESS_STEPS) != 7:
-    raise RuntimeError("Ai Studio process must stay exactly 7 steps")
+if len(AI_STUDIO_PROCESS_STEPS) != 6:
+    raise RuntimeError("Ai Studio process must stay exactly 6 steps")
 
 TODO_GUIDE_BORDER = "=" * 60
 TODO_GUIDE_TITLE = "Ai Studio - 7단계"

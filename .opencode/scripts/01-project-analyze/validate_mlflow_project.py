@@ -994,9 +994,9 @@ def build_report(project: Path, reason: str, write_check: bool) -> ValidationRep
     if training_code_paths:
         entrypoint = safe_relative(training_code_paths[0], project)
         next_steps.append(f"Case 1: 학습 코드가 감지되었습니다. framework={framework}, entrypoint={entrypoint}")
-        next_steps.append("3번 환경 검증 후 4번 템플릿 변환에서 해당 프레임워크 기준으로 연결부를 변환하세요.")
+        next_steps.append("3번 생성에서 템플릿을 복사해 선택 모델과 합치고 생성물을 검증합니다.")
     elif artifacts:
-        next_steps.append("Case 2: Pre-trained 모델 파일만 감지되었습니다. 모델을 번호 또는 경로로 선택한 뒤 3번 환경 검증으로 진행하세요.")
+        next_steps.append("Case 2: 학습된 모델 파일이 감지되었습니다. 모델을 번호 또는 경로로 선택한 뒤 3번 생성으로 진행하세요.")
         next_steps.append(f"Run: {PS_PREPARE_MODEL_COMMAND}")
     else:
         next_steps.append("Case 3: 모델이 없습니다. 샘플 선택 1 sklearn / 2 pytorch / 3 tensorflow 중 하나를 선택하세요.")

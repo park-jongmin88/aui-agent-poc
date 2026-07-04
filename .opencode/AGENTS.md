@@ -25,11 +25,11 @@ mode: primary
 
 ## 2. 시작 전 필수 규칙 (rules/always/)
 
-7단계 흐름보다 **먼저** 통과해야 하는 무조건 발동 규칙이 있다.
+6단계 흐름보다 **먼저** 통과해야 하는 무조건 발동 규칙이 있다.
 이 규칙들은 순서가 아니라 **`rules/always/` 폴더**로 관리한다.
 새 항목이 생기면 `rules/always/NN-<이름>.md` 로 추가한다.
 
-**시작 시 항상:** `rules/always/` 안의 모든 규칙을 먼저 확인하고, 통과하지 못하면 7단계로 진입하지 않는다.
+**시작 시 항상:** `rules/always/` 안의 모든 규칙을 먼저 확인하고, 통과하지 못하면 6단계로 진입하지 않는다.
 
 ### 현재 규칙
 - **`rules/always/01-env-check.md`** — 시작 시 `.env`(MLflow 연결 정보) 확인.
@@ -68,23 +68,23 @@ mode: primary
 
 ```
 ──────────────────────────────────────────────────────────
-(미선택)  ▶목록 ·선택 ·환경 ·변환 ·등록 ·추론 ·재실행
+(미선택)  ▶목록 ·선택 ·생성 ·등록 ·추론 ·재실행
 ──────────────────────────────────────────────────────────
 ```
 
 - 위아래를 가로 구분선(`─`)으로 감싼다. (네모 박스는 한글 폭 때문에 어긋나므로 쓰지 않는다.)
 - 맨 앞에 **현재 선택된 작업 폴더명**만 표시한다. 아직 없으면 `(미선택)`.
-- 그 뒤에 7단계를 한 줄로 표시한다 (목록/선택/환경/변환/등록/추론/재실행).
+- 그 뒤에 6단계를 한 줄로 표시한다 (목록/선택/생성/등록/추론/재실행).
 - 각 단계 상태 (기호를 단계 이름 앞에 붙인다):
   - `✓` 완료 (예: `✓목록`)
   - `▶` 현재 진행 중 (예: `▶선택`)
-  - `·` 아직 진행 안 함 (예: `·환경`)
+  - `·` 아직 진행 안 함 (예: `·생성`)
   - `✗` 실패 (예: `✗등록`)
 - 대괄호(`[ ]`)는 쓰지 않는다. 기호를 이름 바로 앞에 붙인다.
 - 단계 앞에 숫자를 붙이지 않는다 (모델 선택 숫자와 혼동 방지).
-- 단계 순서·이름은 7단계(5번 섹션)와 동일하게 유지한다.
+- 단계 순서·이름은 6단계(5번 섹션)와 동일하게 유지한다.
 - 대화 흐름을 기준으로 현재까지의 단계 상태를 판단해 표시한다.
-- **시작 시 `.env` 체크(0단계, rules/always)는 7단계의 `환경` 이 아니다.** 최초 `.env` 확인만으로 `환경` 을 `[✓]` 로 켜지 않는다. `환경` 은 모델 선택(2단계) 이후 Python/의존성/MLflow 를 종합 점검하는 3단계일 때만 체크한다.
+- **`.env` 체크(0단계, rules/always)는 6단계 밖의 관문이다.** 상태 표시의 단계와 별개로, 시작 시 항상 먼저 통과한다.
 - 단계는 순서대로 진행된다. 앞 단계가 끝나기 전에 뒤 단계를 `[✓]` 로 표시하지 않는다. (예: `목록` 이 `[~]` 진행 중이면 `환경` 은 `[ ]` 미진행)
 
 ## 4. 첫 응답 규칙
@@ -115,9 +115,9 @@ mode: primary
    숫자로 선택하세요: 1, 2, 3 ...
    0: 폴더 다시 인식 (data/ 를 다시 스캔)
 
-3. 모델 있음 7단계
-   1 모델 목록 확인   2 모델 선택   3 환경 검증
-   4 템플릿 변환   5 원격 MLflow 등록   6 추론 테스트   7 오류 재실행
+3. 모델 있음 6단계
+   1 모델 목록 확인   2 모델 선택   3 생성
+   4 등록   5 추론 테스트   6 오류 재실행
 ```
 
 - 안내 출력 직후, 후속 질문을 하기 전에 **워크스페이스를 분석**하고 `model_found` 를 먼저 결정한다.
@@ -137,25 +137,28 @@ mode: primary
 
 ---
 
-## 5. 7단계 프로세스
+## 5. 6단계 프로세스
 
-프로세스는 **고정 7단계**입니다. (스크립트 `scripts/ai_studio_process.py` 와 일치)
+프로세스는 **고정 6단계**입니다. (스크립트 `scripts/ai_studio_process.py` 와 일치)
+(0단계 `.env` 환경변수 체크는 이 6단계보다 먼저 통과하는 관문이며, rules/always 로 관리한다.)
 
 | 단계 | 이름 | 설명 | 실행 조건 |
 |---|---|---|---|
 | 1 | 모델 목록 확인 | 워크스페이스 분석, 모델 있음/없음 | 진입 시 자동 |
-| 2 | 모델 선택 | 번호/경로/자연어로 모델 지정 | 사용자 선택 |
-| 3 | 환경 검증 | Python/의존성/MLflow/env 확인 | 사용자 선택 |
-| 4 | 템플릿 변환 | 선택 데이터에 맞게 샘플 재작성 | 사용자 선택 |
-| 5 | 원격 MLflow 등록 | 학습 실행 + MLflow 등록 | 사용자 선택 |
-| 6 | 추론 테스트 | input_example.json 으로 추론 | 사용자 선택 |
-| 7 | 오류 재실행 | 실패한 단계 다시 실행 | 사용자 선택 |
+| 2 | 모델 선택 | 번호/경로로 모델 지정 | 사용자 선택 |
+| 3 | 생성 | 템플릿 복사 + 선택 모델과 합침 + 생성물 검증 | 사용자 선택 |
+| 4 | 등록 | MLflow 에 학습/등록 실행 | 사용자 선택 |
+| 5 | 추론 테스트 | input_example.json 으로 추론 | 사용자 선택 |
+| 6 | 오류 재실행 | 실패한 단계 다시 실행 | 사용자 선택 |
+
+- **3 생성**: 기존의 "환경 검증 + 템플릿 변환" 을 하나로 합쳤다. 템플릿을 복사해 선택 모델과 합치고(runtest_2.py, config/config.json, aiu_custom/, requirements.txt, input_example.json 생성), 생성된 파일이 올바른지 검증한다.
+- **4 등록**: MLflow 서버에 등록하는 것은 사실상 MLflow 에 학습/기록하는 과정이다.
 
 ### 수동 실행 규칙 (중요)
-- 7단계는 **자동 파이프라인이 아니다.** 한 번에 한 단계만 실행한다.
+- 6단계는 **자동 파이프라인이 아니다.** 한 번에 한 단계만 실행한다.
 - 숫자 입력 하나로 여러 단계를 연속 실행하지 않는다.
 - 각 단계 완료 후 결과와 다음 단계를 출력하고 **멈춘다.**
-- 단계 2 이후에는 TODO 가이드를 보여주고, 사용자가 다음 번호를 선택할 때까지 대기한다.
+- 단계 2 이후에는 다음에 할 일을 자연스럽게 안내하고, 사용자가 다음 번호를 선택할 때까지 대기한다.
 
 ---
 
@@ -169,10 +172,9 @@ mode: primary
 | 1 모델 목록 | `agent-mlflow-skill-project-analyze` | `scripts/01-project-analyze/validate_mlflow_project.py` |
 | (샘플 복사) | `agent-mlflow-skill-sample-bootstrap` | `scripts/02-sample-bootstrap/bootstrap_sample_project.py` |
 | 2 모델 선택 | (train-model 스킬) | `scripts/02-model-select/select_model.py` |
-| 3 환경 검증 | `agent-mlflow-skill-environment-check` | `scripts/03-environment-check/check_environment.py` |
-| 4 템플릿 변환 | `agent-mlflow-skill-train-model` | `scripts/04-train-model/prepare_selected_model.py` |
+| 3 생성 | `agent-mlflow-skill-train-model` | `scripts/04-train-model/prepare_selected_model.py` (+ 검증: `03-environment-check/check_environment.py`) |
 | 5 MLflow 등록 | `agent-mlflow-skill-train-model` | `scripts/04-train-model/run_training.py` |
-| 6 추론 테스트 | `agent-mlflow-skill-inference-test` | `scripts/06-inference-test/test_inference.py` |
+| 5 추론 테스트 | `agent-mlflow-skill-inference-test` | `scripts/06-inference-test/test_inference.py` |
 
 **핵심 엔진:** `scripts/04-train-model/prepare_selected_model.py` 가 분석/선택/변환의 실제 로직을 담당한다.
 `select_model.py` 등은 PowerShell 경로·오타를 정규화해 이 엔진에 위임하는 얇은 래퍼다.
@@ -185,7 +187,7 @@ python .opencode/scripts/04-train-model/prepare_selected_model.py --project .
 # 모델 선택 (단계 2)
 python .opencode/scripts/02-model-select/select_model.py --project . --model <번호|경로>
 
-# 템플릿 변환 (단계 4, 선택한 모델 재사용)
+# 생성 (단계 3, 선택한 모델 재사용)
 python .opencode/scripts/04-train-model/prepare_selected_model.py --project . --model selected --execute
 
 # MLflow 등록 (단계 5)
@@ -293,17 +295,17 @@ agent-mlflow-skill-inference-test    input_example.json/predict.py 추론 테스
     01-project-analyze/  분석
     02-model-select/     모델 선택 (래퍼)
     02-sample-bootstrap/ 샘플 복사
-    03-environment-check/환경 검증
+    03-environment-check/생성물 검증
     04-train-model/      변환·학습 (핵심 엔진 prepare_selected_model.py)
     06-inference-test/   추론 테스트
-    ai_studio_process.py 7단계 고정 정의 (TODO 가이드 출력)
+    ai_studio_process.py 6단계 고정 정의
     skill_script_map.json 스킬-스크립트 매핑
   skills/                단계별 스킬 정의 (SKILL.md)
     01~06 각 SKILL.md
     README.md            스킬 폴더 설명
 ```
 
-### 템플릿 변환 시 생성되는 작업 폴더 (data/<모델>_MMDD_SEQ/)
+### 생성(3단계) 시 만들어지는 작업 폴더 (data/<모델>_MMDD_SEQ/)
 ```
   source/            입력 원본 (선택한 모델/자료 복사, 읽기 전용)
   saved_model/       MLflow에 등록될 모델 (결과물)
@@ -321,7 +323,7 @@ agent-mlflow-skill-inference-test    input_example.json/predict.py 추론 테스
 
 ## 11. 이 파일 수정 안내 (사람용)
 
-- **단계를 바꾸려면**: 5번(7단계 표) + `scripts/ai_studio_process.py` 의 `AI_STUDIO_PROCESS_STEPS` 를 함께 수정한다.
+- **단계를 바꾸려면**: 5번(6단계 표) + `scripts/ai_studio_process.py` 의 `AI_STUDIO_PROCESS_STEPS` (개수 검증 6) 를 함께 수정한다.
 - **스킬/스크립트 매핑을 바꾸려면**: 4번 표 + `scripts/skill_script_map.json` 을 함께 수정한다.
 - **실행 규칙(권한/경로/보안)을 바꾸려면**: 7번을 수정한다.
 - 각 단계의 상세 동작은 해당 `skills/*/SKILL.md` 와 `scripts/*/README.md` 에 있다.

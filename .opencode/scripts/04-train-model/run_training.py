@@ -578,7 +578,6 @@ def main():
         step_statuses = (
             "done" if artifacts else "needs_input",
             "done" if artifacts else "needs_input",
-            "done" if not (missing_env or remote_uri_failure) else "needs_input",
             "done" if (work_path / "runtest_2.py").exists() and (work_path / "requirements.txt").exists() else "pending",
             mlflow_run_status,
             "사용자 선택",
