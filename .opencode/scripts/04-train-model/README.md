@@ -11,9 +11,11 @@ Scripts:
 
 Responsibility:
 
-- 기존 `runtest.py`를 읽기 전용으로 참조
-- 선택 모델 기준 `runtest_2.py` 생성
-- 3번 추가 시퀀스에서 `--sync-runtime` 실행
-- `runtest_2.py` 기준 런타임 폴더/파일 변환
-- 템플릿 복사 시 샘플 `data/`와 `requirements.txt`는 복사하지 않음
-- 확정 entrypoint 실행
+- 입력 케이스 감지 (모델만/자료만/둘다) — `--train`/`--register` 로 '둘다' 선택
+- 기존 `runtest.py` 를 읽기 전용으로 참조, 선택 모델 기준 `runtest_2.py` 생성
+- 템플릿 복사 후 작업 폴더 구성:
+  - `source/` (입력 원본) 와 `saved_model/` (등록될 결과) 분리
+  - `aiu_custom/`, `config/`, `local_serving/` 준비
+  - `requirements.txt` (기본 + kind별 CPU 프레임워크), `README.md` 자동 생성
+- 템플릿의 샘플 `data/` 와 `requirements.txt` 는 복사하지 않음
+- 확정 entrypoint 실행 (`run_training.py`)

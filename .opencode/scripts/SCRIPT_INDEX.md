@@ -1,6 +1,6 @@
 # AI Studio Script Index
 
-이 문서는 `.opencode/skills` 01~05 목록에 맞춘 스크립트 정리표입니다.
+이 문서는 `.opencode/skills` 목록에 맞춘 스크립트 정리표입니다.
 
 실제 구현 파일은 스킬 목록 기준 폴더에 둡니다.
 
@@ -75,7 +75,7 @@ Support scripts:
 
 - `04-train-model/adapt_ai_studio.py` - 사용자 임의 `run.py` 보강용 보조 스크립트
 
-## 05 Inference Test
+## 06 Inference Test
 
 Skill folder:
 `06-agent-mlflow-skill-inference-test`

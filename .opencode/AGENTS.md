@@ -218,11 +218,11 @@ agent-mlflow-skill-inference-test    input_example.json/predict.py 추론 테스
       01-env-check.md    .env 체크
   config/
     dependencies.md      강제/추가 의존성 (사람이 수정)
-  samples/               샘플 3종 (sklearn/pytorch/tensorflow)
+  samples/               복사용 템플릿 3종 (sklearn/pytorch/tensorflow)
     <sample>/
       aiu_custom/predict.py     ModelWrapper (pyfunc)
       local_serving/serve.py    로컬 서빙
-      saved_model/              학습 모델 저장 위치
+      saved_model/              모델 저장 위치
       run_model.py              학습 진입점
       input_example.json        추론 입력 예시
       requirements.txt
@@ -240,6 +240,20 @@ agent-mlflow-skill-inference-test    input_example.json/predict.py 추론 테스
     01~06 각 SKILL.md
     README.md            스킬 폴더 설명
 ```
+
+### 템플릿 변환 시 생성되는 작업 폴더 (data/<모델>_MMDD_SEQ/)
+```
+  source/            입력 원본 (선택한 모델/자료 복사, 읽기 전용)
+  saved_model/       MLflow에 등록될 모델 (결과물)
+  aiu_custom/        ModelWrapper (predict.py) + 로더 (model.py)
+  config/            모델 메타 (config.json: url=/, path=\)
+  local_serving/     로컬 추론 (input_example)
+  runtest_2.py       학습/등록 실행 (케이스별 작성)
+  input_example.json 추론 입력 예시
+  requirements.txt   기본 + kind별 프레임워크(CPU)
+  README.md          자동 생성 (모델 설명 + 폴더 안내)
+```
+- **source(입력)** 와 **saved_model(출력)** 을 분리해 역할을 명확히 한다.
 
 ---
 

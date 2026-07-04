@@ -1,4 +1,4 @@
-# 05 Inference Test
+# 06 Inference Test
 
 Skill folder:
 `../../skills/06-agent-mlflow-skill-inference-test`
