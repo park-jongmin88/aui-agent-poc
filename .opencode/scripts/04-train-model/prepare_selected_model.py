@@ -754,79 +754,48 @@ def is_selected_model_alias(value: str | None) -> bool:
 def build_selectable_entries(project: Path) -> list[dict]:
     """폴더 단위 통합 선택 목록을 만든다.
 
-    표시 번호와 선택 인덱스를 일치시키기 위해, 모델 파일과 학습 코드를
-    개별로 나열하지 않고 **data/<폴더> 단위로 하나의 항목**으로 묶는다.
+    data/<폴더> 를 **직접 스캔**해서, 등록된 확장자(모델/코드/데이터) 파일이
+    하나라도 있는 폴더를 모두 목록에 포함한다. 학습코드 여부를 내용 패턴으로
+    판정하지 않으므로(예: model.fit 대신 pipe.fit 을 써도) 폴더가 누락되지 않는다.
 
-    각 항목: {
-        "index": 1-based 번호,
-        "folder": 폴더 경로(Path),
-        "target": 대표 선택 대상(Path) - 모델 파일 우선, 없으면 학습 코드,
-        "case": model_only | data_only | both,
-        "label": 표시용 상대경로 문자열,
-    }
-    선택 시 target 을 반환한다.
+    표시 번호 = 선택 번호. target 은 선택 시 반환할 대표 파일(모델 우선).
     """
-    models = scan_model_artifacts(project)
-    training = scan_training_code(project)
-
-    # 폴더별로 모델/코드 수집 (data/<top> 기준으로 그룹핑)
-    def top_folder(path: Path) -> Path:
-        try:
-            parts = path.resolve().relative_to((project / "data").resolve()).parts
-            if parts:
-                return (project / "data" / parts[0])
-        except ValueError:
-            pass
-        # data/ 밖이면 자기 부모
-        return path.parent if path.is_file() else path
-
-    groups: dict[str, dict] = {}
-    order: list[str] = []
-
-    def ensure_group(folder: Path):
-        key = model_sort_key(folder, project)
-        if key not in groups:
-            groups[key] = {"folder": folder, "models": [], "code": []}
-            order.append(key)
-        return groups[key]
-
-    for m in models:
-        g = ensure_group(top_folder(m))
-        g["models"].append(m)
-    for c in training:
-        g = ensure_group(top_folder(c))
-        g["code"].append(c)
-
-    order.sort()  # 폴더 경로 알파벳 순 (표시=선택 동일 보장)
-
+    LISTED_EXTS = MODEL_FILE_EXTS | {".py"} | DATA_FILE_EXTS
+    data_root = project / "data"
     entries: list[dict] = []
-    for i, key in enumerate(order, 1):
-        g = groups[key]
-        has_model = bool(g["models"])
-        has_code = bool(g["code"])
-        if has_model and has_code:
-            case = "both"
-        elif has_model:
-            case = "model_only"
-        elif has_code:
-            case = "data_only"
-        else:
-            continue
-        # 대표 대상: 모델 우선, 없으면 학습 코드
-        target = g["models"][0] if has_model else g["code"][0]
-        # 내용: 폴더에서 등록된 확장자(.pkl/.py/.pth/.h5 등)에 걸리는 파일들을 직접 나열
-        LISTED_EXTS = MODEL_FILE_EXTS | {".py"} | DATA_FILE_EXTS
-        listed_files = sorted(
-            p.name for p in g["folder"].rglob("*")
-            if p.is_file() and p.suffix.lower() in LISTED_EXTS
+    if not data_root.exists():
+        return entries
+
+    # data/ 바로 아래 폴더들을 알파벳 순으로 (표시=선택 일치)
+    folders = sorted(
+        [p for p in data_root.iterdir() if p.is_dir()],
+        key=lambda p: p.name.lower(),
+    )
+
+    index = 0
+    for folder in folders:
+        # 폴더 안의 등록 확장자 파일 수집
+        files = sorted(
+            (p for p in folder.rglob("*")
+             if p.is_file() and p.suffix.lower() in LISTED_EXTS),
+            key=lambda p: p.name.lower(),
         )
-        content = ", ".join(listed_files)
+        if not files:
+            continue  # 등록 확장자 파일이 하나도 없으면 제외
+        model_files = [p for p in files if p.suffix.lower() in MODEL_FILE_EXTS]
+        # 대표 대상: 모델 파일 우선, 없으면 첫 파일(학습코드 등)
+        target = model_files[0] if model_files else files[0]
+        case = "model_only" if model_files and len(files) == len(model_files) else (
+            "both" if model_files else "data_only"
+        )
+        content = ", ".join(p.name for p in files)
+        index += 1
         entries.append({
-            "index": i,
-            "folder": g["folder"],
+            "index": index,
+            "folder": folder,
             "target": target,
             "case": case,
-            "label": rel(g["folder"], project),
+            "label": rel(folder, project),
             "content": content,
         })
     return entries
