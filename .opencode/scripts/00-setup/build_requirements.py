@@ -64,7 +64,7 @@ def get_mlflow_version(repo_root: Path) -> tuple[str, str]:
     try:
         out = subprocess.run(
             [sys.executable, str(script), "--project", str(repo_root)],
-            capture_output=True, text=True, timeout=20,
+            capture_output=True, text=True, timeout=20, encoding="utf-8", errors="replace",
         )
         data = json.loads(out.stdout.strip().splitlines()[-1])
         return data.get("version", DEFAULT_VERSION), data.get("status", "unknown")

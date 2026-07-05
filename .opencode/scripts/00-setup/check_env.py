@@ -90,7 +90,7 @@ def main():
         if fetch.exists():
             proc = subprocess.run(
                 [sys.executable, str(fetch), "--project", str(project)],
-                capture_output=True, text=True, timeout=15,
+                capture_output=True, text=True, timeout=15, encoding="utf-8", errors="replace",
             )
             vdata = json.loads(proc.stdout.strip() or "{}")
             mlflow_version = vdata.get("version")

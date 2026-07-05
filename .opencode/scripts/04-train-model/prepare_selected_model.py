@@ -3619,7 +3619,7 @@ def _resolve_mlflow_version_for_requirements() -> str | None:
             return None
         proc = subprocess.run(
             [sys.executable, str(fetch), "--project", "."],
-            capture_output=True, text=True, timeout=15,
+            capture_output=True, text=True, timeout=15, encoding="utf-8", errors="replace",
         )
         data = json.loads(proc.stdout.strip() or "{}")
         version = data.get("version")
