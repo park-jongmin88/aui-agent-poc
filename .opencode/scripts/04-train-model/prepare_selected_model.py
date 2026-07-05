@@ -461,10 +461,35 @@ def is_saved_model_dir(path: Path) -> bool:
     return path.is_dir() and (path / "saved_model.pb").is_file()
 
 
+def training_code_kind(path: Path) -> str | None:
+    """학습 코드(.py/.ipynb)의 내용에서 프레임워크를 읽어 kind 를 정한다.
+    모델 파일(.h5 등)이 없고 학습 코드만 있는 경우에도 kind 를 판정하기 위함.
+    """
+    if path.suffix.lower() not in {".py", ".ipynb"}:
+        return None
+    try:
+        text = path.read_text(encoding="utf-8", errors="ignore").lower()
+    except Exception:
+        return None
+    if "import torch" in text or "from torch" in text:
+        return "pytorch"
+    if "import tensorflow" in text or "from tensorflow" in text or "import keras" in text or "from keras" in text:
+        return "tensorflow_keras"
+    if "sklearn" in text or "joblib" in text:
+        return "sklearn_joblib"
+    if "xgboost" in text or "import xgb" in text:
+        return "xgboost_bst"
+    return None
+
+
 def model_kind(path: Path) -> str | None:
     if is_saved_model_dir(path):
         return "tensorflow_saved_model"
-    return SUPPORTED_MODEL_KINDS.get(path.suffix.lower())
+    suffix_kind = SUPPORTED_MODEL_KINDS.get(path.suffix.lower())
+    if suffix_kind:
+        return suffix_kind
+    # 모델 파일 확장자가 아니면, 학습 코드(.py)일 때 내용으로 프레임워크를 판정한다.
+    return training_code_kind(path)
 
 
 def model_sort_key(path: Path, project: Path) -> str:
