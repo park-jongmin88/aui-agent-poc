@@ -98,6 +98,7 @@ mode: primary
 - 인사말 출력 후, 모델 목록을 보여주기 **전에** `python .opencode/scripts/00-setup/check_env.py --project .` 를 실행한다.
 - 결과 JSON 의 `ready` 가 `false` 이면 (예: `MLFLOW_TRACKING_URI` 미입력), **모델 목록으로 진행하지 않고** 사용자에게 `.env` 값을 채우라고 안내한 뒤 대기한다.
 - `ready` 가 `true` 일 때만 모델 목록(1단계)으로 진행한다.
+- check_env 결과의 `mlflow_version` 과 `mlflow_version_source` 를 사용자에게 알려준다 (예: "사용할 MLflow 버전: 3.10.0 (기본값)"). `mlflow_version_note` 가 있으면 함께 전달한다 (서버 조회 실패 시 실제 서버 버전과 다를 수 있음을 안내).
 - check_env 결과를 무시하고 "확인됨" 이라고 넘어가지 않는다. `ready:false` 면 반드시 멈춘다.
 - **[재개] 사용자가 `.env` 를 입력/저장했다고 하면** (예: "입력했어", "저장했어", "다시 해줘"), 즉시 `check_env.py` 를 **다시 실행**한다.
   - 이때 `ready:true` 이면 바로 모델 목록(1단계)을 보여준다. (다시 대기하지 않는다)

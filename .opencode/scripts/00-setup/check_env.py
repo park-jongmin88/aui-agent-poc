@@ -20,6 +20,7 @@ for _s in (_sys.stdout, _sys.stderr):
 import argparse
 import json
 import sys
+import subprocess
 from pathlib import Path
 
 ENV_TEMPLATE = (
@@ -80,16 +81,47 @@ def main():
         }, ensure_ascii=False))
         return
 
-    # 3. 통과
-    print(json.dumps({
+    # 3. 통과 — mlflow 버전도 함께 조회해 사용자에게 알려준다.
+    mlflow_version = None
+    version_source = None
+    version_note = None
+    try:
+        fetch = Path(__file__).resolve().parent / "fetch_mlflow_version.py"
+        if fetch.exists():
+            proc = subprocess.run(
+                [sys.executable, str(fetch), "--project", str(project)],
+                capture_output=True, text=True, timeout=15,
+            )
+            vdata = json.loads(proc.stdout.strip() or "{}")
+            mlflow_version = vdata.get("version")
+            status = vdata.get("status")
+            # 출처를 사람이 읽기 쉽게 변환
+            if status == "env":
+                version_source = ".env 의 MLFLOW_VERSION 고정값"
+            elif status == "ok":
+                version_source = "트래킹 서버 조회"
+            elif status in {"fetch_failed", "no_uri"}:
+                version_source = "기본값 (서버 조회 실패)"
+                version_note = "트래킹 URL 로 실제 연결되지 않아 기본 버전을 사용합니다. 실제 서버 버전과 다를 수 있습니다."
+            else:
+                version_source = status
+    except Exception:
+        pass
+
+    result = {
         "status": "ok",
         "env_path": ".env",
         "ready": True,
         "tracking_uri_set": bool(values.get("MLFLOW_TRACKING_URI", "").strip()),
         "username_set": bool(values.get("MLFLOW_TRACKING_USERNAME", "").strip()),
         "password_set": bool(values.get("MLFLOW_TRACKING_PASSWORD", "").strip()),
-        "message": "MLflow 연결 정보 확인 완료.",
-    }, ensure_ascii=False))
+        "mlflow_version": mlflow_version,
+        "mlflow_version_source": version_source,
+        "message": f"MLflow 연결 정보 확인 완료. 사용할 MLflow 버전: {mlflow_version} ({version_source}).",
+    }
+    if version_note:
+        result["mlflow_version_note"] = version_note
+    print(json.dumps(result, ensure_ascii=False))
 
 
 if __name__ == "__main__":
