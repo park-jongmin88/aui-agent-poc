@@ -69,9 +69,33 @@ if str(SCRIPT_ROOT) not in sys.path:
 
 from ai_studio_process import format_model_selection_hint, format_todo_guide, AI_STUDIO_PROCESS_STEPS
 
-TEMPLATE_SAMPLE_DIR_NAME = "pytorch_sample"
 TRAIN_MODEL_TEMPLATE_ROOT = ROOT / "samples"
-TEMPLATE_SAMPLE_DIR = TRAIN_MODEL_TEMPLATE_ROOT / TEMPLATE_SAMPLE_DIR_NAME
+
+# kind별 샘플 폴더 매핑: 선택한 데이터에 맞는 샘플을 복사해야 변환이 빠르다.
+# (POC 때 pytorch 고정이던 것을 kind별 선택으로 교체)
+SAMPLE_DIR_BY_KIND = {
+    "pytorch":                TRAIN_MODEL_TEMPLATE_ROOT / "pytorch_sample",
+    "safetensors":            TRAIN_MODEL_TEMPLATE_ROOT / "pytorch_sample",
+    "sklearn_pickle":         TRAIN_MODEL_TEMPLATE_ROOT / "sklearn_sample",
+    "sklearn_joblib":         TRAIN_MODEL_TEMPLATE_ROOT / "sklearn_sample",
+    "xgboost_bst":            TRAIN_MODEL_TEMPLATE_ROOT / "sklearn_sample",
+    "xgboost_ubj":            TRAIN_MODEL_TEMPLATE_ROOT / "sklearn_sample",
+    "tensorflow_keras":       TRAIN_MODEL_TEMPLATE_ROOT / "tensorflow_sample",
+    "tensorflow_h5":          TRAIN_MODEL_TEMPLATE_ROOT / "tensorflow_sample",
+    "tensorflow_saved_model": TRAIN_MODEL_TEMPLATE_ROOT / "tensorflow_sample",
+}
+# kind를 알 수 없거나 전용 샘플이 없을 때 기본 샘플
+DEFAULT_SAMPLE_DIR = TRAIN_MODEL_TEMPLATE_ROOT / "pytorch_sample"
+
+def resolve_sample_dir(kind):
+    """선택한 모델 kind에 맞는 샘플 폴더를 반환한다."""
+    if kind and kind in SAMPLE_DIR_BY_KIND:
+        return SAMPLE_DIR_BY_KIND[kind]
+    return DEFAULT_SAMPLE_DIR
+
+# 하위 호환: 기존 코드가 참조하던 이름 (kind 모를 때 기본값)
+TEMPLATE_SAMPLE_DIR = DEFAULT_SAMPLE_DIR
+TEMPLATE_SAMPLE_DIR_NAME = "pytorch_sample"
 REQUIRED_REQUIREMENTS_FILE = ROOT / "scripts" / "03-environment-check" / "requirements.required.txt"
 CHECK_ENVIRONMENT_SCRIPT = ROOT / "scripts" / "03-environment-check" / "check_environment.py"
 PREPARE_SELECTED_MODEL_SCRIPT = ROOT / "scripts" / "04-train-model" / "prepare_selected_model.py"
@@ -1081,13 +1105,14 @@ def runtest_2_sequence(project: Path, selected_model: Path, kind: str, reference
     ]
 
 
-def copy_template_sample_folder(project: Path, execute: bool) -> tuple[list[str], list[str], list[str]]:
+def copy_template_sample_folder(project: Path, execute: bool, kind: str | None = None) -> tuple[list[str], list[str], list[str]]:
     copied: list[str] = []
     skipped: list[str] = []
     failures: list[str] = []
     target = project
-    if not TEMPLATE_SAMPLE_DIR.is_dir():
-        failures.append(f"pytorch_sample_folder_missing:{TEMPLATE_SAMPLE_DIR}")
+    sample_dir = resolve_sample_dir(kind)
+    if not sample_dir.is_dir():
+        failures.append(f"sample_folder_missing:{sample_dir}")
         return copied, skipped, failures
     if target.exists() and not target.is_dir():
         failures.append(f"workspace_target_not_directory:{target}")
@@ -1095,8 +1120,8 @@ def copy_template_sample_folder(project: Path, execute: bool) -> tuple[list[str]
     current_selected = current_selected_model_path(project)
     selected_model_locked = current_selected is not None and current_selected.exists()
     if execute:
-        for source in TEMPLATE_SAMPLE_DIR.rglob("*"):
-            relative = source.relative_to(TEMPLATE_SAMPLE_DIR)
+        for source in sample_dir.rglob("*"):
+            relative = source.relative_to(sample_dir)
             if any(part in ai_STUDIO_COPY_IGNORE_DIRS for part in relative.parts):
                 continue
             if relative.as_posix() in ai_STUDIO_COPY_IGNORE_FILES:
@@ -1126,15 +1151,15 @@ def copy_template_sample_folder(project: Path, execute: bool) -> tuple[list[str]
                     "runtest.py_selected_model_constants_forbidden:"
                     + ",".join(forbidden_markers)
                 )
-    copied.append(".opencode/samples/pytorch_sample/* -> model work folder (data/, requirements.txt 제외)")
+    copied.append(f".opencode/samples/{sample_dir.name}/* -> model work folder (data/, requirements.txt 제외)")
     return copied, skipped, failures
 
 
-def ensure_aiu_custom_template_copied(project: Path, execute: bool) -> tuple[list[str], list[str], list[str]]:
+def ensure_aiu_custom_template_copied(project: Path, execute: bool, kind: str | None = None) -> tuple[list[str], list[str], list[str]]:
     changed: list[str] = []
     skipped: list[str] = []
     failures: list[str] = []
-    template_dir = TEMPLATE_SAMPLE_DIR / "aiu_custom"
+    template_dir = resolve_sample_dir(kind) / "aiu_custom"
     target_dir = project / "aiu_custom"
     if not template_dir.is_dir():
         failures.append(f"aiu_custom_template_missing:{template_dir}")
@@ -1159,14 +1184,15 @@ def ensure_aiu_custom_template_copied(project: Path, execute: bool) -> tuple[lis
     return changed, skipped, failures
 
 
-def copied_template_relative_files() -> list[str]:
-    if not TEMPLATE_SAMPLE_DIR.is_dir():
+def copied_template_relative_files(kind: str | None = None) -> list[str]:
+    sample_dir = resolve_sample_dir(kind)
+    if not sample_dir.is_dir():
         return []
     files: list[str] = []
-    for source in TEMPLATE_SAMPLE_DIR.rglob("*"):
+    for source in sample_dir.rglob("*"):
         if not source.is_file():
             continue
-        relative = source.relative_to(TEMPLATE_SAMPLE_DIR)
+        relative = source.relative_to(sample_dir)
         if any(part in ai_STUDIO_COPY_IGNORE_DIRS for part in relative.parts):
             continue
         if relative.as_posix() in ai_STUDIO_COPY_IGNORE_FILES:
@@ -1175,11 +1201,11 @@ def copied_template_relative_files() -> list[str]:
     return sorted(files)
 
 
-def read_copied_template_files(project: Path, execute: bool) -> tuple[list[str], list[str], list[str]]:
+def read_copied_template_files(project: Path, execute: bool, kind: str | None = None) -> tuple[list[str], list[str], list[str]]:
     changed: list[str] = []
     skipped: list[str] = []
     failures: list[str] = []
-    relative_files = copied_template_relative_files()
+    relative_files = copied_template_relative_files(kind)
     if not relative_files:
         failures.append("copied_template_files_empty")
         return changed, skipped, failures
@@ -3445,13 +3471,30 @@ def replace_class_method_block(text: str, class_name: str, method_name: str, rep
     return text[: class_match.start()] + updated_class + text[class_match.end() :]
 
 
-def ensure_predict_imports(text: str) -> str:
+# kind별 프레임워크 import (predict.py 상단 보강용)
+FRAMEWORK_IMPORT_BY_KIND = {
+    "pytorch":                "import torch",
+    "safetensors":            "import torch",
+    "sklearn_pickle":         "import joblib",
+    "sklearn_joblib":         "import joblib",
+    "xgboost_bst":            "import xgboost",
+    "xgboost_ubj":            "import xgboost",
+    "tensorflow_keras":       "import tensorflow as tf",
+    "tensorflow_h5":          "import tensorflow as tf",
+    "tensorflow_saved_model": "import tensorflow as tf",
+}
+
+def ensure_predict_imports(text: str, kind: str | None = None) -> str:
+    # 공통 import (프레임워크 무관)
     required_imports = [
         "import json",
         "from pathlib import Path",
         "import mlflow.pyfunc",
-        "import torch",
     ]
+    # kind에 맞는 프레임워크 import만 추가 (POC때 torch 고정이던 것 교체)
+    fw_import = FRAMEWORK_IMPORT_BY_KIND.get(kind or "")
+    if fw_import:
+        required_imports.append(fw_import)
     lines = text.splitlines()
     insert_index = 0
     while insert_index < len(lines) and (
@@ -3472,8 +3515,8 @@ def insert_before_model_wrapper_or_append(text: str, block: str) -> str:
 
 
 def generated_predict_text(template_text: str, kind: str) -> str:
-    text = template_text.strip() if template_text.strip() else (TEMPLATE_SAMPLE_DIR / "aiu_custom" / "predict.py").read_text(encoding="utf-8", errors="ignore")
-    text = ensure_predict_imports(text)
+    text = template_text.strip() if template_text.strip() else (resolve_sample_dir(kind) / "aiu_custom" / "predict.py").read_text(encoding="utf-8", errors="ignore")
+    text = ensure_predict_imports(text, kind)
 
     helper_block = f'''
 
@@ -3854,7 +3897,7 @@ def write_aiu_predict(project: Path, selected_model: Path, kind: str, execute: b
     if target.is_file():
         template_text = target.read_text(encoding="utf-8", errors="ignore")
     else:
-        template_path = TEMPLATE_SAMPLE_DIR / "aiu_custom" / "predict.py"
+        template_path = resolve_sample_dir(kind) / "aiu_custom" / "predict.py"
         template_text = template_path.read_text(encoding="utf-8", errors="ignore") if template_path.is_file() else ""
     target.write_text(generated_predict_text(template_text, kind), encoding="utf-8")
     changed.append("aiu_custom/predict.py transformed for selected model")
@@ -3874,8 +3917,8 @@ def sync_selected_model_runtime(
     failures: list[str] = []
 
     runtime_steps = [
-        ensure_aiu_custom_template_copied(project, execute),
-        read_copied_template_files(project, execute),
+        ensure_aiu_custom_template_copied(project, execute, kind),
+        read_copied_template_files(project, execute, kind),
         ensure_runtime_directories(project, execute),
         write_source_files(project, selected_model.parent if selected_model.parent != project else selected_model, execute),
         write_requirements(project, kind, execute),
@@ -3888,7 +3931,7 @@ def sync_selected_model_runtime(
         write_readme(project, selected_model, kind, execute),
     ]
     if copy_template:
-        runtime_steps.insert(0, copy_template_sample_folder(project, execute))
+        runtime_steps.insert(0, copy_template_sample_folder(project, execute, kind))
 
     for next_changed, next_skipped, next_failures in runtime_steps:
         changed.extend(next_changed)
@@ -4246,14 +4289,14 @@ def build_report(args: argparse.Namespace) -> PreparedModelReport:
             report.next_steps.append("검토 후 --execute를 붙여 선택 모델 기준으로 런타임 폴더/파일을 변환하세요.")
         return report
 
-    template_changed, template_skipped, template_failures = copy_template_sample_folder(work_project, args.execute)
+    template_changed, template_skipped, template_failures = copy_template_sample_folder(work_project, args.execute, selected_kind)
     report.prepared_paths.extend(template_changed)
     report.skipped.extend(template_skipped)
     report.failures.extend(template_failures)
     if report.failures:
         return report
 
-    read_changed, read_skipped, read_failures = read_copied_template_files(work_project, args.execute)
+    read_changed, read_skipped, read_failures = read_copied_template_files(work_project, args.execute, selected_kind)
     report.prepared_paths.extend(read_changed)
     report.skipped.extend(read_skipped)
     report.failures.extend(read_failures)
