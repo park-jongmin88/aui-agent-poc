@@ -33,7 +33,7 @@ PS_PREPARE_MODEL_COMMAND = r"python .opencode/scripts/02-model-select/select_mod
 SAMPLE_OPTIONS = ["sklearn", "pytorch", "tensorflow"]
 SAMPLE_PROJECT_NAMES = {f"{name}_sample" for name in SAMPLE_OPTIONS}
 ENTRYPOINTS = [
-    "runtest_2.py",
+    "model_register.py",
     "runtest.py",
     "run_test.py",
     "train.py",
@@ -76,7 +76,7 @@ def resolve_workspace_project(raw_project: str) -> Path:
             return Path(*parts[:opencode_index]).resolve()
     return project
 MODEL_SETTING_FILES = [
-    "runtest_2.py",
+    "model_register.py",
     "runtest.py",
     "run_test.py",
     "run_model.py",
@@ -164,7 +164,7 @@ def has_model_project(project: Path) -> bool:
     if is_opencode_sample_source(project):
         return False
     markers = [
-        "runtest_2.py",
+        "model_register.py",
         "runtest.py",
         "run_test.py",
         "train.py",
@@ -444,9 +444,9 @@ def is_runtest_2_entrypoint(entrypoint: Path | None, project: Path) -> bool:
     if entrypoint is None:
         return False
     try:
-        return entrypoint.resolve().relative_to(project.resolve()).as_posix() == "runtest_2.py"
+        return entrypoint.resolve().relative_to(project.resolve()).as_posix() == "model_register.py"
     except ValueError:
-        return entrypoint.name == "runtest_2.py"
+        return entrypoint.name == "model_register.py"
 
 
 def sync_selected_model_runtime_before_registration(project: Path, python_bin: str) -> tuple[list[str], list[str]]:
@@ -475,7 +475,7 @@ def sync_selected_model_runtime_before_registration(project: Path, python_bin: s
         return [], [f"selected_model_runtime_sync_failed:{detail}"]
     return [
         "5번 실행 전 선택 모델 기준 런타임 재검증/변환 완료",
-        "runtest_2.py, aiu_custom/, local_serving/, config/, input_example.json, requirements.txt 동기화",
+        "model_register.py, aiu_custom/, local_serving/, config/, input_example.json, requirements.txt 동기화",
     ], []
 
 
@@ -578,7 +578,7 @@ def main():
         step_statuses = (
             "done" if artifacts else "needs_input",
             "done" if artifacts else "needs_input",
-            "done" if (work_path / "runtest_2.py").exists() and (work_path / "requirements.txt").exists() else "pending",
+            "done" if (work_path / "model_register.py").exists() and (work_path / "requirements.txt").exists() else "pending",
             mlflow_run_status,
             "사용자 선택",
             "needed" if failures else "사용자 선택",

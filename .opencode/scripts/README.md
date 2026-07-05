@@ -38,7 +38,7 @@
 
 - `source/` 입력 원본 (읽기 전용) / `saved_model/` 등록될 모델 (결과)
 - `aiu_custom/` ModelWrapper + 로더 / `config/` 메타 / `local_serving/` 로컬 추론
-- `runtest_2.py` 학습·등록 / `input_example.json` / `requirements.txt` / `README.md`(자동)
+- `model_register.py` 학습·등록 / `input_example.json` / `requirements.txt` / `README.md`(자동)
 
 입력(source)과 출력(saved_model)을 분리한다.
 
@@ -54,7 +54,7 @@
 `--project`, `--model <번호|경로>`, `--execute`, `--train`, `--register` 등을 받는다.
 
 ### 04-train-model/run_training.py
-확정된 entrypoint(`runtest_2.py`)를 실행해 학습·MLflow 등록을 수행한다.
+확정된 entrypoint(`model_register.py`)를 실행해 학습·MLflow 등록을 수행한다.
 
 ### 01-project-analyze/validate_mlflow_project.py
 워크스페이스를 상세 분석하고 모델 유무·필수 파일을 점검한다.

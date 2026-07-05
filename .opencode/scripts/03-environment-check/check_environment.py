@@ -55,14 +55,14 @@ AUTO_DEFAULT_SETTING_KEYS = {
     "mlflow_register_model_name",
 }
 MODEL_SETTING_FILES = [
-    "runtest_2.py",
+    "model_register.py",
     "runtest.py",
     "run_test.py",
     "run_model.py",
     "run.py",
 ]
 ENTRYPOINTS = [
-    "runtest_2.py",
+    "model_register.py",
     "runtest.py",
     "run_test.py",
     "train.py",
@@ -74,7 +74,7 @@ ENTRYPOINTS = [
 ]
 SAMPLE_PROJECT_NAMES = {"sklearn_sample", "pytorch_sample", "tensorflow_sample"}
 MODEL_MARKERS = [
-    "runtest_2.py",
+    "model_register.py",
     "runtest.py",
     "run_test.py",
     "train.py",
@@ -255,7 +255,7 @@ IMPORT_REQUIREMENT_MAP = {
 }
 LOCAL_IMPORT_ROOTS = {"aiu_custom"}
 REQUIREMENT_SCAN_FILES = [
-    "runtest_2.py",
+    "model_register.py",
     "aiu_custom/model.py",
     "aiu_custom/predict.py",
     "inferencetest.py",
@@ -266,9 +266,9 @@ REMOTE_MLFLOW_VERSION_ENDPOINTS = [
     "api/2.0/mlflow/version",
 ]
 REMOTE_MLFLOW_TIMEOUT_SECONDS = 3
-PS_CHECK_ENV_COMMAND = r"python .opencode/scripts/03-environment-check/check_environment.py --project . --entrypoint runtest_2.py"
+PS_CHECK_ENV_COMMAND = r"python .opencode/scripts/03-environment-check/check_environment.py --project . --entrypoint model_register.py"
 PS_PREPARE_SELECTED_COMMAND = r"python .opencode/scripts/04-train-model/prepare_selected_model.py --project . --model selected --execute"
-PS_RUN_TRAINING_COMMAND = r"python .opencode/scripts/04-train-model/run_training.py --project . --entrypoint runtest_2.py --execute"
+PS_RUN_TRAINING_COMMAND = r"python .opencode/scripts/04-train-model/run_training.py --project . --entrypoint model_register.py --execute"
 PS_INFERENCE_COMMAND = r"python inferencetest.py"
 
 
@@ -1349,14 +1349,14 @@ def build_report(project: Path, entrypoint_name: str | None = None) -> Environme
         existing_model_flow
         and selected_path is not None
         and entrypoint_name is not None
-        and entrypoint_name.replace("\\", "/").lstrip("./") == "runtest_2.py"
-        and not (project / "runtest_2.py").exists()
+        and entrypoint_name.replace("\\", "/").lstrip("./") == "model_register.py"
+        and not (project / "model_register.py").exists()
     )
     if entrypoint_name and model_settings is None and not entrypoint_pending_until_step4:
         failures.append(f"entrypoint_not_found:{entrypoint_name}")
         next_steps.append(f"지정한 실행 파일 경로를 찾지 못했습니다: {entrypoint_name}")
     elif entrypoint_pending_until_step4:
-        next_steps.append("runtest_2.py는 3번 생성 단계에서 만들어집니다.")
+        next_steps.append("model_register.py는 3번 생성 단계에서 만들어집니다.")
     if not Path(ai_env.path).exists():
         failures.append("missing_model_settings_file:.env")
         if existing_model_flow and entrypoint is None:

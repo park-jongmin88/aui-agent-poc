@@ -96,7 +96,7 @@ CONFIG_ROOT_FILES = {
 }
 
 SELECTED_MODEL_LOCKED_RELATIVE_PATHS = {
-    "runtest_2.py",
+    "model_register.py",
     "requirements.txt",
     "input_example.json",
     "aiu_custom/model.py",
@@ -105,7 +105,7 @@ SELECTED_MODEL_LOCKED_RELATIVE_PATHS = {
     "config/config.json",
 }
 SAMPLE_COPY_IGNORE_FILES = {
-    "runtest_2.py",
+    "model_register.py",
 }
 
 IGNORABLE_PROJECT_ROOT_NAMES = {
@@ -230,7 +230,7 @@ def reference_runtest_path(project: Path) -> Path | None:
 
 
 def selected_model_locked(project: Path) -> bool:
-    if (project / "runtest_2.py").is_file():
+    if (project / "model_register.py").is_file():
         return True
     config_path = project / "config" / "config.json"
     if not config_path.is_file():

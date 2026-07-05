@@ -181,7 +181,7 @@ def draw_process(path: Path, bottom_text: str) -> None:
         ("2", "모델 선택", "select", "번호 또는\n경로 선택", blue),
         ("3", "환경변수\nrequirements 갱신", "requirements", "MLflow 입력값,\n패키지 갱신", blue),
         ("4", "템플릿 변환", "template", "템플릿 복사,\n연결부 수정", blue),
-        ("5", "원격 MLflow\n등록 실행", "mlflow", "runtest_2.py\n실행", blue),
+        ("5", "원격 MLflow\n등록 실행", "mlflow", "model_register.py\n실행", blue),
         ("6", "추론 테스트", "inference", "추론 테스트\n실행", green),
         ("7", "오류 재실행", "retry", "실패 단계부터\n다시 실행", green),
     ]

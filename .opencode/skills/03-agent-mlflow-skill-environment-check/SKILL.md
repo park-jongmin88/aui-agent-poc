@@ -99,7 +99,7 @@ requirements.txt 변환과 상태 표시만 수행한다.
 
 처리 완료 후 실행:
 - 4번 템플릿 변환은 사용자가 선택: python .opencode/scripts/04-train-model/prepare_selected_model.py --project . --model selected --execute
-- 5번 원격 MLflow 등록 실행은 사용자가 선택: python .opencode/scripts/04-train-model/run_training.py --project . --entrypoint runtest_2.py --execute
+- 5번 원격 MLflow 등록 실행은 사용자가 선택: python .opencode/scripts/04-train-model/run_training.py --project . --entrypoint model_register.py --execute
 - 6번 추론 테스트는 사용자가 선택: python inferencetest.py
 ```
 

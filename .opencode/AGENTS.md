@@ -151,7 +151,7 @@ mode: primary
 | 5 | 추론 테스트 | input_example.json 으로 추론 | 사용자 선택 |
 | 6 | 오류 재실행 | 실패한 단계 다시 실행 | 사용자 선택 |
 
-- **3 생성**: 기존의 "환경 검증 + 템플릿 변환" 을 하나로 합쳤다. 템플릿을 복사해 선택 모델과 합치고(runtest_2.py, config/config.json, aiu_custom/, requirements.txt, input_example.json 생성), 생성된 파일이 올바른지 검증한다.
+- **3 생성**: 기존의 "환경 검증 + 템플릿 변환" 을 하나로 합쳤다. 템플릿을 복사해 선택 모델과 합치고(model_register.py, config/config.json, aiu_custom/, requirements.txt, input_example.json 생성), 생성된 파일이 올바른지 검증한다.
 - **4 등록**: MLflow 서버에 등록하는 것은 사실상 MLflow 에 학습/기록하는 과정이다.
 
 ### 수동 실행 규칙 (중요)
@@ -191,7 +191,7 @@ python .opencode/scripts/02-model-select/select_model.py --project . --model <�
 python .opencode/scripts/04-train-model/prepare_selected_model.py --project . --model selected --execute
 
 # MLflow 등록 (단계 5)
-python .opencode/scripts/04-train-model/run_training.py --project . --entrypoint runtest_2.py --execute
+python .opencode/scripts/04-train-model/run_training.py --project . --entrypoint model_register.py --execute
 ```
 
 ---
@@ -312,7 +312,7 @@ agent-mlflow-skill-inference-test    input_example.json/predict.py 추론 테스
   aiu_custom/        ModelWrapper (predict.py) + 로더 (model.py)
   config/            모델 메타 (config.json: url=/, path=\)
   local_serving/     로컬 추론 (input_example)
-  runtest_2.py       학습/등록 실행 (케이스별 작성)
+  model_register.py       학습/등록 실행 (케이스별 작성)
   input_example.json 추론 입력 예시
   requirements.txt   기본 + kind별 프레임워크(CPU)
   README.md          자동 생성 (모델 설명 + 폴더 안내)

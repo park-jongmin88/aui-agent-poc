@@ -30,7 +30,7 @@ SUPPORTED_MODEL_KINDS = {
 }
 DATA_FILE_SUFFIXES = {".csv"}
 CODE_SCAN_SUFFIXES = {".py", ".ipynb"}
-CODE_SCAN_SKIP_FILES = {"runtest_2.py"}
+CODE_SCAN_SKIP_FILES = {"model_register.py"}
 TRAINING_CODE_PATTERN = re.compile(
     r"("
     r"\bmodel\.fit\s*\(|"
@@ -78,8 +78,8 @@ PREPARE_SELECTED_MODEL_SCRIPT = ROOT / "scripts" / "04-train-model" / "prepare_s
 RUN_TRAINING_SCRIPT = ROOT / "scripts" / "04-train-model" / "run_training.py"
 PYTORCH_REFERENCE_DIR = TEMPLATE_SAMPLE_DIR
 PYTORCH_REFERENCE_ENTRYPOINT = PYTORCH_REFERENCE_DIR / "runtest.py"
-PS_CHECK_ENV_COMMAND = r"python .opencode/scripts/03-environment-check/check_environment.py --project . --entrypoint runtest_2.py"
-PS_RUN_TRAINING_COMMAND = r"python .opencode/scripts/04-train-model/run_training.py --project . --entrypoint runtest_2.py --execute"
+PS_CHECK_ENV_COMMAND = r"python .opencode/scripts/03-environment-check/check_environment.py --project . --entrypoint model_register.py"
+PS_RUN_TRAINING_COMMAND = r"python .opencode/scripts/04-train-model/run_training.py --project . --entrypoint model_register.py --execute"
 PS_PREPARE_MODEL_COMMAND = r"python .opencode/scripts/02-model-select/select_model.py --project . --model <번호 또는 경로>"
 
 REFERENCE_ENTRYPOINT_BY_KIND = {
@@ -97,7 +97,7 @@ ai_STUDIO_COPY_IGNORE_DIRS = {"__pycache__", "code", "config", "data", "metrics"
 ai_STUDIO_COPY_IGNORE_FILES = {
     ".env",
     "runtest.py",
-    "runtest_2.py",
+    "model_register.py",
     "run_model.py",
     "runt_model.py",
     "requirements.txt",
@@ -116,7 +116,7 @@ FORBIDDEN_RUNTEST_SELECTED_MODEL_MARKERS = (
     "MODEL_PATH = MODEL_DIR",
 )
 SELECTED_MODEL_LOCKED_RELATIVE_PATHS = {
-    "runtest_2.py",
+    "model_register.py",
     "requirements.txt",
     "input_example.json",
     "aiu_custom/model.py",
@@ -703,7 +703,7 @@ def eval_project_path_expr(node: ast.AST, project: Path, symbols: dict[str, Path
 
 
 def selected_model_from_runtest_2(project: Path) -> tuple[Path | None, str | None, str | None]:
-    runtest_2 = project / "runtest_2.py"
+    runtest_2 = project / "model_register.py"
     if not runtest_2.is_file():
         return None, None, "runtest_2_missing"
     try:
@@ -742,7 +742,7 @@ def selected_model_from_runtest_2(project: Path) -> tuple[Path | None, str | Non
 
 def current_selected_model_path(project: Path) -> Path | None:
     # Later TODO steps reuse the stored selection when no new model is given.
-    # runtest_2.py is a generated artifact and must not become the selection source.
+    # model_register.py is a generated artifact and must not become the selection source.
     return stored_selected_model_path(project)
 
 
@@ -1050,7 +1050,7 @@ def runtest_2_sequence(project: Path, selected_model: Path, kind: str, reference
         f"1. 선택 모델 경로 및 형식 확인: {rel(selected_model, project)} / MODEL_KIND={kind}",
         f"2. samples/pytorch_sample/ 템플릿을 모델 작업 폴더로 복사: {rel(selected_model_work_dir(project, selected_model), project)}",
         f"3. 참조 영역 확인: {reference_scope_display_path(kind, reference)}",
-        "4. runtest.py 참조해서 runtest_2.py 변환",
+        "4. runtest.py 참조해서 model_register.py 변환",
         "5. 복사된 템플릿 기준으로 선택 모델 경로와 모델 형식 연결부 수정",
         "6. 변환 결과 검증",
     ]
@@ -2291,7 +2291,7 @@ def selected_model_config_data(project: Path, selected_model: Path, kind: str) -
             "registered_model_name": registered_model_name,
         },
         "runtime": {
-            "entrypoint": "runtest_2.py",
+            "entrypoint": "model_register.py",
             "model_entrypoint": "aiu_custom/model.py",
             "predict_entrypoint": "aiu_custom/predict.py",
             "input_example": "input_example.json",
@@ -2603,7 +2603,7 @@ def handle_mlflow_connection_error(exc):
         print("MLflow 서버 저장소 오류: SQLite disk I/O error가 발생했습니다.")
         print("원인 후보: MLflow 서버가 sqlite/mlflow.db backend로 떠 있고, 해당 경로 권한/잠금/드라이브 I/O 문제가 있습니다.")
         print("조치: mlflow_tracking_uri를 원격 MLflow 서버 URI로 바꾸거나, 서버 backend-store-uri와 artifact-root 경로 권한을 확인하세요.")
-        print("주의: runtest_2.py에서는 로컬 sqlite/file tracking을 사용하지 않습니다.")
+        print("주의: model_register.py에서는 로컬 sqlite/file tracking을 사용하지 않습니다.")
         raise SystemExit(1)
     raise exc
 
@@ -3712,7 +3712,7 @@ def apply_existing_mlflow_settings(text: str, settings: dict[str, str]) -> str:
 
 
 def write_runtest_2(project: Path, selected_model: Path, kind: str, reference: Path, execute: bool, force: bool) -> tuple[list[str], list[str], list[str]]:
-    target = project / "runtest_2.py"
+    target = project / "model_register.py"
     changed: list[str] = []
     skipped: list[str] = []
     failures: list[str] = []
@@ -3734,12 +3734,12 @@ def write_runtest_2(project: Path, selected_model: Path, kind: str, reference: P
             failures.append(f"reference_entrypoint_modified:{rel(reference, project)}")
             return changed, skipped, failures
     changed.append(
-        "runtest_2.py transformed for selected model"
+        "model_register.py transformed for selected model"
         if existed_before
-        else "runtest_2.py transformed for selected model"
+        else "model_register.py transformed for selected model"
     )
     if generation_reference.resolve() != reference.resolve():
-        changed.append(f"runtest_2.py reference scope: {reference_scope_display_path(kind, generation_reference)}")
+        changed.append(f"model_register.py reference scope: {reference_scope_display_path(kind, generation_reference)}")
     return changed, skipped, failures
 
 
@@ -3882,7 +3882,7 @@ def verify_selected_model_conversion(project: Path, selected_model: Path, kind: 
     saved_model_relative = f"saved_model/{selected_model.name}"
     saved_model_windows_relative = saved_model_relative.replace("/", "\\")
     required_text_files = [
-        project / "runtest_2.py",
+        project / "model_register.py",
         project / "aiu_custom" / "model.py",
         project / "inferencetest.py",
         project / "input_example.json",
@@ -3891,7 +3891,7 @@ def verify_selected_model_conversion(project: Path, selected_model: Path, kind: 
     changed = ["선택 모델 연결부 변환 검증"]
     failures: list[str] = []
     direct_selected_path_files = {
-        "runtest_2.py",
+        "model_register.py",
         "input_example.json",
         "config/config.json",
     }
@@ -3912,20 +3912,20 @@ def verify_selected_model_conversion(project: Path, selected_model: Path, kind: 
             and saved_model_windows_relative not in text
         ):
             failures.append(f"selected_model_not_reflected:{display_path}:{selected_relative}")
-        if display_path == "runtest_2.py":
+        if display_path == "model_register.py":
             has_selected_path_connection = (
                 "selected_model_path =" in text
                 or "def selected_model_path(" in text
             )
             if "def load_selected_model(" not in text or not has_selected_path_connection:
-                failures.append("runtest_2_selected_model_loader_missing:runtest_2.py")
+                failures.append("runtest_2_selected_model_loader_missing:model_register.py")
             if (
                 selected_relative not in normalized_text
                 and saved_model_relative not in normalized_text
                 and selected_windows_relative not in text
                 and saved_model_windows_relative not in text
             ):
-                failures.append("runtest_2_selected_artifact_path_missing:runtest_2.py")
+                failures.append("runtest_2_selected_artifact_path_missing:model_register.py")
             forbidden_runtest2_markers = [
                 "PROJECT_DIR = Path(__file__).resolve().parent",
                 "SOURCE_MODEL_PATH",
@@ -4060,7 +4060,7 @@ def build_report(args: argparse.Namespace) -> PreparedModelReport:
         selected_model_path=rel(selected_model, project) if selected_model else None,
         model_kind=selected_kind,
         reference_entrypoint=None,
-        generated_entrypoint="runtest_2.py",
+        generated_entrypoint="model_register.py",
         generated_inference_test="inferencetest.py",
         execute=args.execute,
         work_project_path=rel(work_project, project) if selected_model else None,
@@ -4169,7 +4169,7 @@ def build_report(args: argparse.Namespace) -> PreparedModelReport:
                     f"작업 폴더: {rel(work_project, project)}",
                     "3번 환경 검증을 실행하세요.",
                     "4번 템플릿 변환은 사용자가 선택했을 때만 실행합니다.",
-                    f"python .opencode/scripts/03-environment-check/check_environment.py --project {rel(work_project, project)} --entrypoint runtest_2.py",
+                    f"python .opencode/scripts/03-environment-check/check_environment.py --project {rel(work_project, project)} --entrypoint model_register.py",
                 ]
             )
         elif not report.failures:
@@ -4177,7 +4177,7 @@ def build_report(args: argparse.Namespace) -> PreparedModelReport:
         return report
 
     if args.sync_runtime:
-        runtime_reference = work_project / "runtest_2.py"
+        runtime_reference = work_project / "model_register.py"
         reference = find_reference_entrypoint(work_project, selected_kind)
         report.reference_entrypoint = rel(reference, project) if reference else None
         if reference is None:
@@ -4194,7 +4194,7 @@ def build_report(args: argparse.Namespace) -> PreparedModelReport:
 
         if not runtime_reference.is_file():
             report.failures.append("runtest_2_missing")
-            report.next_steps.append("먼저 모델 선택 후 runtest_2.py 변환을 실행하세요.")
+            report.next_steps.append("먼저 모델 선택 후 model_register.py 변환을 실행하세요.")
             return report
 
         runtime_changed, runtime_skipped, runtime_failures = sync_selected_model_runtime(
@@ -4214,7 +4214,7 @@ def build_report(args: argparse.Namespace) -> PreparedModelReport:
                     "후속 변환 완료: 복사된 템플릿 폴더 내부에서 선택 모델 경로와 모델 형식 연결부를 수정했습니다.",
                     "선택 모델 변환 완료: 모델 목록 확인 -> 모델 선택 -> 템플릿 변환",
                     "다음은 3번 환경 검증입니다.",
-                    f"python .opencode/scripts/03-environment-check/check_environment.py --project {rel(work_project, project)} --entrypoint runtest_2.py",
+                    f"python .opencode/scripts/03-environment-check/check_environment.py --project {rel(work_project, project)} --entrypoint model_register.py",
                 ]
             )
         elif not report.failures:
@@ -4249,7 +4249,7 @@ def build_report(args: argparse.Namespace) -> PreparedModelReport:
     if report.failures:
         return report
 
-    runtime_reference = work_project / "runtest_2.py"
+    runtime_reference = work_project / "model_register.py"
     runtime_changed, runtime_skipped, runtime_failures = sync_selected_model_runtime(
         work_project,
         selected_model,
@@ -4276,14 +4276,14 @@ def build_report(args: argparse.Namespace) -> PreparedModelReport:
                 f"선택 모델 유지: {rel(selected_model, project)}",
                 f"작업 폴더: {rel(work_project, project)}",
                 "PowerShell에서는 선택한 Windows 프로젝트 루트에서 실행하세요.",
-                f"3번은 사용자가 선택해 실행합니다: python .opencode/scripts/03-environment-check/check_environment.py --project {rel(work_project, project)} --entrypoint runtest_2.py",
+                f"3번은 사용자가 선택해 실행합니다: python .opencode/scripts/03-environment-check/check_environment.py --project {rel(work_project, project)} --entrypoint model_register.py",
                 "4번 템플릿 변환은 사용자가 선택했을 때만 진행합니다.",
                 "5번 원격 MLflow 등록 실행은 사용자가 선택했을 때만 진행합니다.",
                 "6번 추론 테스트와 7번 오류 재실행도 사용자가 선택했을 때만 진행합니다.",
             ]
         )
     elif not report.failures:
-        report.next_steps.append("검토 후 --execute를 붙여 기존 runtest.py를 참조한 runtest_2.py를 변환하세요.")
+        report.next_steps.append("검토 후 --execute를 붙여 기존 runtest.py를 참조한 model_register.py를 변환하세요.")
     return report
 
 
@@ -4297,7 +4297,7 @@ def todo_statuses(report: PreparedModelReport) -> list[str]:
         or any(item.startswith(f"{path} ") for item in report.prepared_paths)
         or (work_path / path).is_file()
         for path in [
-            "runtest_2.py",
+            "model_register.py",
         ]
     )
     runtime_ready = all(
@@ -4366,9 +4366,9 @@ def print_todo_guide(report: PreparedModelReport) -> None:
 
 def print_report(report: PreparedModelReport, verbose: bool = False) -> None:
     work_project = report.work_project_path or "."
-    check_env_command = f"python .opencode/scripts/03-environment-check/check_environment.py --project {work_project} --entrypoint runtest_2.py"
+    check_env_command = f"python .opencode/scripts/03-environment-check/check_environment.py --project {work_project} --entrypoint model_register.py"
     prepare_command = f"python .opencode/scripts/04-train-model/prepare_selected_model.py --project . --model selected --execute"
-    run_training_command = f"python .opencode/scripts/04-train-model/run_training.py --project {work_project} --entrypoint runtest_2.py --execute"
+    run_training_command = f"python .opencode/scripts/04-train-model/run_training.py --project {work_project} --entrypoint model_register.py --execute"
     if (
         not verbose
         and report.execute
@@ -4393,7 +4393,7 @@ def print_report(report: PreparedModelReport, verbose: bool = False) -> None:
         print(f"- 작업 폴더: {work_project}")
         print_todo_guide(report)
         print("- 완료: 템플릿 복사 후 선택 모델 형식에 맞게 변환")
-        print("- 변환: runtest_2.py, aiu_custom/model.py, aiu_custom/predict.py")
+        print("- 변환: model_register.py, aiu_custom/model.py, aiu_custom/predict.py")
         print("- 변환: inferencetest.py, config/config.json, input_example.json, requirements.txt")
         return
 
@@ -4448,7 +4448,7 @@ def print_report(report: PreparedModelReport, verbose: bool = False) -> None:
             if report.failures:
                 print("- 실패")
             elif report.execute:
-                print("- 완료: 템플릿 복사, runtest_2.py, requirements/input/config, 런타임 연결부 변환")
+                print("- 완료: 템플릿 복사, model_register.py, requirements/input/config, 런타임 연결부 변환")
             else:
                 print("- dry-run: --execute를 붙이면 실제 파일을 변환합니다.")
         if report.warnings:
@@ -4569,11 +4569,11 @@ def normalize_argv(argv: list[str]) -> list[str]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Select a current project-root or data/** model artifact and generate workspace-root runtest_2.py without modifying runtest.py.")
+    parser = argparse.ArgumentParser(description="Select a current project-root or data/** model artifact and generate workspace-root model_register.py without modifying runtest.py.")
     parser.add_argument("--project", default=".", help="model project folder")
     parser.add_argument("--model", help="model index from model_artifact_paths or a project-relative path")
-    parser.add_argument("--execute", action="store_true", help="write the selected-model runtest_2.py or sync runtime files when --sync-runtime is used")
-    parser.add_argument("--force", action="store_true", help="kept for compatibility; runtest_2.py is transformed for the selected model")
+    parser.add_argument("--execute", action="store_true", help="write the selected-model model_register.py or sync runtime files when --sync-runtime is used")
+    parser.add_argument("--force", action="store_true", help="kept for compatibility; model_register.py is transformed for the selected model")
     parser.add_argument("--select-only", action="store_true", help="step 2 only: lock the selected model; do not copy or transform templates")
     parser.add_argument("--sync-runtime", action="store_true", help="reuse the selected model and transform runtime folders/files for that model")
     parser.add_argument("--json", action="store_true", help="print machine-readable JSON")

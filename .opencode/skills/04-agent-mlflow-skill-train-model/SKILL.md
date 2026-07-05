@@ -40,7 +40,7 @@ metadata:
    - 4번 템플릿 변환은 반드시 `--model selected`로 실행한다.
    - 이미 선택된 모델이 있을 때 4번에서 모델 번호를 다시 넘기지 않는다.
    - 여러 모델이 있어도 스킬 변환 대상은 현재 선택 모델 하나로 유지한다.
-   - `runtest_2.py` 안의 모델 경로를 다시 선택 기준으로 삼지 않는다.
+   - `model_register.py` 안의 모델 경로를 다시 선택 기준으로 삼지 않는다.
 3. 환경 검증
 4. 템플릿 변환 (사용자 선택)
 5. 원격 MLflow 등록 실행 (사용자 선택)
@@ -56,7 +56,7 @@ metadata:
 3. MODEL_KIND를 확장자 기준으로 판별한다.
 4. 워크스페이스 루트 아래에 선택 모델명 작업 폴더를 만들고, `.opencode/samples/pytorch_sample/` 템플릿을 그 폴더로 복사한 뒤, 복사된 모든 템플릿 파일을 다시 읽고 선택 모델 기준 연결부만 최소 변환한다. 단, 템플릿 `requirements.txt`는 복사하지 않는다.
 5. 워크스페이스 루트의 runtest.py를 우선 읽기 전용으로 참조하고, 복사된 템플릿 파일을 선택 모델 연결부만 안전하게 변환한다.
-6. 기존 runtest.py 또는 run_test.py는 절대 수정하지 않고 runtest_2.py만 선택 모델 기준으로 변환한다.
+6. 기존 runtest.py 또는 run_test.py는 절대 수정하지 않고 model_register.py만 선택 모델 기준으로 변환한다.
 7. 모델 파일은 템플릿 폴더로 복사하지 않는다.
 8. 실행 전 MLflow/AI Studio 설정 블록을 확인한다.
 ```
@@ -117,7 +117,7 @@ python .opencode/scripts/04-train-model/run_training.py --project .
 
 원격 MLflow 등록 실행:
 python .opencode/scripts/04-train-model/run_training.py --project . --execute
-python .opencode/scripts/04-train-model/run_training.py --project . --entrypoint runtest_2.py --execute
+python .opencode/scripts/04-train-model/run_training.py --project . --entrypoint model_register.py --execute
 
 명시적 entrypoint 실행:
 python .opencode/scripts/04-train-model/run_training.py --project . --entrypoint <file> --execute

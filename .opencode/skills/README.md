@@ -16,7 +16,7 @@
    Python 3.11.9, dependency, MLflow 3.13.0, 원격 MLflow 서버 version, 설정 상태 확인
 
 04. Train Model
-   선택 모델 기준 runtest_2.py 변환 또는 실제 entrypoint 실행
+   선택 모델 기준 model_register.py 변환 또는 실제 entrypoint 실행
 
 05. Inference Test
    input_example 기반 predict contract와 schema 확인
@@ -40,7 +40,7 @@
 - 선택 모델 파일은 템플릿 폴더로 복사하지 않고, 변환된 코드는 선택 모델 원본 경로에 연결한다.
 - 모델 선택 단계에서는 사용할 모델만 확정하고 이후 단계가 같은 선택 모델을 계속 사용한다.
 - 템플릿 변환은 사용자가 4번을 선택했을 때만 실행한다.
-- 4번 템플릿 변환에서 기존 `runtest.py`를 읽기 전용으로 참조해 `runtest_2.py`를 변환한다.
+- 4번 템플릿 변환에서 기존 `runtest.py`를 읽기 전용으로 참조해 `model_register.py`를 변환한다.
 - 4번 템플릿 변환에서 템플릿을 복사한 뒤 `aiu_custom/`, `local_serving/`, `saved_model/`, `config/config.json`, `input_example.json`을 선택 모델 기준으로 변환한다.
 - `data/`와 `requirements.txt`는 템플릿에서 복사하지 않고, `requirements.txt`는 3번 환경검증에서 워크스페이스 루트에 변환한다.
 - 사용자에게 프로세스를 보여줄 때는 현재 복사/변환 흐름만 보여주고 하위 호환 또는 미사용 경로 설명은 넣지 않는다.
@@ -48,8 +48,8 @@
 - `data/` 원본에는 새 파일을 생성하지 않는다.
 - 기존 `runtest.py`는 선택 모델명 작업 폴더에 복사된 템플릿을 기준으로 읽기 전용 참조한다.
 - 기존 `runtest.py` 또는 `run_test.py`는 덮어쓰지 않는다.
-- 기존 `runtest.py`는 절대 수정하지 않고 `runtest_2.py`만 선택 모델 기준으로 변환한다.
-- `runtest_2.py`는 참조한 `runtest.py` 구조를 기반으로 변환한다.
+- 기존 `runtest.py`는 절대 수정하지 않고 `model_register.py`만 선택 모델 기준으로 변환한다.
+- `model_register.py`는 참조한 `runtest.py` 구조를 기반으로 변환한다.
 - 모델 경로/MODEL_KIND/로더는 선택 모델 실행/등록 연결부 기준으로 변환한다.
 - 선택된 모델 종류에 맞춰 `load_selected_model()`, `required_package`, `load_hint` 연결부를 변환한다.
 - 3번 환경변수 체크는 선택 모델명 작업 폴더의 `.env` 파일을 기준으로 5개 값을 확인한다.
@@ -68,7 +68,7 @@ Step 2. 모델 선택
         같은 파일 목록이면 분석 화면과 준비 스크립트의 번호가 항상 같다.
         이후 `--model` 없이 진행하는 단계는 저장된 선택 모델을 계속 사용한다.
         이미 준비된 선택 모델은 --model selected로 재사용한다.
-        runtest_2.py 안의 경로는 선택 기준으로 사용하지 않는다.
+        model_register.py 안의 경로는 선택 기준으로 사용하지 않는다.
         선택이 없으면 자동 준비를 진행하지 않고 선택 요청으로 멈춘다.
         모델 선택 후에도 3~7번을 자동 실행하지 않고, 사용자가 선택한 단계 1개만 실행한다.
 Step 3. 환경 검증
@@ -82,13 +82,13 @@ Step 4. 템플릿 변환
         사용자가 4번을 선택했을 때만 실행한다.
         워크스페이스 루트 아래 선택 모델명 작업 폴더를 만들고 .opencode/samples/pytorch_sample/ 템플릿을 먼저 복사한다.
         복사된 모든 템플릿 파일을 다시 읽은 뒤 선택 모델 기준 연결부만 최소 변환한다.
-        기존 runtest.py를 읽기 전용으로 참조해 runtest_2.py를 변환한다.
+        기존 runtest.py를 읽기 전용으로 참조해 model_register.py를 변환한다.
         복사된 템플릿 기준으로 선택 모델 경로와 모델 형식 연결부를 수정한다.
         `--sync-runtime`은 이미 선택된 모델 기준으로 런타임 파일을 다시 맞출 때 사용한다.
-        내부 일치 검증은 선택된 runtest_2.py와 런타임 파일 기준으로 수행한다.
+        내부 일치 검증은 선택된 model_register.py와 런타임 파일 기준으로 수행한다.
 Step 5. 원격 MLflow 등록 실행
         사용자가 5번을 선택했을 때만 실행한다.
-        run_training.py가 먼저 선택 모델 기준으로 runtest_2.py와 런타임 파일을 재검증/변환한 뒤 원격 MLflow 등록을 실행한다.
+        run_training.py가 먼저 선택 모델 기준으로 model_register.py와 런타임 파일을 재검증/변환한 뒤 원격 MLflow 등록을 실행한다.
 Step 6. 추론 테스트
         선택 모델 환경으로 변환된 local serving 입력/출력 스키마를 확인한다.
         사용자가 6번을 선택했을 때만 진행한다.

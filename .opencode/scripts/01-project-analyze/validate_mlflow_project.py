@@ -27,7 +27,7 @@ PS_BOOTSTRAP_COMMAND = r"python .opencode/scripts/02-sample-bootstrap/bootstrap_
 # used only as hints when detecting a registration or inference entrypoint.
 ENTRYPOINT_NAMES = [
     "register_model.py",
-        "runtest_2.py",
+        "model_register.py",
                     "runtest.py",
     "run_test.py",
     "run_model.py",
@@ -42,7 +42,7 @@ ENTRYPOINT_NAMES = [
 
 TRAINING_ENTRYPOINT_NAMES = [
     "register_model.py",
-        "runtest_2.py",
+        "model_register.py",
                     "runtest.py",
     "run_test.py",
     "run_model.py",
@@ -99,7 +99,7 @@ TRAINING_CODE_PATTERN = re.compile(
 )
 
 CODE_SCAN_SUFFIXES = {".py", ".ipynb"}
-CODE_SCAN_SKIP_FILES = {"runtest_2.py"}
+CODE_SCAN_SKIP_FILES = {"model_register.py"}
 
 FRAMEWORK_CODE_RULES = [
     ("tensorflow", ["tensorflow", "tf.keras", "keras", ".compile("]),

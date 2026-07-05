@@ -30,7 +30,7 @@
 주의: 4000줄 이상 검증된 엔진. 폴더/파일명(`aiu_custom`, `saved_model`, `config`, `local_serving`) 하드코딩 다수 — 이름 변경 시 연쇄 수정 필요.
 
 ### 04-train-model/run_training.py
-확정 entrypoint(`runtest_2.py`) 실행. 필수 디렉토리 점검 후 학습·MLflow 등록.
+확정 entrypoint(`model_register.py`) 실행. 필수 디렉토리 점검 후 학습·MLflow 등록.
 
 사용자 임의 `run.py` 보강용 보조 스크립트.
 
