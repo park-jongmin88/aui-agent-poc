@@ -12,6 +12,7 @@ import argparse
 import ast
 import json
 import os
+import shutil
 import subprocess
 import sys
 from dataclasses import asdict, dataclass, field
@@ -479,6 +480,29 @@ def sync_selected_model_runtime_before_registration(project: Path, python_bin: s
     ], []
 
 
+
+# 학습 후 생성된 모델 파일을 saved_model/ 로 이동 (3개 프레임워크 공통)
+# PyTorch: .pth/.pt  /  sklearn: .pkl/.joblib  /  TF: .h5/.keras
+MODEL_SUFFIXES = {".pth", ".pt", ".h5", ".keras", ".pkl", ".joblib", ".onnx", ".safetensors", ".bst", ".ubj"}
+
+def _move_trained_model_to_saved(work_path: Path) -> list[str]:
+    """학습 실행 후 work_path 루트에 생긴 모델 파일을 saved_model/ 로 이동한다.
+    이미 saved_model/ 안에 있는 파일은 건드리지 않는다.
+    반환: 이동한 파일명 목록"""
+    saved_dir = work_path / "saved_model"
+    saved_dir.mkdir(exist_ok=True)
+    moved = []
+    # 루트에 생긴 모델 파일 탐지 (source/, saved_model/ 제외)
+    skip_dirs = {"source", "saved_model", "aiu_custom", "local_serving", "config",
+                 "__pycache__", ".opencode", "data"}
+    for f in work_path.iterdir():
+        if f.is_file() and f.suffix.lower() in MODEL_SUFFIXES:
+            dest = saved_dir / f.name
+            if not dest.exists():
+                shutil.move(str(f), str(dest))
+                moved.append(f.name)
+    return moved
+
 def main():
     parser = argparse.ArgumentParser(description="Run local training for an existing project after .env checks.")
     parser.add_argument("--project", default=".", help="user-specified model project folder")
@@ -539,17 +563,21 @@ def main():
             next_steps.append("먼저 모델 선택 단계로 돌아가 선택 모델을 다시 준비하세요.")
             next_steps.append(PS_PREPARE_MODEL_COMMAND)
 
-    missing_env = missing_ai_studio_env(work_path, entrypoint)
-    remote_uri_failure = remote_tracking_uri_failure(work_path, entrypoint)
+    # 학습(train.py) vs 등록(model_register.py) 구분:
+    # - 학습은 MLflow 연결 없이 실행 가능 (모델 파일만 만들면 됨)
+    # - 등록은 반드시 MLflow env 필요
+    is_training_entrypoint = entrypoint is not None and entrypoint.name not in {"model_register.py", "runtest.py", "run_test.py"}
+    missing_env = missing_ai_studio_env(work_path, entrypoint) if not is_training_entrypoint else []
+    remote_uri_failure = remote_tracking_uri_failure(work_path, entrypoint) if not is_training_entrypoint else None
 
     return_code = None
     if args.execute and cmd and any(failure.startswith("selected_model_runtime_sync_failed") for failure in failures):
         next_steps.append("런타임 변환 실패로 원격 MLflow 등록 실행을 중단했습니다.")
     elif args.execute and cmd and remote_uri_failure:
         failures.append(remote_uri_failure)
-        next_steps.append("5번 원격 MLflow 등록 실행에는 원격 MLflow URL이 필요합니다.")
+        next_steps.append("6번 원격 MLflow 등록 실행에는 원격 MLflow URL이 필요합니다.")
         next_steps.append(".env의 mlflow_tracking_uri에 원격 http:// 또는 https:// URI를 직접 입력하세요.")
-        next_steps.append("localhost, 127.0.0.1, 0.0.0.0, file://, sqlite: tracking URI는 5번에서 사용할 수 없습니다.")
+        next_steps.append("localhost, 127.0.0.1, 0.0.0.0, file://, sqlite: tracking URI는 6번에서 사용할 수 없습니다.")
     elif args.execute and cmd and missing_env:
         failures.append("execution_blocked_missing_env")
         next_steps.append("MLflow 필수 환경변수가 비어 있어 실행을 중단했습니다.")
@@ -560,6 +588,14 @@ def main():
         return_code = run_command(cmd, cwd=work_path)
         if return_code != 0:
             failures.append("runtime_error")
+        else:
+            # 학습 성공 후: 생성된 모델 파일을 saved_model/ 로 이동 (3개 프레임워크 공통)
+            moved = _move_trained_model_to_saved(work_path)
+            if moved:
+                preflight.append(f"학습 완료: 모델을 saved_model/ 로 이동했습니다. ({', '.join(moved)})")
+            else:
+                # saved_model에 이미 있거나, 이동할 파일 없음
+                preflight.append("학습 완료: saved_model/ 확인 (이미 있거나 별도 저장 경로 사용)")
     elif cmd:
         next_steps.append("Run again with --execute to start training or model export.")
 
@@ -575,13 +611,23 @@ def main():
     existing_model_flow = model_found and not is_sample_project(work_path)
     if existing_model_flow:
         mlflow_run_status = "blocked" if (missing_env or remote_uri_failure) else ("done" if args.execute and return_code == 0 else "사용자 선택")
+        # saved_model에 실제 모델 파일이 있는지 (학습 완료 여부)
+        saved_dir = work_path / "saved_model"
+        has_trained_model = any(
+            f.suffix.lower() in MODEL_SUFFIXES
+            for f in saved_dir.iterdir() if f.is_file()
+        ) if saved_dir.is_dir() else False
+        train_run_status = "done" if has_trained_model else (
+            "done" if (args.execute and return_code == 0) else "사용자 선택"
+        )
         step_statuses = (
-            "done" if artifacts else "needs_input",
-            "done" if artifacts else "needs_input",
-            "done" if (work_path / "model_register.py").exists() and (work_path / "requirements.txt").exists() else "pending",
-            mlflow_run_status,
-            "사용자 선택",
-            "needed" if failures else "사용자 선택",
+            "done" if artifacts else "needs_input",       # 1. 목록
+            "done" if artifacts else "needs_input",       # 2. 선택
+            "done" if (work_path / "model_register.py").exists() else "pending",  # 3. 생성
+            train_run_status,                             # 4. 학습
+            "사용자 선택" if has_trained_model else "대기", # 5. 로컬 추론 (선택)
+            mlflow_run_status,                            # 6. 등록 (선택)
+            "needed" if failures else "사용자 선택",       # 7. 원격 추론
         )
         process_checklist = [
             EnvVarStatus(f"{index}. {title}", status)

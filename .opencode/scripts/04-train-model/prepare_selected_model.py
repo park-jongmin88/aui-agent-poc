@@ -4346,15 +4346,24 @@ def todo_statuses(report: PreparedModelReport) -> list[str]:
         model_list_status = "데이터만 있음"
     else:
         model_list_status = "모델 없음"
-    # 6단계: 목록 / 선택 / 생성 / 등록 / 추론 / 재실행
+    # 7단계: 목록/선택/생성/학습/로컬추론/등록/원격추론
     generation_status = "완료" if (auto_ready and runtime_ready) else ("진행" if model_selected else "대기")
+    # 학습 단계: saved_model에 실제 모델 파일이 있으면 완료
+    saved_model_dir = work_path / "saved_model"
+    has_model_file = any(
+        f.suffix.lower() in {".pth", ".pt", ".h5", ".keras", ".pkl", ".joblib", ".onnx", ".safetensors", ".bst", ".ubj"}
+        for f in saved_model_dir.iterdir()
+        if f.is_file()
+    ) if saved_model_dir.is_dir() else False
+    train_status = "완료" if has_model_file else ("사용자 선택" if (auto_ready and runtime_ready) else "대기")
     return [
-        model_list_status,
-        "완료" if model_selected else "대기",
-        generation_status,
-        "사용자 선택",
-        "사용자 선택",
-        "사용자 선택",
+        model_list_status,                              # 1. 목록
+        "완료" if model_selected else "대기",            # 2. 선택
+        generation_status,                              # 3. 생성
+        train_status,                                   # 4. 학습
+        "사용자 선택" if has_model_file else "대기",     # 5. 로컬 추론 (선택)
+        "사용자 선택" if has_model_file else "대기",     # 6. 등록 (선택)
+        "대기",                                          # 7. 원격 추론
     ]
 
 

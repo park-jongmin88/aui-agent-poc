@@ -15,16 +15,17 @@ for _s in (_sys.stdout, _sys.stderr):
 
 
 AI_STUDIO_PROCESS_STEPS = (
-    "모델 목록 확인",
-    "모델 선택",
-    "생성",
-    "등록",
-    "추론 테스트",
-    "오류 재실행",
+    "모델 목록 확인",   # 1 - data/ 스캔 + Case 판별 (모델만/학습만/둘다)
+    "모델 선택",        # 2 - 번호 선택. Case 3(둘다)이면 기존모델/새학습 물어봄
+    "생성",             # 3 - Case에 맞는 템플릿 복사 + data 넣기
+    "학습",             # 4 - Case 2/3-학습: 의존성체크 → train.py 실행 → saved_model 생성
+    "로컬 추론",        # 5 - (선택) predict 호출로 등록 전 로컬 확인. 서빙 단어 안 씀
+    "등록",             # 6 - (선택) MLflow log_model
+    "원격 추론",        # 7 - 등록 후 원격 엔드포인트 테스트
 )
 
-if len(AI_STUDIO_PROCESS_STEPS) != 6:
-    raise RuntimeError("Ai Studio process must stay exactly 6 steps")
+if len(AI_STUDIO_PROCESS_STEPS) != 7:
+    raise RuntimeError("Ai Studio process must stay exactly 7 steps")
 
 TODO_GUIDE_BORDER = "=" * 60
 TODO_GUIDE_TITLE = "Ai Studio - 7단계"

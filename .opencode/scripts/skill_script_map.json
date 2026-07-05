@@ -66,19 +66,20 @@
   "04-train-model": {
     "skill_folder": "04-agent-mlflow-skill-train-model",
     "process_steps": [
-      "3. 생성",
-      "4. 등록"
+      "3. 생성 (템플릿 복사 + data 넣기)",
+      "4. 학습 (Case 2/3-학습선택: 의존성체크 → train.py 실행 → saved_model 생성)"
     ],
     "primary_scripts": [
       "04-train-model/prepare_selected_model.py",
       "04-train-model/run_training.py"
     ],
-    "purpose": "lock selected model, transform templates on step 4, and run confirmed entrypoint on step 5"
+    "purpose": "generate workspace from template (step 3) and run training when needed (step 4). Case 1 (model file): skip training. Case 2 (train.py only): run train.py -> saved_model. Case 3 (both): ask user first."
   },
   "06-inference-test": {
     "skill_folder": "06-agent-mlflow-skill-inference-test",
     "process_steps": [
-      "5. 추론 테스트"
+      "5. 로컬 추론 (선택, 스킵 가능)",
+      "7. 원격 추론 (등록 후)"
     ],
     "primary_scripts": [
       "06-inference-test/test_inference.py"
