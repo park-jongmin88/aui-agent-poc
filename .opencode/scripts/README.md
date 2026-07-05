@@ -50,7 +50,7 @@
 - `build_requirements.py` — `config/dependencies.md` 기준 requirements 생성
 
 ### 04-train-model/prepare_selected_model.py
-핵심 엔진. 워크스페이스 분석 → 모델 선택 → 템플릿 변환(source/saved_model 준비, runtest_2/predict 작성)까지 담당.
+핵심 엔진. 워크스페이스 분석 → 모델 선택 → 템플릿 변환(source/saved_model 준비, model_register.py/predict 작성)까지 담당.
 `--project`, `--model <번호|경로>`, `--execute`, `--train`, `--register` 등을 받는다.
 
 ### 04-train-model/run_training.py

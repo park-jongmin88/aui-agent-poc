@@ -69,7 +69,7 @@ Skill folder:
 Primary scripts:
 
 - `04-train-model/prepare_selected_model.py` - 2번 모델 선택 고정, 4번 템플릿 변환
-- `04-train-model/run_training.py` - 5번 원격 MLflow 등록 실행
+- `04-train-model/run_training.py` - 4번 학습(train.py) / 6번 등록(model_register.py) 실행
 
 Support scripts:
 
@@ -94,8 +94,10 @@ Generated runtime entrypoint:
 2. 모델 선택                       -> 02-model-select/select_model.py --model <번호|경로>
 3. 환경 검증      -> 03-environment-check/check_environment.py
 4. 템플릿 변환                     -> 04-train-model/prepare_selected_model.py --model selected --execute
-5. 원격 MLflow 등록 실행           -> 04-train-model/run_training.py --execute
-6. 추론 테스트                     -> inferencetest.py
+4. 학습                          -> run_training.py --entrypoint source/train.py (Case 2/3)
+5. 로컬 추론 (선택)                 -> aiu_custom/predict.py 직접 호출
+6. 등록 (선택)                     -> run_training.py --entrypoint model_register.py
+7. 원격 추론                       -> inferencetest.py
 7. 오류 재실행                     -> 실패 단계 스크립트 재실행
 ```
 

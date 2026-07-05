@@ -22,7 +22,7 @@
 수정 포인트: 없음(의존성은 dependencies.md 에서).
 
 ### 04-train-model/prepare_selected_model.py (핵심 엔진)
-워크스페이스 분석, 모델 선택, 템플릿 변환(source/saved_model 준비, runtest_2/predict 작성)을 담당.
+워크스페이스 분석, 모델 선택, 템플릿 변환(source/saved_model 준비, model_register.py/predict 작성)을 담당.
 - 입력 케이스 감지: `detect_source_case` / `resolve_source_case` (`--train`/`--register` 반영)
 - 경로: `mlflow_artifact_uri`(uri, forward slash 상대경로), path 는 backslash
 - requirements: `requirements_packages_for_kind` (기본 + kind별 CPU 프레임워크)

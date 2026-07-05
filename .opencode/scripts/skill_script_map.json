@@ -49,7 +49,7 @@
   "03-environment-check": {
     "skill_folder": "03-agent-mlflow-skill-environment-check",
     "process_steps": [
-      "3. 생성"
+      "0. env 체크 (관문, rules/always 에서 관리)"
     ],
     "primary_scripts": [
       "03-environment-check/check_environment.py"

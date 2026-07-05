@@ -25,7 +25,7 @@ mode: primary
 
 ## 2. 시작 전 필수 규칙 (rules/always/)
 
-6단계 흐름보다 **먼저** 통과해야 하는 무조건 발동 규칙이 있다.
+7단계 흐름보다 **먼저** 통과해야 하는 무조건 발동 규칙이 있다.
 이 규칙들은 순서가 아니라 **`rules/always/` 폴더**로 관리한다.
 새 항목이 생기면 `rules/always/NN-<이름>.md` 로 추가한다.
 
@@ -74,7 +74,7 @@ mode: primary
 
 - 위아래를 가로 구분선(`─`)으로 감싼다. (네모 박스는 한글 폭 때문에 어긋나므로 쓰지 않는다.)
 - 맨 앞에 **현재 선택된 작업 폴더명**만 표시한다. 아직 없으면 `(미선택)`.
-- 그 뒤에 7단계를 한 줄로 표시한다 (목록/선택/생성/등록/추론/재실행).
+- 그 뒤에 7단계를 한 줄로 표시한다 (목록/선택/생성/학습/로컬추론/등록/원격추론).
 - 각 단계 상태 (기호를 단계 이름 앞에 붙인다):
   - `✓` 완료 (예: `✓1.목록`)
   - `▶` 현재 진행 중 (예: `▶3.생성`)
@@ -84,9 +84,9 @@ mode: primary
 - **각 단계 앞에 단계 번호를 붙인다** (예: `✓1.목록 ✓2.선택 ▶3.생성 ·4.학습 ·5.로컬추론(선택) ·6.등록(선택) ·7.원격추론`).
   - 사용자가 "3을 입력하세요" 안내를 받았을 때, 상태줄에서 `▶3.생성` 을 보고 어느 번호인지 바로 알 수 있도록 한다.
   - 모델 목록이 표시된 직후(2단계 선택 전)에만 숫자는 모델 번호를 뜻하고, 그 이후 상태줄의 숫자는 단계 번호다.
-- 단계 순서·이름은 6단계(5번 섹션)와 동일하게 유지한다.
+- 단계 순서·이름은 7단계(5번 섹션)와 동일하게 유지한다.
 - 대화 흐름을 기준으로 현재까지의 단계 상태를 판단해 표시한다.
-- **`.env` 체크(0단계, rules/always)는 6단계 밖의 관문이다.** 상태 표시의 단계와 별개로, 시작 시 항상 먼저 통과한다.
+- **`.env` 체크(0단계, rules/always)는 7단계 밖의 관문이다.** 상태 표시의 단계와 별개로, 시작 시 항상 먼저 통과한다.
 - 단계는 순서대로 진행된다. 앞 단계가 끝나기 전에 뒤 단계를 `[✓]` 로 표시하지 않는다. (예: `목록` 이 `[~]` 진행 중이면 `환경` 은 `[ ]` 미진행)
 
 ## 4. 첫 응답 규칙
@@ -180,42 +180,54 @@ mode: primary
 | 1 모델 목록 | `agent-mlflow-skill-project-analyze` | `scripts/01-project-analyze/validate_mlflow_project.py` |
 | (샘플 복사) | `agent-mlflow-skill-sample-bootstrap` | `scripts/02-sample-bootstrap/bootstrap_sample_project.py` |
 | 2 모델 선택 | (train-model 스킬) | `scripts/02-model-select/select_model.py` |
-| 3 생성 | `agent-mlflow-skill-train-model` | `scripts/04-train-model/prepare_selected_model.py` (+ 검증: `03-environment-check/check_environment.py`) |
-| 5 MLflow 등록 | `agent-mlflow-skill-train-model` | `scripts/04-train-model/run_training.py` |
-| 5 추론 테스트 | `agent-mlflow-skill-inference-test` | `scripts/06-inference-test/test_inference.py` |
+| 3 생성 | `agent-mlflow-skill-train-model` | `scripts/04-train-model/prepare_selected_model.py` |
+| 4 학습 | `agent-mlflow-skill-train-model` | `scripts/04-train-model/run_training.py --entrypoint train.py` |
+| 5 로컬 추론 | `agent-mlflow-skill-inference-test` | `scripts/06-inference-test/test_inference.py` (로컬) |
+| 6 등록 | `agent-mlflow-skill-train-model` | `scripts/04-train-model/run_training.py --entrypoint model_register.py` |
+| 7 원격 추론 | `agent-mlflow-skill-inference-test` | `scripts/06-inference-test/test_inference.py` (원격) |
 
 **핵심 엔진:** `scripts/04-train-model/prepare_selected_model.py` 가 분석/선택/변환의 실제 로직을 담당한다.
 `select_model.py` 등은 PowerShell 경로·오타를 정규화해 이 엔진에 위임하는 얇은 래퍼다.
 
 ### 자주 쓰는 명령
 ```text
-# 워크스페이스 분석 (단계 1)
+# 워크스페이스 분석 (단계 1 - 모델 목록 + Case 판별)
 python .opencode/scripts/04-train-model/prepare_selected_model.py --project .
 
 # 모델 선택 (단계 2)
 python .opencode/scripts/02-model-select/select_model.py --project . --model <번호|경로>
 
-# 생성 (단계 3, 선택한 모델 재사용)
+# 생성 (단계 3 - 템플릿 복사 + data 넣기)
 python .opencode/scripts/04-train-model/prepare_selected_model.py --project . --model selected --execute
 
-# MLflow 등록 (단계 5)
-python .opencode/scripts/04-train-model/run_training.py --project . --entrypoint model_register.py --execute
+# 학습 (단계 4 - Case 2/3-학습선택: train.py 실행 → 모델 생성 → saved_model 이동)
+python .opencode/scripts/04-train-model/run_training.py --project <작업폴더> --entrypoint source/train.py --execute
+# Case 1(모델파일 있음) / Case 3-기존모델 선택 시 → 이 단계 스킵
+
+# 로컬 추론 (단계 5 - 선택/스킵 가능, 등록 전 로컬 확인)
+# python <작업폴더>/aiu_custom/predict.py  (직접 호출)
+
+# 등록 (단계 6 - 선택/스킵 가능, MLflow log_model)
+python .opencode/scripts/04-train-model/run_training.py --project <작업폴더> --entrypoint model_register.py --execute
+
+# 원격 추론 (단계 7 - 등록 후)
+# python <작업폴더>/inferencetest.py  (req_url 입력 후)
 ```
 
 ---
 
-## 6-1. 입력 케이스 구분 (모델/자료)
+## 6-1. 입력 케이스 구분 (3가지)
 
 선택한 `data/<폴더>` 안에 무엇이 있는지에 따라 처리가 갈린다. 엔진이 자동 감지한다.
 
-- **모델만 있음** (`.pkl/.pth/.h5` 등) → 학습 없이 그 모델을 로드해 MLflow 등록.
-- **자료만 있음** (데이터 + 학습코드) → 자료로 학습 후 등록.
-- **둘 다 있음** → 사용자에게 물어본다: "기존 모델을 등록할까요, 자료로 학습할까요?"
-  - 기존 모델 등록 → `prepare_selected_model.py ... --register`
-  - 자료로 학습    → `prepare_selected_model.py ... --train`
-  - 응답이 없으면 기본은 **기존 모델 등록**.
+- **Case 1 — 모델 파일만** (`.pkl/.pth/.h5/.keras` 등) → 4.학습 스킵. 그 모델을 그대로 6.등록.
+- **Case 2 — 학습 코드만** (`train.py`) → 4.학습 필수. 의존성 체크 → train.py 실행 → 모델 생성 → saved_model 이동 → 6.등록.
+- **Case 3 — 둘 다 있음** → **무조건 사용자에게 물어본다**: "기존 모델을 등록할까요, 새로 학습할까요?"
+  - 기존 모델 선택 → Case 1 흐름 (학습 스킵)
+  - 새로 학습 선택 → Case 2 흐름 (학습 실행)
+  - 자동 판단 하지 않는다 (모델과 학습코드가 달라도 사람이 결정).
 
-즉 '둘 다' 인 경우에만 선택을 받고, 나머지는 자동으로 결정된다.
+3개 프레임워크(PyTorch/sklearn/TensorFlow) 모두 동일하게 적용된다.
 
 ### 템플릿 형식 유지
 샘플 템플릿에는 프레임워크별(sklearn/pytorch/tensorflow)로 서버에 맞춘 `predict`/Wrapper 형식이 이미 들어 있다.
@@ -306,7 +318,7 @@ agent-mlflow-skill-inference-test    input_example.json/predict.py 추론 테스
     03-environment-check/생성물 검증
     04-train-model/      변환·학습 (핵심 엔진 prepare_selected_model.py)
     06-inference-test/   추론 테스트
-    ai_studio_process.py 6단계 고정 정의
+    ai_studio_process.py 7단계 고정 정의
     skill_script_map.json 스킬-스크립트 매핑
   skills/                단계별 스킬 정의 (SKILL.md)
     01~06 각 SKILL.md
@@ -331,7 +343,7 @@ agent-mlflow-skill-inference-test    input_example.json/predict.py 추론 테스
 
 ## 11. 이 파일 수정 안내 (사람용)
 
-- **단계를 바꾸려면**: 5번(6단계 표) + `scripts/ai_studio_process.py` 의 `AI_STUDIO_PROCESS_STEPS` (개수 검증 6) 를 함께 수정한다.
+- **단계를 바꾸려면**: 5번(7단계 표) + `scripts/ai_studio_process.py` 의 `AI_STUDIO_PROCESS_STEPS` (개수 검증 7) 를 함께 수정한다.
 - **스킬/스크립트 매핑을 바꾸려면**: 4번 표 + `scripts/skill_script_map.json` 을 함께 수정한다.
 - **실행 규칙(권한/경로/보안)을 바꾸려면**: 7번을 수정한다.
 - 각 단계의 상세 동작은 해당 `skills/*/SKILL.md` 와 `scripts/*/README.md` 에 있다.
