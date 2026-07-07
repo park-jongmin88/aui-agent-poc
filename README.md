@@ -87,9 +87,9 @@ mocks/               목업 데이터 (실제 연결 전 POC용)
 ├── rag_documents.json   딥러닝/ML/GenAI 문서 20건
 └── tool_apis.json       가상 API 8종 (날씨/시간/계산/GPU/모델/실험/데이터셋/학습)
 dev_note/            개발 문서/다이어그램 (코드와 분리)
-├── AIU_AGENT_POC_SUMMARY.md   아키텍처/설계결정 종합
-├── JUDGE_GATEWAY_AUTH.md      judge gateway Basic 인증 트러블슈팅
-├── PROMPT_VERSION.md          프롬프트 버전 처리(별칭→버전번호, OSS 순차탐색)
+├── POC_전체정리.md            아키텍처/설계결정 종합
+├── 게이트웨이_사용정리.md      gateway 사용처 + judge 인증(수동/자동)
+├── 프롬프트_버전.md            프롬프트 버전 처리(별칭→버전번호, OSS 순차탐색)
 ├── portal_arch_v6.png         포탈 x AGENT UI 구상도
 ├── agent_flow3.png            Agent POC 한눈에 보기
 ├── rag_flow.png               RAG 파이프라인 흐름도
@@ -197,7 +197,7 @@ llm 에셋이 답변 생성
 ```
 
 > 버전 조회 주의: `search_prompt_versions` 는 Databricks 전용이라 OSS 에서는 안 된다.
-> `load_prompt(name, version=N)` 으로 v1 부터 순차탐색해 버전 목록을 얻는다. (→ dev_note/PROMPT_VERSION.md)
+> `load_prompt(name, version=N)` 으로 v1 부터 순차탐색해 버전 목록을 얻는다. (→ dev_note/프롬프트_버전.md)
 
 - **프롬프트 타입:** `text` (시스템 지시문 한 덩어리. role 구조는 llm 에셋이 짠다)
 - **폴백:** `agent.py` 의 `ASSET_CONN["prompt"]["default_system"]`
