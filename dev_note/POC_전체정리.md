@@ -17,7 +17,7 @@
 2. **질문 진입** — 질문 한 건이 서빙 진입점(`aiu_custom.predict.ModelWrapper`)으로 들어온다.
 3. **보따리(ctx) 파이프라인** — `prompt → rag → tool → llm` 순서로 각 에셋이 ctx의 자기 칸만 채우며 통과한다.
 4. **반환** — `{"aiu_output": "답변"}` 형태로 반환. Trace/Session 자동 기록.
-5. **평가(judge)** — 서빙과 분리된 별도 스크립트로 수행한다. 등록은 `judge_register.py`(평가지+gateway LLM 선택, 자동 트래킹 on/off), 평가는 `evaluate.py`(등록된 judge 로 trace 채점). MLflow 정석 방식(`make_judge`).
+5. **평가(judge)** — 서빙과 분리된 별도 스크립트로 수행한다. 등록은 `judge_register.py`(평가지 + gateway LLM 선택), 평가는 `evaluate.py`(등록된 judge 로 trace 채점). MLflow 정석 방식(`make_judge`).
 
 
 ## 2. 폴더 구조
@@ -26,7 +26,7 @@
 config.py            설정 (ENABLED_ASSETS, MLFLOW_CONN, LLM_*, ASSET_CONN)
 agent.py             등록 전용 (register_agent)
 client.py            서빙 엔드포인트 호출 테스트용 대화 프로그램
-judge_register.py    judge 등록 (평가지+gateway LLM 선택, 자동 트래킹 on/off)
+judge_register.py    judge 등록 (평가지 + gateway LLM 선택)
 evaluate.py          평가 실행 (등록된 judge 로 trace 채점)
 requirements.txt     서빙 의존성 (버전 고정)
 agent_flow.png       동작 흐름 연필스케치 다이어그램
@@ -184,14 +184,12 @@ trace 에 api_key 등 민감정보가 남지 않도록 두 겹으로 방어한�
 - 이에 따라 셀프judge(assets/judge.py 등)는 제거하고 정석 방식으로 전환했다.
 
 ### 등록 (judge_register.py)
-실행하면 3단계를 숫자로 선택한다.
-- **[1/3] 평가지 선택** — `mocks/judge_templates.json`(목업)에서 고른다. 5종: 정확성/유용성/안전성/간결성/종합품질. 나중에 프롬프트/DB로 소스만 바꿔도 "목록→선택" 흐름은 재사용된다.
-- **[2/3] 평가용 LLM 선택** — MLflow AI Gateway 엔드포인트 목록에서 고른다(필수). `gateway:/<이름>` 형식으로 judge 에 박힌다. (agent.py 와 같은 `assets/gateway_utils.py` 재사용)
-- **[3/3] 자동 트래킹 on/off** — 켜면 `sample_rate`(0.1~1.0)를 선택하고 `judge.register().start(ScorerSamplingConfig(sample_rate=...))` 로 새 trace 를 자동 채점한다(1시간 내 trace 대상). 끄면 등록만 하고 평가는 evaluate.py 로 수동 실행한다.
+실행하면 2단계를 숫자로 선택한다.
+- **[1/2] 평가지 선택** — `mocks/judge_templates.json`(목업)에서 고른다. 5종: 정확성/유용성/안전성/간결성/종합품질. 나중에 프롬프트/DB로 소스만 바꿔도 "목록→선택" 흐름은 재사용된다.
+- **[2/2] 평가용 LLM 선택** — MLflow AI Gateway 엔드포인트 목록에서 고른다(필수). `gateway:/<이름>` 형식으로 judge 에 박힌다. (agent.py 와 같은 `assets/gateway_utils.py` 재사용)
 
 ```python
 from mlflow.genai.judges import make_judge
-from mlflow.genai.scorers import ScorerSamplingConfig
 
 judge = make_judge(
     name=tmpl["name"],
@@ -199,9 +197,10 @@ judge = make_judge(
     model="gateway:/<엔드포인트명>",
     feedback_value_type=int,             # 1~5 정수
 )
-registered = judge.register(experiment_id=...)                 # Judges 탭 등록
-registered.start(sampling_config=ScorerSamplingConfig(0.5))    # (선택) 자동 트래킹
+judge.register(experiment_id=...)        # Judges 탭 등록
 ```
+
+> **자동 트래킹(자동 평가)은 현재 보류** — 아래 "자동 평가 미지원 사유 + TODO" 참고.
 
 ### 평가 실행 (evaluate.py)
 등록된 judge 를 목록에서 골라 최근 trace 를 채점한다. LLM 은 judge 가 등록 시 이미 갖고 있으므로 여기서 다시 고르지 않는다.
@@ -214,13 +213,13 @@ mlflow.genai.evaluate(data=traces, scorers=[judge])   # trace 평가 → Feedbac
 - **템플릿 변수**: 우리 trace 는 `agent_pipeline` span 안에 질문/답변이 들어 있어 root 에서 inputs/outputs 자동 추출이 안 될 수 있다. 그래서 평가지는 **`{{ trace }}`** 변수를 쓴다(judge 가 trace 전체를 탐색). `{{ trace }}` 는 `{{ inputs }}/{{ outputs }}` 와 함께 못 쓴다. 리터럴 중괄호는 `{{ }}` 로 이스케이프.
 - **모델 지정**: `gateway:/<엔드포인트명>` (등록 시 gateway 목록에서 선택).
 - **gateway 인증**: gateway 가 MLflow 서버 위에 있어 호출 시 MLflow Basic 인증(아이디:비번)을 요구한다. litellm.completion 을 래핑해 `Authorization: Basic` 헤더를 주입한다. (→ 게이트웨이_사용정리.md)
-- **자동 트래킹**: LLM judge 만 지원. `Scorer.start()/stop()/update()`, `ScorerSamplingConfig(sample_rate, filter_string)`. 켜진 뒤 1시간 내 trace 가 대상.
+- **자동 트래킹(자동 평가) — 현재 미지원 (TODO)**: `Scorer.start()` + `ScorerSamplingConfig` 로 새 trace 를 서버가 자동 채점하는 기능은 API 상 존재하나, **우리 환경에서는 인증 문제로 동작하지 않는다.** 자동 평가는 MLflow 서버가 저장된 judge 를 불러와 gateway 를 호출하는데, gateway 는 Basic 인증을 요구하고 그 인증을 judge 에 저장할 방법이 없다(`make_judge(extra_headers=...)` 는 `register` 시 직렬화에 포함되지 않아 사라짐 — 3.13 확인). 우리 코드의 litellm 몽키패치는 스크립트 프로세스에서만 유효해 서버 자동 실행에는 닿지 않는다. → **현재는 수동 평가(evaluate.py)만 사용.** 자동 평가는 MLflow 서버가 gateway 인증을 실을 수 있는지 인프라팀 확인 후 재검토. (상세: 게이트웨이_사용정리.md)
 - **서빙과 분리**: judge 는 쌓인 trace 를 평가하므로 서빙과 타이밍 무관. AI Gateway 는 judge 실행 시에만 필요.
-- **버전 요구**: `make_judge` >= 3.4.0. 자동 트래킹 API 는 현재 환경(3.13)에서 사용.
+- **버전 요구**: `make_judge` >= 3.4.0 (현재 환경 3.13).
 
 ### 사용
 ```bash
-python judge_register.py   # 평가지+LLM 선택, 자동 트래킹 설정, judge 등록
+python judge_register.py   # 평가지 + gateway LLM 선택, judge 등록
 python evaluate.py         # 등록된 judge 로 최근 trace 평가
 ```
 
@@ -285,7 +284,7 @@ MLflow는 프롬프트를 실험에 태그로 묶을 수 있다.
 2. **rag 실제 연결** — Milvus, LangChain Retriever.
 3. **tool 실제 연동** — 실제 API + function calling, LangChain Tool 전환.
 4. **프롬프트 태그 필터** — experiment_id 필터로 에이전트/유저별 분리.
-5. **judge 고도화** — 평가 기준별 judge 분리, 자동 평가(sampling) 설정, 인간 피드백 정렬(align).
+5. **judge 고도화** — 평가 기준별 judge 분리, 자동 평가(현재 인증 이슈로 보류, 인프라팀 확인 예정), 인간 피드백 정렬(align).
 6. **빌더 연동** — config를 포탈 DB로 외부화, user_id 인증, 시크릿 암호화 (장기 보류).
 
 ### 미정 (방향만)
