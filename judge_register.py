@@ -10,9 +10,7 @@
    2. 평가지(채점 기준) 선택        - mocks/judge_templates.json 에서 숫자로 선택
    3. 평가용 LLM 선택               - MLflow AI Gateway 목록에서 숫자로 선택
    4. make_judge + register()      - Judges 탭에 등록
-   5. 자동 트래킹 on/off 선택       - on 이면 sample_rate 도 선택
-        on  → judge.register().start(ScorerSamplingConfig(sample_rate=...))
-              지금부터 들어오는 trace 를 계속 자동 채점 (켠 시점 기준 과거 1시간 이내 trace 포함)
+        평가 실행은 evaluate.py 로 수동으로 한다.
         off → 등록만 (평가는 evaluate.py 로 수동 실행)
 
  [사용]
@@ -31,7 +29,6 @@ import logging
 
 import mlflow
 from mlflow.genai.judges import make_judge
-from mlflow.genai.scorers import ScorerSamplingConfig
 
 # gateway 조회 공통 모듈 (agent.py 와 공유)
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -84,8 +81,7 @@ def _require_litellm() -> bool:
 
 
 def _basic_auth_value() -> str:
-    """MLflow 아이디/비번으로 'Basic <base64>' 문자열을 만든다.
-    make_judge(extra_headers=...) 와 litellm 패치 양쪽에서 쓴다."""
+    """MLflow 아이디/비번으로 'Basic <base64>' 문자열을 만든다. (litellm 패치에서 사용)"""
     basic = base64.b64encode(
         f"{MLFLOW_USERNAME}:{MLFLOW_PASSWORD}".encode("utf-8")
     ).decode("ascii")
@@ -102,8 +98,6 @@ def _connect():
 
     # gateway 는 HTTP Basic 인증을 요구한다. judge 가 gateway 모델을 호출할 때
     # (내부적으로 litellm.completion) 매번 Authorization 헤더가 실리도록 패치한다.
-    # (이것은 "이 스크립트로 수동 실행" 시의 경로. 자동 평가는 make_judge 의
-    #  extra_headers 로 judge 에 저장된 헤더를 서버가 사용한다 - 아래 register 참고.)
     if _is_set(MLFLOW_USERNAME) and _is_set(MLFLOW_PASSWORD):
         _patch_litellm_basic_auth(_basic_auth_value())
         os.environ.setdefault("OPENAI_API_KEY", "gateway-basic-auth")
@@ -164,7 +158,7 @@ def _load_templates() -> list:
 
 def _pick_template(templates: list) -> dict:
     """평가지를 숫자로 선택한다."""
-    print("\n[1/3] 평가지(채점 기준)를 선택하세요:")
+    print("\n[1/2] 평가지(채점 기준)를 선택하세요:")
     for i, t in enumerate(templates, 1):
         print(f"    [{i}] {t.get('label', t['name'])}  - {t.get('description', '')}")
     idx = _pick_number("  번호 선택: ", len(templates))
@@ -173,32 +167,12 @@ def _pick_template(templates: list) -> dict:
 
 def _pick_llm() -> str:
     """gateway 에서 평가용 LLM 을 선택해 'gateway:/<이름>' 형식으로 반환한다."""
-    print("\n[2/3] 평가용 LLM(gateway 엔드포인트)을 선택하세요:")
+    print("\n[2/2] 평가용 LLM(gateway 엔드포인트)을 선택하세요:")
     print("Gateway 엔드포인트 조회 중 ...", end=" ", flush=True)
     endpoints = list_gateway_endpoints(MLFLOW_TRACKING_URI, MLFLOW_USERNAME, MLFLOW_PASSWORD)
     print(f"완료 ({len(endpoints)}개)")
     chosen = prompt_pick_endpoint(endpoints, "평가용 LLM 엔드포인트", required=True)
     return f"gateway:/{chosen.get('name')}"
-
-
-def _pick_auto_tracking() -> float:
-    """자동 트래킹 여부 + sample_rate 를 선택한다.
-    반환: sample_rate(0.1~1.0) 또는 None(자동트래킹 끔)."""
-    print("\n[3/3] 자동 트래킹(새 trace 를 judge 가 자동 채점)을 켤까요?")
-    print("    [1] 켜기")
-    print("    [2] 끄기 (등록만 - 평가는 evaluate.py 로 수동 실행)")
-    on = _pick_number("  번호 선택: ", 2)
-    if on == 2:
-        return None
-
-    print("\n  샘플링 비율(자동 채점할 trace 비율)을 선택하세요:")
-    for i in range(1, 11):
-        rate = i / 10
-        pct = int(rate * 100)
-        note = " - 전부 평가" if i == 10 else (" - 절반만 평가" if i == 5 else "")
-        print(f"    [{i}] {rate:.1f} ({pct}%{note})")
-    idx = _pick_number("  번호 선택: ", 10)
-    return idx / 10
 
 
 # #############################################################################
@@ -218,48 +192,25 @@ def register():
     exp = mlflow.set_experiment(MLFLOW_EXPERIMENT)
 
     templates = _load_templates()
-    tmpl = _pick_template(templates)         # [1/3] 평가지
-    judge_model = _pick_llm()                # [2/3] gateway LLM
-    sample_rate = _pick_auto_tracking()      # [3/3] 자동 트래킹 (+비율)
-
-    # judge 에 gateway 인증 헤더(Basic)를 저장한다.
-    #   이렇게 하면 자동 트래킹(서버가 judge 를 실행)에서도 서버가 이 헤더로
-    #   gateway 를 호출하므로 인증이 통과된다. (litellm 몽키패치는 이 스크립트
-    #   프로세스에서만 유효해 자동 평가에는 닿지 않으므로, extra_headers 가 정석.)
-    extra_headers = None
-    if _is_set(MLFLOW_USERNAME) and _is_set(MLFLOW_PASSWORD):
-        extra_headers = {"Authorization": _basic_auth_value()}
+    tmpl = _pick_template(templates)         # [1/2] 평가지
+    judge_model = _pick_llm()                # [2/2] gateway LLM
 
     judge = make_judge(
         name=tmpl["name"],
         instructions=tmpl["instructions"],
         model=judge_model,
         feedback_value_type=int,             # 1~5 정수
-        extra_headers=extra_headers,         # gateway Basic 인증 (자동 평가에도 저장됨)
     )
-    registered = judge.register(experiment_id=exp.experiment_id)
+    judge.register(experiment_id=exp.experiment_id)
 
     print("\n" + "=" * 60)
     print(" Judge 등록 완료")
     print(f"  평가지     : {tmpl.get('label', tmpl['name'])} ({tmpl['name']})")
     print(f"  평가 LLM   : {judge_model}")
     print(f"  experiment : {MLFLOW_EXPERIMENT} (id={exp.experiment_id})")
-
-    if sample_rate is not None:
-        try:
-            registered.start(sampling_config=ScorerSamplingConfig(sample_rate=sample_rate))
-            print(f"  자동 트래킹: 켜짐 (sample_rate={sample_rate:.1f}, {int(sample_rate*100)}%)")
-            print("    → 지금부터 새로 들어오는 trace 를 계속 자동 채점합니다.")
-            print("       (켠 시점 기준 과거 1시간 이내의 trace 도 함께 채점됩니다.)")
-        except Exception as e:
-            print(f"  자동 트래킹: 시작 실패 - {type(e).__name__}: {e}")
-            print("    (등록 자체는 완료됨. 이 서버/버전이 자동 채점을 지원하지 않을 수 있음.)")
-    else:
-        print("  자동 트래킹: 꺼짐 (평가는 evaluate.py 로 수동 실행)")
-
+    print("  → 평가는 evaluate.py 로 실행하세요 (python evaluate.py)")
     print("  → MLflow > GenAI > Judges 에서 확인")
     print("=" * 60)
-    return registered
 
 
 def safe_main():
